@@ -246,15 +246,38 @@ into both native projects — re-run it after every web-code change before build
 ## App icons & splash screens
 
 `frontend/resources/icon.svg` is the 1024×1024 source (the app's dumbbell glyph on the
-app background). Generate all platform assets from it on a machine with the tooling:
+app background). The generated Android resources in `frontend/android/app/src/main/res/`
+and iOS asset catalog in `frontend/ios/App/App/Assets.xcassets/` are versioned in Git.
+Normal builds use these files as-is: `npm run build:mobile` synchronizes the web bundle
+and plugins with Capacitor 7; it does not regenerate icons or splash screens.
 
-```sh
-cd frontend
-npx @capacitor/assets generate --iconBackgroundColor '#0c0e12' --splashBackgroundColor '#0c0e12'
-```
+`@capacitor/assets` was removed because its published version pulls in vulnerable
+development dependencies. Do not reinstall it or run it through `npx` to build the app.
 
-(If the generator won't take the SVG directly, export it to `resources/icon.png` at
-1024×1024 first — any image tool can do it.)
+When changing the artwork, regenerate the resources with locally installed image tools
+and the native IDEs, without adding an npm image generator to the frontend:
+
+1. Edit `frontend/resources/icon.svg` and export a 1024×1024 PNG with a local SVG editor
+   (for example, Inkscape). Keep the `#0c0e12` background; export a separate transparent
+   glyph for the Android adaptive icon's foreground layer.
+2. **Android:** open `frontend/android` in Android Studio. Right-click `app/src/main/res`
+   and choose **New → Image Asset → Launcher Icons (Adaptive and Legacy)**. Use the
+   foreground glyph and `#0c0e12` background, retain the `ic_launcher` / `ic_launcher_round`
+   resource names, and review the previews and generated files. See
+   [Image Asset Studio](https://developer.android.com/studio/write/create-app-icons).
+3. **iOS (macOS):** open `frontend/ios/App/App.xcworkspace` in Xcode and replace the
+   1024×1024 image in `Assets.xcassets/AppIcon.appiconset`. Keep the existing filename
+   `AppIcon-512@2x.png` or update its `Contents.json` reference if renamed. See
+   [Xcode app icons](https://developer.apple.com/documentation/xcode/configuring-your-app-icon).
+4. **Splash screens:** export replacements at the existing PNG dimensions with the same
+   background and centered artwork. Preserve Android's `drawable*/splash.png` paths,
+   density/orientation/night variants, and the iOS `Splash.imageset` light/dark images
+   and scale references in `Contents.json`. Update the PWA icons in `frontend/public/`
+   separately if the logo changed.
+5. Review `git diff`, rebuild with `npm run build:mobile`, and check launcher icons and
+   splash screens on Android and iOS, including light/dark mode and portrait/landscape.
+   Version the updated source and generated resources together so CI and self-hosted
+   builds continue to work without image-generation tooling.
 
 ## Distribution — deliberately no app stores
 
