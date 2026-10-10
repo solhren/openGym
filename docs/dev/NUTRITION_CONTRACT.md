@@ -1,5 +1,9 @@
 # Nutrition data contract — step 1
 
+The separate [step 2 persistence contract](NUTRITION_PERSISTENCE.md) now defines versioned
+serialization and publication/recovery plans. It leaves these business models, calculations
+and the existing profile storage unchanged; real storage and network adapters remain deferred.
+
 This module defines JSON-shaped domain records and pure calculations. It is not wired into the
 store, API, sync, screens, or external food services. No dependency was added and no wger code,
 data, media, or test fixtures were copied. The concepts informed the design; the implementation
