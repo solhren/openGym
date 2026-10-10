@@ -1,5 +1,9 @@
 # Nutrition persistence contract — step 2, serialization only
 
+Step 2.2 implements the local adapters and delivery/retention policy in
+[Nutrition local storage](NUTRITION_LOCAL_STORAGE.md). The portable formats below stay v1;
+an additional local root publishes delivery state atomically and allows unsent compaction.
+
 The pure modules in `frontend/src/lib/nutrition` define storage bytes and publication rules.
 They do not open IndexedDB, write files, change the existing profile store, call APIs, merge
 devices or connect to the UI. The domain records and validators from step 1 remain unchanged.
