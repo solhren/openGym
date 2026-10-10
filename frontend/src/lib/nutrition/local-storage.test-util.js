@@ -2,12 +2,13 @@ import { mkdtemp, mkdir, readdir, readFile, rename, open, unlink, rm } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { manifestKey } from './local-contract.js'
 
 // Transactional IDB model: isolated working copies, serialized transactions across connections,
 // asynchronous requests, automatic commit and rollback on abort/quota. Not a browser substitute.
 export function transactionalIdb() {
   const databases = new Map()
-  const control = { databases, connections: [], failAt: null, operations: 0, options: [] }
+  const control = { databases, connections: [], failAt: null, operations: 0, options: [], documentReads: 0 }
   const idb = {
     open(name) {
       const request = {}
@@ -74,16 +75,17 @@ export function transactionalIdb() {
               return result
             }
             tx.objectStore = key => ({
-              get: id => enqueue(() => structuredClone(working.get(key).get(id))),
+              get: id => enqueue(() => { if (key === 'documents') control.documentReads++; return structuredClone(working.get(key).get(id)) }),
               put: (value, id) => enqueue(mutation(() => working.get(key).set(id, structuredClone(value)))),
               delete: id => enqueue(mutation(() => working.get(key).delete(id))),
-              openCursor: () => {
+              openKeyCursor: () => tx.objectStore(key).openCursor(true),
+              openCursor: (keyOnly = false) => {
                 const request = {}
                 let list, index = 0
                 const step = () => {
                   tasks.push({ request, run: () => {
                     list ??= [...working.get(key).entries()]
-                    return index < list.length ? { key: list[index][0], value: structuredClone(list[index][1]),
+                    return index < list.length ? { key: list[index][0], value: keyOnly ? undefined : structuredClone(list[index][1]),
                       continue: () => { index++; step() } } : null
                   } }); advance()
                 }
@@ -112,9 +114,9 @@ export function transactionalIdb() {
 // Simulator of the native bridge protocol, using real temporary files and fsync/rename.
 // Faults occur AFTER each durable phase (including after publication but before its response).
 // OS-level Android/iOS locking and hardware durability still require device validation.
-export async function diskBridge() {
-  const base = await mkdtemp(join(tmpdir(), 'opengym-nutrition-'))
-  const control = { failAt: null, phases: 0, base, beforeCollect: null }
+export async function diskBridge({ baseDirectory } = {}) {
+  const base = baseDirectory ?? await mkdtemp(join(tmpdir(), 'opengym-nutrition-'))
+  const control = { failAt: null, phases: 0, base, beforeCollect: null, documentReads: 0 }
   const queues = new Map()
   const lock = async (scope, work) => {
     const previous = queues.get(scope) ?? Promise.resolve()
@@ -125,6 +127,7 @@ export async function diskBridge() {
     finally { release() }
   }
   const read = async path => {
+    if (/\/[pm]-[a-f0-9]{64}\.json$/.test(path)) control.documentReads++
     try { return new TextDecoder('utf-8', { fatal: true }).decode(await readFile(path)) }
     catch (error) { if (error.code === 'ENOENT') return null; throw Object.assign(error, { code: 'IO_FAILED' }) }
   }
@@ -137,6 +140,32 @@ export async function diskBridge() {
     if (++control.phases === control.failAt) throw Object.assign(new Error('interruption'), { code: 'IO_FAILED' })
   }
   const plugin = {
+    headers: ({ scope }) => lock(scope, async directory => {
+      const root = await read(join(directory, 'root.json')), previous = await read(join(directory, 'previous.json'))
+      const objects = []
+      for (const key of new Set([manifestKey(root), manifestKey(previous)].filter(Boolean))) {
+        const text = await read(join(directory, key + '.json'))
+        if (text !== null) objects.push({ key, text })
+      }
+      let index = null
+      try { index = await read(join(directory, 'index.json')) } catch { /* derived hint only */ }
+      return { root, previous, index, objects,
+        hasDocuments: (await readdir(directory)).some(name => /^[pm]-[a-f0-9]{64}\.json$/.test(name)) }
+    }),
+    readDocuments: ({ scope, expectedRoot, expectedPrevious, keys }) => lock(scope, async directory => {
+      if (await read(join(directory, 'root.json')) !== expectedRoot || await read(join(directory, 'previous.json')) !== expectedPrevious) throw { code: 'STALE_ROOT' }
+      const objects = []
+      for (const key of keys) {
+        const text = await read(join(directory, key + '.json'))
+        if (text !== null) objects.push({ key, text })
+      }
+      return { objects }
+    }),
+    saveIndex: ({ scope, expectedRoot, expectedPrevious, index }) => lock(scope, async directory => {
+      if (await read(join(directory, 'root.json')) !== expectedRoot || await read(join(directory, 'previous.json')) !== expectedPrevious) throw { code: 'STALE_ROOT' }
+      await atomic(directory, 'index.json', index)
+      return { saved: true }
+    }),
     snapshot: ({ scope }) => lock(scope, async directory => ({ root: await read(join(directory, 'root.json')),
       previous: await read(join(directory, 'previous.json')), objects: await Promise.all(
         (await readdir(directory)).filter(name => /^[pm]-[a-f0-9]{64}\.json$/.test(name)).map(async name =>
@@ -165,5 +194,5 @@ export async function diskBridge() {
       })
     },
   }
-  return { plugin, control, cleanup: () => rm(base, { recursive: true, force: true }) }
+  return { plugin, control, cleanup: () => baseDirectory ? Promise.resolve() : rm(base, { recursive: true, force: true }) }
 }

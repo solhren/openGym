@@ -297,7 +297,10 @@ for (const kind of ['idb', 'fs']) describe(`Nutrition local storage (${kind})`, 
       await assert.rejects(action(), hasCode('no_complete_commit'))
     }
     assert.deepEqual(await f.backend.snapshot(), before)
-    await assert.rejects(f.reopen(), hasCode('no_complete_commit'))
+    const next = await f.reopen()
+    assert.equal((await next.inspect()).status, 'partially-verified')
+    await assert.rejects(next.verify(), hasCode('invalid_json'))
+    await assert.rejects(next.read(), hasCode('no_complete_commit'))
   })
 
   test('corrupt current publication recovers read-only and blocks writes/GC/queue changes', async () => {

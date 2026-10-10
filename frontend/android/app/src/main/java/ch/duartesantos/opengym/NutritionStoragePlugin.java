@@ -19,6 +19,8 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -113,6 +115,67 @@ public class NutritionStoragePlugin extends Plugin {
     private static String nullable(JSONObject data, String field) throws Exception {
         if (!data.has(field)) throw new StorageFailure("INVALID_ARGUMENT");
         return data.isNull(field) ? null : data.getString(field);
+    }
+    private static String manifestKey(String text) {
+        if (text == null) return null;
+        try {
+            JSONObject head = new JSONObject(text).optJSONObject("head");
+            String digest = head == null ? "" : head.optString("manifestDigest", "");
+            return digest.matches("[a-f0-9]{64}") ? "m-" + digest : null;
+        } catch (Exception ignored) { return null; } // JS validates the candidate root.
+    }
+    private static void compareRoots(File directory, JSONObject data) throws Exception {
+        if (!Objects.equals(read(new File(directory, "root.json")), nullable(data, "expectedRoot")) ||
+            !Objects.equals(read(new File(directory, "previous.json")), nullable(data, "expectedPrevious")))
+            throw new StorageFailure("STALE_ROOT");
+    }
+
+    @PluginMethod public void headers(PluginCall call) {
+        locked(call, directory -> {
+            String root = read(new File(directory, "root.json")), previous = read(new File(directory, "previous.json"));
+            JSObject result = new JSObject(); JSArray objects = new JSArray(); Set<String> seen = new HashSet<>();
+            for (String text : new String[] { root, previous }) {
+                String key = manifestKey(text);
+                if (key == null || !seen.add(key)) continue;
+                String value = read(new File(directory, key + ".json"));
+                if (value != null) { JSObject row = new JSObject(); row.put("key", key); row.put("text", value); objects.put(row); }
+            }
+            String index = null;
+            try { index = read(new File(directory, "index.json")); } catch (Exception ignored) { /* Rebuildable hint only. */ }
+            File[] files = directory.listFiles();
+            if (files == null) throw new StorageFailure("IO_FAILED");
+            boolean hasDocuments = false;
+            for (File file : files) if (file.getName().matches("[pm]-[a-f0-9]{64}\\.json")) { hasDocuments = true; break; }
+            result.put("root", root == null ? JSONObject.NULL : root);
+            result.put("previous", previous == null ? JSONObject.NULL : previous);
+            result.put("index", index == null ? JSONObject.NULL : index);
+            result.put("objects", objects); result.put("hasDocuments", hasDocuments);
+            return result;
+        });
+    }
+
+    @PluginMethod public void readDocuments(PluginCall call) {
+        locked(call, directory -> {
+            JSONObject data = call.getData(); compareRoots(directory, data);
+            org.json.JSONArray keys = data.getJSONArray("keys");
+            if (keys.length() > 4) throw new StorageFailure("INVALID_ARGUMENT");
+            JSArray objects = new JSArray(); Set<String> seen = new HashSet<>();
+            for (int i = 0; i < keys.length(); i++) {
+                String key = keys.getString(i);
+                if (!key.matches("[pm]-[a-f0-9]{64}") || !seen.add(key)) throw new StorageFailure("INVALID_KEY");
+                String text = read(new File(directory, key + ".json"));
+                if (text != null) { JSObject row = new JSObject(); row.put("key", key); row.put("text", text); objects.put(row); }
+            }
+            JSObject result = new JSObject(); result.put("objects", objects); return result;
+        });
+    }
+
+    @PluginMethod public void saveIndex(PluginCall call) {
+        locked(call, directory -> {
+            JSONObject data = call.getData(); compareRoots(directory, data);
+            atomicWrite(directory, "index.json", data.getString("index"));
+            JSObject result = new JSObject(); result.put("saved", true); return result;
+        });
     }
 
     @PluginMethod public void snapshot(PluginCall call) {

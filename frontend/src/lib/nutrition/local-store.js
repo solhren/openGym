@@ -5,6 +5,8 @@ import { assertPublishable, prepareCommit, readManifest, recoverCommit } from '.
 import { documentKey, isDocumentKey, makeLocalRoot, readLocalRoot, validateLocalQueue } from './local-contract.js'
 import { nutritionIdbBackend } from './local-store-idb.js'
 import { nutritionFsBackend } from './local-store-fs.js'
+import { nutritionLocalReader, makeDateIndex } from './local-reader.js'
+import { isNutritionDate } from './validate.js'
 
 const refOf = part => ({ id: part.id, digest: part.integrity.digest, revision: part.sync.revision, writeId: part.sync.writeId })
 const unsupported = error => error?.issues?.some(issue => ['unsupported_storage_version', 'unsupported_domain_version',
@@ -134,9 +136,10 @@ export async function createNutritionLocalStore(options) {
   const native = options.backend ? false : options.native ?? (await import('@capacitor/core')).Capacitor.isNativePlatform()
   const backend = options.backend ?? (native ? nutritionFsBackend(options.fs) : nutritionIdbBackend(options.idb))
   const scopeId = await contentHash(scope)
-  await backend.open(scopeId)
   let closed = false
   const assertOpen = () => check(!closed, 'storage', 'storage_closed')
+  const reader = nutritionLocalReader({ backend, scope, assertOpen, cache: options.cache })
+  await backend.open(scopeId)
   const load = async () => {
     assertOpen()
     const snapshot = await backend.snapshot()
@@ -161,8 +164,19 @@ export async function createNutritionLocalStore(options) {
       check([...state.objects].every(([key, text]) => replay.get(key) === text), 'storage', 'recovery_required')
     }
     assertOpen()
+    reader.changed()
     await backend.publish({ expectedRoot: state.snapshot.root, root: boundedJson(root), writes })
-    return { head: plan.head, manifest: plan.manifest }
+    // A derived index is dispensable. Its separate CAS cannot alter publication/outbox state.
+    // If an interrupted write leaves an older index, its manifest digest makes it unusable.
+    let indexIssue = null
+    try {
+      const index = await makeDateIndex(scope, checked.manifest, checked.domains)
+      assertOpen()
+      await backend.saveIndex({ expectedRoot: boundedJson(root), expectedPrevious: state.snapshot.root,
+        index: boundedJson(index) })
+      reader.acceptIndex()
+    } catch (error) { indexIssue = error.issues ?? [{ path: 'index', code: 'index_unavailable' }] }
+    return { head: plan.head, manifest: plan.manifest, ...(indexIssue ? { indexIssue } : {}) }
   }
   const queuePlan = async (state, pendingOperations, requestDigest, unsentId, inFlightId) => {
     const commitId = `local-${requestDigest}-${state.root.counter + 1}`
@@ -172,12 +186,27 @@ export async function createNutritionLocalStore(options) {
     await publish(state, plan, root)
     return plan
   }
-  // Validate existing storage on open, including unknown-format refusal. Never replace a
-  // corrupt root with an empty store or automatically publish a recovered older history.
-  try { await load() } catch (error) { backend.close(); throw error }
+  // Opening validates headers only; it never labels unvisited partitions as verified.
+  // A fallback must still be a fully checked older publication before exposing it on open.
+  try { const meta = await reader.metadata(); if (!meta.empty && meta.degraded) await load() }
+  catch (error) { backend.close(); throw error }
   return {
     name: backend.name,
     scopeId,
+    inspect() { return reader.inspect() },
+    async readDay(date) { assertOpen(); return reader.period({ start: date, end: date }) },
+    async readMonth(month) {
+      assertOpen()
+      check(typeof month === 'string' && /^\d{4}-\d{2}$/.test(month) && isNutritionDate(`${month}-01`), 'month', 'invalid_month')
+      const start = `${month}-01`
+      // UTC month length; avoid Date.UTC's special handling of years 0..99.
+      const date = new Date(`${start}T00:00:00Z`); date.setUTCMonth(date.getUTCMonth() + 1); date.setUTCDate(0)
+      return reader.period({ start, end: date.toISOString().slice(0, 10) })
+    },
+    async readPeriod(period) { assertOpen(); return reader.period(period) },
+    verify() { return reader.verify() },
+    invalidateCache() { assertOpen(); reader.invalidate() },
+    cacheStatus() { assertOpen(); return reader.cacheStatus() },
     async read() {
       const state = await load()
       return state.empty ? { status: state.degraded ? 'recovery-required' : 'empty', head: null, manifest: null,
@@ -264,6 +293,7 @@ export async function createNutritionLocalStore(options) {
       // Both root comparisons and all deletes share the backend's transaction/OS lock.
       // Readers get their complete byte snapshot under that same isolation boundary.
       assertOpen()
+      reader.changed()
       return backend.collect({ expectedRoot: state.snapshot.root, expectedPrevious: state.snapshot.previous, keys })
     },
     async storageStatus({ storage = globalThis.navigator?.storage, requestPersistence = false } = {}) {
@@ -276,6 +306,6 @@ export async function createNutritionLocalStore(options) {
       else if (storage?.persisted) persistent = await storage.persisted()
       return { backend: backend.name, persistent, estimate }
     },
-    close() { if (!closed) { closed = true; backend.close() } },
+    close() { if (!closed) { closed = true; reader.invalidate(); backend.close() } },
   }
 }

@@ -1,5 +1,5 @@
 import { check, jsonClone } from './persistence-contract.js'
-import { capturePublication, isDocumentKey, storageError } from './local-contract.js'
+import { capturePublication, captureRead, captureIndex, isDocumentKey, storageError } from './local-contract.js'
 
 // Filesystem alone has no lock/fsync/CAS API. The small project-owned native bridge performs
 // each call under an OS file lock and forces files/directories before publishing the root.
@@ -21,13 +21,16 @@ export function nutritionFsBackend({ loadPlugin = async () => {
       const attempt = ++epoch
       try {
         const loaded = await loadPlugin()
-        await loaded.snapshot({ scope: scopeId })
+        await loaded.headers({ scope: scopeId })
         if (attempt !== epoch) throw new Error('storage closed during open')
         scope = scopeId; plugin = loaded
       } catch (error) { throw storageError(error) }
       finally { if (attempt === epoch) opening = false }
     },
     snapshot() { return call('snapshot') },
+    headers() { return call('headers') },
+    async readDocuments(input) { return call('readDocuments', captureRead(input)) },
+    async saveIndex(input) { return call('saveIndex', captureIndex(input)) },
     async publish(input) { return call('publish', capturePublication(input)) },
     async collect(input) {
       const value = jsonClone(input)

@@ -9,6 +9,9 @@ public class NutritionStoragePlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "NutritionStoragePlugin"
     public let jsName = "NutritionStorage"
     public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "headers", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readDocuments", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "saveIndex", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "snapshot", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "publish", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "collect", returnType: CAPPluginReturnPromise)
@@ -118,6 +121,57 @@ public class NutritionStoragePlugin: CAPPlugin, CAPBridgedPlugin {
         if value is NSNull { return nil }
         guard let text = value as? String else { throw Failure(code: "INVALID_ARGUMENT") }
         return text
+    }
+    private func manifestKey(_ text: String?) -> String? {
+        guard let text = text, let parsed = try? JSONSerialization.jsonObject(with: Data(text.utf8)),
+            let value = parsed as? [String: Any],
+            let head = value["head"] as? [String: Any], let digest = head["manifestDigest"] as? String,
+            matches(digest, "^[a-f0-9]{64}$") else { return nil }
+        return "m-" + digest
+    }
+    private func compareRoots(_ directory: URL, _ call: CAPPluginCall) throws {
+        guard try read(directory.appendingPathComponent("root.json")) == nullable(call, "expectedRoot"),
+            try read(directory.appendingPathComponent("previous.json")) == nullable(call, "expectedPrevious") else {
+            throw Failure(code: "STALE_ROOT")
+        }
+    }
+    @objc func headers(_ call: CAPPluginCall) {
+        locked(call) { directory in
+            let root = try self.read(directory.appendingPathComponent("root.json"))
+            let previous = try self.read(directory.appendingPathComponent("previous.json"))
+            var objects: [[String: String]] = [], seen = Set<String>()
+            for text in [root, previous] {
+                guard let key = self.manifestKey(text), seen.insert(key).inserted else { continue }
+                if let text = try self.read(directory.appendingPathComponent(key + ".json")) { objects.append(["key": key, "text": text]) }
+            }
+            let index = try? self.read(directory.appendingPathComponent("index.json"))
+            let hasDocuments = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+                .contains { self.matches($0.lastPathComponent, "^[pm]-[a-f0-9]{64}\\.json$") }
+            return ["root": root as Any? ?? NSNull(), "previous": previous as Any? ?? NSNull(),
+                "index": index as Any? ?? NSNull(), "objects": objects, "hasDocuments": hasDocuments]
+        }
+    }
+    @objc func readDocuments(_ call: CAPPluginCall) {
+        locked(call) { directory in
+            try self.compareRoots(directory, call)
+            guard let keys = call.getArray("keys") as? [String], keys.count <= 4, Set(keys).count == keys.count else {
+                throw Failure(code: "INVALID_ARGUMENT")
+            }
+            var objects: [[String: String]] = []
+            for key in keys {
+                guard self.matches(key, "^[pm]-[a-f0-9]{64}$") else { throw Failure(code: "INVALID_KEY") }
+                if let text = try self.read(directory.appendingPathComponent(key + ".json")) { objects.append(["key": key, "text": text]) }
+            }
+            return ["objects": objects]
+        }
+    }
+    @objc func saveIndex(_ call: CAPPluginCall) {
+        locked(call) { directory in
+            try self.compareRoots(directory, call)
+            guard let index = call.getString("index") else { throw Failure(code: "INVALID_ARGUMENT") }
+            try self.atomicWrite(directory, "index.json", index)
+            return ["saved": true]
+        }
     }
     @objc func snapshot(_ call: CAPPluginCall) {
         locked(call) { directory in

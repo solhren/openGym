@@ -116,9 +116,9 @@ export async function prepareCommit(input) {
   return { expectedHead: base ? await headOf(base) : null, manifest, head: await headOf(manifest), writes }
 }
 
-function validateDataset(domains) {
+export function createDatasetValidator() {
   const live = new Set(), deleted = new Set()
-  for (const domain of domains) {
+  return { add(domain) {
     for (const [collection, rows] of Object.entries(domain.records)) {
       const ids = collection === 'nutritionSettings' ? ['$'] : rows.map(row => row.id)
       for (const id of ids) {
@@ -130,8 +130,14 @@ function validateDataset(domains) {
       const key = JSON.stringify([marker.collection, marker.id])
       check(!deleted.has(key), 'sync.tombstones', 'duplicate_dataset_tombstone'); deleted.add(key)
     }
-  }
-  for (const key of deleted) check(!live.has(key), 'sync.tombstones', 'dataset_live_tombstone_conflict')
+  }, finish() {
+    for (const key of deleted) check(!live.has(key), 'sync.tombstones', 'dataset_live_tombstone_conflict')
+  } }
+}
+function validateDataset(domains) {
+  const validation = createDatasetValidator()
+  for (const domain of domains) validation.add(domain)
+  validation.finish()
 }
 
 /** Only heads already published by an adapter are candidates. Orphan manifests/prepared

@@ -1,5 +1,5 @@
 import { check, exactKeys, isText, jsonClone } from './persistence-contract.js'
-import { capturePublication, isDocumentKey, storageError } from './local-contract.js'
+import { capturePublication, captureRead, captureIndex, isDocumentKey, manifestKey, storageError } from './local-contract.js'
 
 // One database per hashed (server origin, profile, generation). IDB serializes readwrite
 // transactions across connections/tabs; comparison, objects, outbox and head share one tx.
@@ -74,6 +74,56 @@ export function nutritionIdbBackend({ idb = globalThis.indexedDB } = {}) {
           if (row) { objects.push({ key: row.key, text: row.value }); row.continue() }
         }
         finish(result)
+      })
+    },
+    headers() {
+      return run('readonly', (tx, finish) => {
+        const roots = tx.objectStore('roots'), documents = tx.objectStore('documents'), seen = new Set()
+        const result = { root: null, previous: null, index: null, objects: [], hasDocuments: false }
+        roots.get('index').onsuccess = event => { result.index = event.target.result ?? null }
+        for (const key of ['root', 'previous']) roots.get(key).onsuccess = event => {
+          result[key] = event.target.result ?? null
+          const name = manifestKey(result[key])
+          if (name && !seen.has(name)) {
+            seen.add(name)
+            documents.get(name).onsuccess = event => {
+              if (event.target.result !== undefined) result.objects.push({ key: name, text: event.target.result })
+            }
+          }
+        }
+        documents.openKeyCursor().onsuccess = event => { result.hasDocuments = !!event.target.result }
+        finish(result)
+      })
+    },
+    async readDocuments(input) {
+      const value = captureRead(input)
+      return run('readonly', (tx, finish, abort) => {
+        const roots = tx.objectStore('roots'), objects = []
+        let answered = 0, matches = true
+        for (const [key, expected] of [['root', value.expectedRoot], ['previous', value.expectedPrevious]]) {
+          roots.get(key).onsuccess = event => {
+            matches &&= (event.target.result ?? null) === expected
+            if (++answered !== 2) return
+            if (!matches) { abort({ code: 'STALE_ROOT' }); return }
+            for (const key of value.keys) tx.objectStore('documents').get(key).onsuccess = event => {
+              if (event.target.result !== undefined) objects.push({ key, text: event.target.result })
+            }
+            finish({ objects })
+          }
+        }
+      })
+    },
+    async saveIndex(input) {
+      const value = captureIndex(input)
+      return run('readwrite', (tx, finish, abort) => {
+        const roots = tx.objectStore('roots')
+        let answered = 0, matches = true
+        for (const [key, expected] of [['root', value.expectedRoot], ['previous', value.expectedPrevious]]) roots.get(key).onsuccess = event => {
+          matches &&= (event.target.result ?? null) === expected
+          if (++answered !== 2) return
+          if (!matches) { abort({ code: 'STALE_ROOT' }); return }
+          roots.put(value.index, 'index'); finish({ saved: true })
+        }
       })
     },
     async publish(input) {

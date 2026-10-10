@@ -5,6 +5,33 @@ import { readHead } from './persistence-commit.js'
 export const LOCAL_FORMAT = 'opengym-nutrition-local-root'
 export const documentKey = (kind, digest) => `${kind}-${digest}`
 export const isDocumentKey = key => typeof key === 'string' && /^[pm]-[a-f0-9]{64}$/.test(key)
+export const MAX_READ_DOCUMENTS = 4
+
+export function captureRead(input) {
+  const value = jsonClone(input)
+  exactKeys(value, ['expectedRoot', 'expectedPrevious', 'keys'], '$')
+  for (const field of ['expectedRoot', 'expectedPrevious']) check(value[field] === null || typeof value[field] === 'string', field, 'text_required')
+  check(Array.isArray(value.keys) && value.keys.length <= MAX_READ_DOCUMENTS &&
+    value.keys.every(isDocumentKey) && new Set(value.keys).size === value.keys.length, 'keys', 'invalid_read_batch')
+  return value
+}
+export function captureIndex(input) {
+  const value = jsonClone(input)
+  exactKeys(value, ['expectedRoot', 'expectedPrevious', 'index'], '$')
+  captureRead({ expectedRoot: value.expectedRoot, expectedPrevious: value.expectedPrevious, keys: [] })
+  check(typeof value.index === 'string', 'index', 'text_required')
+  readDocument(value.index)
+  return value
+}
+
+// Headers only use this to locate candidate manifests; the reader validates the complete
+// root/head/manifest checksums and scopes before accepting any of these bytes.
+export function manifestKey(text) {
+  try {
+    const digest = JSON.parse(text)?.head?.manifestDigest
+    return typeof digest === 'string' && HASH_PATTERN.test(digest) ? documentKey('m', digest) : null
+  } catch { return null }
+}
 
 // The local envelope is separate from the portable v1 head/manifest. The queue's payloads and
 // references remain in that manifest; only delivery state and the durable local clock live here.
