@@ -4,10 +4,13 @@ Step 2.2 implements the local adapters and delivery/retention policy in
 [Nutrition local storage](NUTRITION_LOCAL_STORAGE.md). The portable formats below stay v1;
 an additional local root publishes delivery state atomically and allows unsent compaction.
 
-The pure modules in `frontend/src/lib/nutrition` define storage bytes and publication rules.
+The pure modules in `api/nutrition/core` define storage bytes and publication rules.
+`frontend/src/lib/nutrition` preserves its existing public imports through re-exports of the
+same source. Step 2.3 adds an independent [server API](NUTRITION_SERVER_API.md); sharing the
+validators/codec avoids a divergent server implementation and does not change portable v1 bytes.
 They do not open IndexedDB, write files, change the existing profile store, call APIs, merge
 devices or connect to the UI. The domain records and validators from step 1 remain unchanged.
-No dependency, schema key in `S`, server limit, or native resource is changed.
+No npm dependency, schema key in `S`, existing workout limit, or native resource is changed.
 
 ## Modules and boundaries
 

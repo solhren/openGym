@@ -141,6 +141,11 @@ tags:
       links, which let another device of the same person add a passkey of its own.
   - name: data
     description: Per-user state sync (the whole app state as one JSON blob)
+  - name: nutrition
+    description: >-
+      Independent portable v1 Nutrition storage. Namespace comes from the configured server
+      origin and authenticated user id. Upload immutable partitions before publishing their
+      manifest with an exact expected head. No training-state sync changes or automatic GC.
   - name: push
     description: Web Push (VAPID) subscriptions, rest-timer and test pushes
   - name: activity
@@ -2953,7 +2958,182 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /api/nutrition/head:
+    get:
+      tags: [nutrition]
+      summary: Read the Nutrition publication head and current manifest
+      description: >-
+        Validates headers; status partially-verified does not certify unvisited partitions.
+        A validated fallback is recovery-required and blocks publication. Missing roots with
+        confirmed publication evidence fail closed. Generation is explicit; no reset/adoption.
+      parameters:
+        - { $ref: '#/components/parameters/NutritionGeneration' }
+      responses:
+        '200':
+          description: Head/manifest or uninitialized scope; includes canonical namespace and generation.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [uninitialized, partially-verified, recovery-required] }
+                  head: { nullable: true, allOf: [{ $ref: '#/components/schemas/NutritionHead' }] }
+                  manifest: { nullable: true, allOf: [{ $ref: '#/components/schemas/NutritionManifest' }] }
+                  namespace: { type: object }
+                  generation: { type: string }
+                  issues: { type: array, items: { type: object } }
+        '400': { $ref: '#/components/responses/NutritionFailure' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/NutritionFailure' }
+        '503': { $ref: '#/components/responses/NutritionFailure' }
+
+  /api/nutrition/manifests/{digest}:
+    get:
+      tags: [nutrition]
+      summary: Read an immutable published Nutrition manifest
+      description: >-
+        Only the authenticated namespace. Older confirmed publications remain accessible;
+        prepared orphan manifests are not publications. This read verifies the manifest,
+        not the complete partition graph. Portable document bound is 512 KiB UTF-8.
+      parameters:
+        - { $ref: '#/components/parameters/NutritionGeneration' }
+        - { $ref: '#/components/parameters/NutritionDigest' }
+      responses:
+        '200':
+          description: Exact portable v1 manifest.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NutritionManifest' }
+        '400': { $ref: '#/components/responses/NutritionFailure' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NutritionFailure' }
+        '429': { $ref: '#/components/responses/NutritionFailure' }
+        '503': { $ref: '#/components/responses/NutritionFailure' }
+
+  /api/nutrition/partitions/{digest}:
+    get:
+      tags: [nutrition]
+      summary: Read an exact partition referenced by a published manifest
+      parameters:
+        - { $ref: '#/components/parameters/NutritionGeneration' }
+        - { $ref: '#/components/parameters/NutritionDigest' }
+        - name: manifest
+          in: query
+          required: true
+          description: Published manifest digest that references this current or pending version.
+          schema: { type: string, pattern: '^[a-f0-9]{64}$' }
+      responses:
+        '200':
+          description: Fully validated partition, including embedded snapshot references, scope and revision.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NutritionPartition' }
+        '400': { $ref: '#/components/responses/NutritionFailure' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NutritionFailure' }
+        '429': { $ref: '#/components/responses/NutritionFailure' }
+        '503': { $ref: '#/components/responses/NutritionFailure' }
+    put:
+      tags: [nutrition]
+      summary: Durably stage one immutable Nutrition partition
+      description: >-
+        Content-Type application/json, strict UTF-8, no content encoding, duplicate keys or
+        nesting beyond 64 levels. Maximum 524288 bytes. Digest must match validated v1 content.
+        An exact retry forces durability again. Upload does not publish or acknowledge an outbox
+        operation. All staged bytes count toward the account quota and are retained.
+      parameters:
+        - { $ref: '#/components/parameters/NutritionGeneration' }
+        - { $ref: '#/components/parameters/NutritionDigest' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NutritionPartition' }
+      responses:
+        '200':
+          description: Partition is staged durably; repeated identifies an exact retry.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  digest: { type: string }
+                  staged: { type: boolean }
+                  repeated: { type: boolean }
+        '400': { $ref: '#/components/responses/NutritionFailure' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/NutritionFailure' }
+        '408': { $ref: '#/components/responses/NutritionFailure' }
+        '413': { $ref: '#/components/responses/NutritionFailure' }
+        '415': { $ref: '#/components/responses/NutritionFailure' }
+        '429': { $ref: '#/components/responses/NutritionFailure' }
+        '503': { $ref: '#/components/responses/NutritionFailure' }
+        '507': { $ref: '#/components/responses/NutritionFailure' }
+
+  /api/nutrition/publications:
+    post:
+      tags: [nutrition]
+      summary: Conditionally publish a complete Nutrition graph and durable receipt
+      description: >-
+        Body is expectedHead, manifest and head; partition bytes must already be staged.
+        expectedHead is explicitly null only for initialization. Exact head CAS, next manifest
+        sequence, advancing changed-partition revisions/write ids, global record identities,
+        preservation of records/edit markers/tombstones and all pending references are validated.
+        A conflicting head/revision/id or concurrent account writer returns 409. Exact repeated
+        requests return the original durable receipt even after subsequent publications.
+        Maximum transport body 1572864 bytes; every nested portable document is at most 512 KiB.
+        A 503/connection loss after publication has unknown outcome: retry the identical request.
+        Receipts confirm a publication, not an automatic acknowledgment of a local operation.
+      parameters:
+        - { $ref: '#/components/parameters/NutritionGeneration' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedHead, manifest, head]
+              properties:
+                expectedHead: { nullable: true, allOf: [{ $ref: '#/components/schemas/NutritionHead' }] }
+                manifest: { $ref: '#/components/schemas/NutritionManifest' }
+                head: { $ref: '#/components/schemas/NutritionHead' }
+      responses:
+        '200':
+          description: Durable publication and receipt; exact retries never advance the head.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [head, receipt, repeated]
+                properties:
+                  head: { $ref: '#/components/schemas/NutritionHead' }
+                  receipt: { $ref: '#/components/schemas/NutritionReceipt' }
+                  repeated: { type: boolean }
+        '400': { $ref: '#/components/responses/NutritionFailure' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/NutritionFailure' }
+        '408': { $ref: '#/components/responses/NutritionFailure' }
+        '409': { $ref: '#/components/responses/NutritionFailure' }
+        '413': { $ref: '#/components/responses/NutritionFailure' }
+        '415': { $ref: '#/components/responses/NutritionFailure' }
+        '429': { $ref: '#/components/responses/NutritionFailure' }
+        '503': { $ref: '#/components/responses/NutritionFailure' }
+        '507': { $ref: '#/components/responses/NutritionFailure' }
+
 components:
+  parameters:
+    NutritionGeneration:
+      name: generation
+      in: query
+      required: true
+      description: Stable explicit generation, 1-256 UTF-8 bytes; never used verbatim as a path.
+      schema: { type: string, minLength: 1, maxLength: 256 }
+    NutritionDigest:
+      name: digest
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-f0-9]{64}$' }
   securitySchemes:
     cookieAuth:
       type: apiKey
@@ -2974,6 +3154,24 @@ components:
         skip the CSRF origin check; a browser never attaches this header on its own.
 
   responses:
+    NutritionFailure:
+      description: >-
+        Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid
+        contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished
+        content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict,
+        nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding;
+        429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome;
+        507 quota, file/generation limit or disk capacity. No automatic deletion on any error.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string }
+              code: { type: string }
+              issues: { type: array, items: { type: object } }
+              head: { type: object, nullable: true }
+              retryAfter: { type: integer }
     Unauthorized:
       description: No session, expired/revoked session, or a disabled account.
       content:
@@ -3099,6 +3297,85 @@ components:
           example: { error: "that code is wrong, used or expired", code: "link-invalid" }
 
   schemas:
+    NutritionHead:
+      type: object
+      additionalProperties: false
+      required: [format, storageVersion, domainVersion, namespace, generation, commitId, manifestDigest, integrity]
+      properties:
+        format: { type: string, enum: [opengym-nutrition-head] }
+        storageVersion: { type: integer, enum: [1] }
+        domainVersion: { type: integer, enum: [1] }
+        namespace: { type: object, description: Canonical serverOrigin and authenticated profileId. }
+        generation: { type: string }
+        commitId: { type: string, minLength: 1, maxLength: 256 }
+        manifestDigest: { type: string, pattern: '^[a-f0-9]{64}$' }
+        integrity: { type: object, description: SHA-256 over the canonical JSON payload without integrity. }
+    NutritionManifest:
+      type: object
+      additionalProperties: false
+      required: [format, storageVersion, domainVersion, namespace, generation, commitId, parentCommitId, sequence, partitions, pendingOperations, integrity]
+      properties:
+        format: { type: string, enum: [opengym-nutrition-manifest] }
+        storageVersion: { type: integer, enum: [1] }
+        domainVersion: { type: integer, enum: [1] }
+        namespace: { type: object }
+        generation: { type: string }
+        commitId: { type: string }
+        parentCommitId: { type: string, nullable: true }
+        sequence: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        partitions:
+          type: array
+          items: { $ref: '#/components/schemas/NutritionPartitionReference' }
+        pendingOperations: { type: array, items: { type: object }, description: Exact v1 stamped operations with immutable partition refs and removedPartitionIds. }
+        integrity: { type: object }
+    NutritionPartitionReference:
+      type: object
+      additionalProperties: false
+      required: [id, digest, revision, writeId]
+      properties:
+        id: { type: string, description: Validated journal-month-shard or library-shard identifier; never used as a file path. }
+        digest: { type: string, pattern: '^[a-f0-9]{64}$' }
+        revision: { type: integer, minimum: 0, maximum: 9007199254740991 }
+        writeId: { type: string, nullable: true }
+    NutritionPartition:
+      type: object
+      additionalProperties: false
+      required: [format, storageVersion, domainVersion, namespace, generation, id, kind, records, snapshots, sync, integrity]
+      description: >-
+        Portable persistence v1 document, maximum 512 KiB including its integrity envelope.
+        Packed rows, all snapshots/provenance, markers and metadata use the shared Nutrition
+        codec; no lossy coercion, implicit migration or snapshot inference is performed.
+      properties:
+        format: { type: string, enum: [opengym-nutrition-partition] }
+        storageVersion: { type: integer, enum: [1] }
+        domainVersion: { type: integer, enum: [1] }
+        namespace: { type: object }
+        generation: { type: string }
+        id: { type: string }
+        kind: { type: string, enum: [journal, library] }
+        records: { type: object }
+        snapshots: { type: object }
+        sync: { type: object, description: Revision/writeId plus v1 edits/tombstones and optional remote metadata. }
+        extensions: { type: object }
+        integrity: { type: object }
+    NutritionReceipt:
+      type: object
+      additionalProperties: false
+      required: [format, storageVersion, domainVersion, namespace, generation, commitId, requestDigest, head, integrity]
+      description: >-
+        Checksummed server confirmation for this exact canonical request. Does not itself
+        authenticate a future local outbox acknowledgment; that coordinator must bind its
+        frozen operation to this publication and verify the server/account/generation.
+      properties:
+        format: { type: string, enum: [opengym-nutrition-server-receipt] }
+        storageVersion: { type: integer, enum: [1] }
+        domainVersion: { type: integer, enum: [1] }
+        namespace: { type: object }
+        generation: { type: string }
+        commitId: { type: string }
+        requestDigest: { type: string, pattern: '^[a-f0-9]{64}$' }
+        head: { $ref: '#/components/schemas/NutritionHead' }
+        integrity: { type: object }
     Error:
       type: object
       required: [error]

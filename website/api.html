@@ -218,6 +218,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <a class="side-link" href="#password"><b>Password</b><span>Optional name &amp; password (PASSWORD_LOGIN)</span></a>
   <a class="side-link" href="#passkeys"><b>Passkeys</b><span>More passkeys &amp; device links</span></a>
   <a class="side-link" href="#data"><b>Data</b><span>State sync</span></a>
+  <a class="side-link" href="#nutrition"><b>Nutrition</b><span>Independent v1 manifests, partitions and publications</span></a>
   <a class="side-link" href="#push"><b>Push</b><span>Notifications &amp; rest timer</span></a>
   <a class="side-link" href="#activity"><b>Activity</b><span>Live presence</span></a>
   <a class="side-link" href="#media"><b>Media</b><span>Photos &amp; videos of your exercises &amp; workouts</span></a>
@@ -245,7 +246,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <p class="api-facts">
     <span>OpenAPI 3.1.0</span>
     <span>openGym v1.4.1</span>
-    <span>69 endpoints</span>
+    <span>74 endpoints</span>
     <span>AGPL-3.0-or-later</span>
   </p>
 
@@ -1563,6 +1564,321 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <div class="prow rrow">
     <span class="r-code s4">401</span>
     <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+    </div>
+  </div>
+</details>
+  </div>
+</section>
+
+<section class="api-sec" id="nutrition">
+  <h2>Nutrition</h2>
+  <p class="sub">Independent portable v1 Nutrition storage. Namespace comes from the configured server origin and authenticated user id. Upload immutable partitions before publishing their manifest with an exact expected head. No training-state sync changes or automatic GC.</p>
+  <div class="eps">
+
+<details class="ep" id="op-undefined">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/nutrition/head</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Read the Nutrition publication head and current manifest</span>
+  </summary>
+  <div class="ep-body">
+<p>Validates headers; status partially-verified does not certify unvisited partitions. A validated fallback is recovery-required and blocks publication. Missing roots with confirmed publication evidence fail closed. Generation is explicit; no reset/adoption.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">undefined</span>
+    <span class="p-type">any</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Head/manifest or uninitialized scope; includes canonical namespace and generation.<span class="r-sig">{ status: &quot;uninitialized&quot; | &quot;partially-verified&quot; | &quot;recovery-required&quot;, head: object, manifest: object, namespace: object, generation: string, issues: object[] }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-undefined">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/nutrition/manifests/{digest}</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Read an immutable published Nutrition manifest</span>
+  </summary>
+  <div class="ep-body">
+<p>Only the authenticated namespace. Older confirmed publications remain accessible; prepared orphan manifests are not publications. This read verifies the manifest, not the complete partition graph. Portable document bound is 512 KiB UTF-8.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">undefined</span>
+    <span class="p-type">any</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">undefined</span>
+    <span class="p-type">any</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Exact portable v1 manifest.<span class="r-sig"><a href="#schema-NutritionManifest">NutritionManifest</a></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">404</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-undefined">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/nutrition/partitions/{digest}</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Read an exact partition referenced by a published manifest</span>
+  </summary>
+  <div class="ep-body">
+
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">undefined</span>
+    <span class="p-type">any</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">undefined</span>
+    <span class="p-type">any</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">manifest<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc">Published manifest digest that references this current or pending version.</span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Fully validated partition, including embedded snapshot references, scope and revision.<span class="r-sig"><a href="#schema-NutritionPartition">NutritionPartition</a></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">404</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-undefined">
+  <summary>
+    <span class="m put">PUT</span>
+    <span class="ep-path"><code>/api/nutrition/partitions/{digest}</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Durably stage one immutable Nutrition partition</span>
+  </summary>
+  <div class="ep-body">
+<p>Content-Type application/json, strict UTF-8, no content encoding, duplicate keys or nesting beyond 64 levels. Maximum 524288 bytes. Digest must match validated v1 content. An exact retry forces durability again. Upload does not publish or acknowledge an outbox operation. All staged bytes count toward the account quota and are retained.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">undefined</span>
+    <span class="p-type">any</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">undefined</span>
+    <span class="p-type">any</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+<p class="ep-h">Request body</p><p class="p-desc"><a href="#schema-NutritionPartition">NutritionPartition</a></p>
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Partition is staged durably; repeated identifies an exact retry.<span class="r-sig">{ digest: string, staged: boolean, repeated: boolean }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">403</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">408</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">413</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">415</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">507</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-undefined">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/nutrition/publications</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Conditionally publish a complete Nutrition graph and durable receipt</span>
+  </summary>
+  <div class="ep-body">
+<p>Body is expectedHead, manifest and head; partition bytes must already be staged. expectedHead is explicitly null only for initialization. Exact head CAS, next manifest sequence, advancing changed-partition revisions/write ids, global record identities, preservation of records/edit markers/tombstones and all pending references are validated. A conflicting head/revision/id or concurrent account writer returns 409. Exact repeated requests return the original durable receipt even after subsequent publications. Maximum transport body 1572864 bytes; every nested portable document is at most 512 KiB. A 503/connection loss after publication has unknown outcome: retry the identical request. Receipts confirm a publication, not an automatic acknowledgment of a local operation.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">undefined</span>
+    <span class="p-type">any</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+<p class="ep-h">Request body <span class="p-hint">(JSON)</span></p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">expectedHead<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">manifest<em class="p-req" title="required">required</em></span>
+    <span class="p-type"><a href="#schema-NutritionManifest">NutritionManifest</a></span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">head<em class="p-req" title="required">required</em></span>
+    <span class="p-type"><a href="#schema-NutritionHead">NutritionHead</a></span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Durable publication and receipt; exact retries never advance the head.<span class="r-sig">{ head: <a href="#schema-NutritionHead">NutritionHead</a>, receipt: <a href="#schema-NutritionReceipt">NutritionReceipt</a>, repeated: boolean }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">403</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">408</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">409</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">413</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">415</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">507</span>
+    <span class="p-desc">Structured Nutrition error with code and optional issues/head/retryAfter. 400 invalid contract/query; 401 invalid session; 403 existing CSRF guard; 404 missing/unpublished content; 409 nutrition-stale-head, nutrition-stale-partition, nutrition-commit-id-conflict, nutrition-retired-partition or nutrition-busy; 413 size; 415 media type/encoding; 429 account budget; 503 corruption/recovery/unsupported format/busy/unknown outcome; 507 quota, file/generation limit or disk capacity. No automatic deletion on any error.</span>
   </div>
     </div>
   </div>
@@ -3165,6 +3481,291 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
        is <b>representative, not enforced</b>: the server stores it opaquely and the app
        grows it over time.</p>
     <div class="eps">
+
+<details class="ep sch" id="schema-NutritionHead">
+  <summary>
+    <span class="sch-name"><code>NutritionHead</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum"></span>
+  </summary>
+  <div class="ep-body">
+
+<div class="ptab">
+  <div class="prow">
+    <span class="p-name">format<em class="p-req" title="required">required</em></span>
+    <span class="p-type">&quot;opengym-nutrition-head&quot;</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">storageVersion<em class="p-req" title="required">required</em></span>
+    <span class="p-type">1</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">domainVersion<em class="p-req" title="required">required</em></span>
+    <span class="p-type">1</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">namespace<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object</span>
+    <span class="p-desc">Canonical serverOrigin and authenticated profileId.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">generation<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">commitId<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string <span class="p-hint">(&le; 256 chars)</span></span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">manifestDigest<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">integrity<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object</span>
+    <span class="p-desc">SHA-256 over the canonical JSON payload without integrity.</span>
+  </div>
+</div>
+  </div>
+</details>
+
+<details class="ep sch" id="schema-NutritionManifest">
+  <summary>
+    <span class="sch-name"><code>NutritionManifest</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum"></span>
+  </summary>
+  <div class="ep-body">
+
+<div class="ptab">
+  <div class="prow">
+    <span class="p-name">format<em class="p-req" title="required">required</em></span>
+    <span class="p-type">&quot;opengym-nutrition-manifest&quot;</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">storageVersion<em class="p-req" title="required">required</em></span>
+    <span class="p-type">1</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">domainVersion<em class="p-req" title="required">required</em></span>
+    <span class="p-type">1</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">namespace<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">generation<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">commitId<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">parentCommitId<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">sequence<em class="p-req" title="required">required</em></span>
+    <span class="p-type">integer <span class="p-hint">(0&ndash;9007199254740991)</span></span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">partitions<em class="p-req" title="required">required</em></span>
+    <span class="p-type"><a href="#schema-NutritionPartitionReference">NutritionPartitionReference</a>[]</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">pendingOperations<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object[]</span>
+    <span class="p-desc">Exact v1 stamped operations with immutable partition refs and removedPartitionIds.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">integrity<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+  </div>
+</details>
+
+<details class="ep sch" id="schema-NutritionPartitionReference">
+  <summary>
+    <span class="sch-name"><code>NutritionPartitionReference</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum"></span>
+  </summary>
+  <div class="ep-body">
+
+<div class="ptab">
+  <div class="prow">
+    <span class="p-name">id<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc">Validated journal-month-shard or library-shard identifier; never used as a file path.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">digest<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">revision<em class="p-req" title="required">required</em></span>
+    <span class="p-type">integer <span class="p-hint">(0&ndash;9007199254740991)</span></span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">writeId<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+  </div>
+</details>
+
+<details class="ep sch" id="schema-NutritionPartition">
+  <summary>
+    <span class="sch-name"><code>NutritionPartition</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Portable persistence v1 document, maximum 512 KiB including its integrity envelope.</span>
+  </summary>
+  <div class="ep-body">
+<p>Packed rows, all snapshots/provenance, markers and metadata use the shared Nutrition codec; no lossy coercion, implicit migration or snapshot inference is performed.</p>
+<div class="ptab">
+  <div class="prow">
+    <span class="p-name">format<em class="p-req" title="required">required</em></span>
+    <span class="p-type">&quot;opengym-nutrition-partition&quot;</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">storageVersion<em class="p-req" title="required">required</em></span>
+    <span class="p-type">1</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">domainVersion<em class="p-req" title="required">required</em></span>
+    <span class="p-type">1</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">namespace<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">generation<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">id<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">kind<em class="p-req" title="required">required</em></span>
+    <span class="p-type">&quot;journal&quot; | &quot;library&quot;</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">records<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">snapshots<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">sync<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object</span>
+    <span class="p-desc">Revision/writeId plus v1 edits/tombstones and optional remote metadata.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">extensions</span>
+    <span class="p-type">object</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">integrity<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+  </div>
+</details>
+
+<details class="ep sch" id="schema-NutritionReceipt">
+  <summary>
+    <span class="sch-name"><code>NutritionReceipt</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Checksummed server confirmation for this exact canonical request.</span>
+  </summary>
+  <div class="ep-body">
+<p>Does not itself authenticate a future local outbox acknowledgment; that coordinator must bind its frozen operation to this publication and verify the server/account/generation.</p>
+<div class="ptab">
+  <div class="prow">
+    <span class="p-name">format<em class="p-req" title="required">required</em></span>
+    <span class="p-type">&quot;opengym-nutrition-server-receipt&quot;</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">storageVersion<em class="p-req" title="required">required</em></span>
+    <span class="p-type">1</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">domainVersion<em class="p-req" title="required">required</em></span>
+    <span class="p-type">1</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">namespace<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">generation<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">commitId<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">requestDigest<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">head<em class="p-req" title="required">required</em></span>
+    <span class="p-type"><a href="#schema-NutritionHead">NutritionHead</a></span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">integrity<em class="p-req" title="required">required</em></span>
+    <span class="p-type">object</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+  </div>
+</details>
 
 <details class="ep sch" id="schema-Error">
   <summary>

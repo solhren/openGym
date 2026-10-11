@@ -35,6 +35,8 @@ WORKDIR /app
 # alpine packages it ships (openssl above all) fall behind their fixes. Taking the upgrades at
 # build time keeps the published image at alpine's current state without waiting for node.
 RUN apk upgrade --no-cache
+# Real process-death-safe Nutrition locks; no npm native addon or expiring lockfile lease.
+RUN apk add --no-cache flock
 
 # The unprivileged user Coach jobs drop to. Its uid cannot read /data, which is the control that
 # keeps a provider runtime away from users, passkeys and the session secret.
@@ -55,6 +57,8 @@ RUN npm ci --omit=dev --omit=optional && npm cache clean --force
 # else, and one that is missing only shows at boot, as ERR_MODULE_NOT_FOUND.
 COPY server.js push-messages.js nudge.js nudge-copy.js verify-error.js password.js rate-limit.js passkeys-store.js device-link.js media.js queue.js sync-stamps.js durable.js ./
 COPY coach ./coach
+COPY nutrition ./nutrition
+COPY shared ./shared
 ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
