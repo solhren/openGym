@@ -4,7 +4,7 @@ import {
   isCounter, exactKeys, jsonClone, sealDocument, verifiedDocument, validateScope, validateStamp,
   validateRevision, validateNamespace, sameNamespace, partitionKind,
 } from './persistence-contract.js'
-import { migratePartition, decodePartition } from './serialization.js'
+import { migratePartition, decodePartitionDocument } from './serialization.js'
 
 export const MANIFEST_FORMAT = 'opengym-nutrition-manifest'
 export const HEAD_FORMAT = 'opengym-nutrition-head'
@@ -159,29 +159,33 @@ export async function recoverCommit(input) {
       sameScope(manifest, captured.namespace, captured.generation)
       check(manifest.commitId === head.commitId, 'commitId', 'head_manifest_mismatch')
       const partitions = [], pendingPartitions = [], domains = [], loaded = new Map()
-      const load = async ref => {
+      const load = async (ref, retainDomain = true) => {
         const key = JSON.stringify([ref.id, ref.digest])
         if (loaded.has(key)) {
-          check(loaded.get(key).sync.revision === ref.revision && loaded.get(key).sync.writeId === ref.writeId, 'partitions', 'revision_mismatch')
+          check(loaded.get(key).partition.sync.revision === ref.revision && loaded.get(key).partition.sync.writeId === ref.writeId, 'partitions', 'revision_mismatch')
           return loaded.get(key)
         }
         const raw = captured.partitions.find(p => p?.id === ref.id && p?.integrity?.digest === ref.digest)
         check(!!raw, `partitions.${ref.id}`, 'missing_partition')
         // Committed bytes must already use the manifest's format; migration needs a new commit.
         check(raw.storageVersion === STORAGE_VERSION, `partitions.${ref.id}`, raw.storageVersion === 0 ? 'committed_migration_required' : 'unsupported_storage_version')
-        const part = await migratePartition(raw)
+        const decoded = await decodePartitionDocument(raw), part = decoded.partition
         sameScope(part, manifest.namespace, manifest.generation)
         check(part.sync.revision === ref.revision && part.sync.writeId === ref.writeId, `partitions.${ref.id}`, 'revision_mismatch')
-        loaded.set(key, part)
-        return part
+        // Pending-only versions still receive complete hydration/business validation,
+        // but their expanded domain is not a returned value. Do not retain ten years of
+        // divergent inline snapshots on top of the current reconstructed history.
+        if (!retainDomain) delete decoded.domain
+        loaded.set(key, decoded)
+        return decoded
       }
       for (const ref of manifest.partitions) {
-        const part = await load(ref)
-        partitions.push(part); domains.push(await decodePartition(part))
+        const { partition, domain } = await load(ref)
+        partitions.push(partition); domains.push(domain)
       }
       validateDataset(domains)
       for (const op of manifest.pendingOperations) for (const ref of op.partitions) {
-        const part = await load(ref)
+        const { partition: part } = await load(ref, false)
         if (!pendingPartitions.some(p => p.id === part.id && p.integrity.digest === part.integrity.digest)) pendingPartitions.push(part)
       }
       return { status: index === 0 ? 'current' : 'fallback', head, manifest, partitions, pendingPartitions, domains, issues }

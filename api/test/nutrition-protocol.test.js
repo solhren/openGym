@@ -38,3 +38,16 @@ test('Nutrition body abortion releases the request instead of publishing a parti
   req.push(Buffer.from('{"unfinished":')); req.emit('aborted');
   await assert.rejects(body, error => error.clientGone === true); req.destroy();
 });
+
+test('combined Nutrition recovery decoder preserves portable v1 and independently captured historical snapshots', async () => {
+  const { part } = await import('./nutrition-fixtures.mjs');
+  const { decodePartitionDocument, decodePartition } = await import('../nutrition/core/serialization.js');
+  const portable = await part(), decoded = await decodePartitionDocument(portable);
+  assert.deepEqual(decoded.partition, portable);
+  assert.deepEqual(decoded.domain, await decodePartition(portable));
+  decoded.domain.records.foodEntries[0].snapshot.name = 'Changed by consumer';
+  assert.equal(Object.values(decoded.partition.snapshots)[0].name, 'Oats');
+  assert.equal(Object.values(portable.snapshots)[0].name, 'Oats');
+  const broken = structuredClone(portable); broken.records.foodEntries[0].snapshotRef = '0'.repeat(64);
+  await assert.rejects(decodePartitionDocument(broken), error => error.issues.some(i => i.code === 'checksum_mismatch'));
+});

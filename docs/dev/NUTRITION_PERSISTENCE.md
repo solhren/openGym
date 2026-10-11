@@ -304,3 +304,15 @@ an adapter or simulate successful disk/network I/O.
 cd frontend
 npm test -- src/lib/nutrition src/store/persistence.test.js src/lib/sync-stamps-parity.test.js
 ```
+
+## Recovery performance without changing v1
+
+`decodePartitionDocument(value, { maxHydratedBytes }?)` adds a runtime helper returning
+`{ partition, domain }` after the same strict capture, checksums, references, business
+and sync-marker validation. Recovery uses it once per unique referenced version rather
+than calling migrate/decode separately. Existing helper signatures and serialized
+bytes are unchanged; no migration is required. Portable and hydrated outputs, repeated
+snapshots and caller data remain independent objects. Hydration's private copy routine
+is restricted to the already captured JSON tree, never general untrusted objects.
+Queued-only hydrated values are released after validation; their full portable versions
+remain pinned. The storage, CAS, outbox, fallback and retention protocols are unchanged.

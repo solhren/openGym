@@ -1,6 +1,6 @@
 import { describe, it, vi } from 'vitest'
 import assert from 'node:assert/strict'
-import { encodePartition, decodePartition, stringifyPartition, parsePartition, migratePartition, PARTITION_FORMAT } from './serialization.js'
+import { encodePartition, decodePartition, stringifyPartition, parsePartition, migratePartition, decodePartitionDocument, PARTITION_FORMAT } from './serialization.js'
 import { MAX_DOCUMENT_BYTES, byteLength, canonicalJson, journalPartitionId } from './persistence-contract.js'
 import { entry, food, recipe, freeze } from './fixtures.test-util.js'
 import { createRecipeSnapshot } from './recipe.js'
@@ -60,6 +60,31 @@ describe('versioned nutrition serialization', () => {
     old.nutrients.kcal = 2
     assert.equal(decoded.records.foodEntries[1].snapshot.nutrients.kcal, 380)
     assert.equal((await decodePartition(encoded)).records.foodEntries[0].snapshot.nutrients.kcal, 380)
+  })
+  it('combined recovery decode captures input before awaiting and keeps all outputs independent', async () => {
+    const original = journal({ records: { foodEntries: [entry(), entry({ id: 'b' })] } })
+    original.records.foodEntries[0].snapshot.metadata = JSON.parse('{"__proto__":{"keep":true},"nested":[{"x":1}]}')
+    original.records.foodEntries[1].snapshot = original.records.foodEntries[0].snapshot
+    const encoded = await encodePartition(original), result = decodePartitionDocument(encoded)
+    Object.values(encoded.snapshots)[0].name = 'caller mutation'
+    const { partition, domain } = await result
+    assert.deepEqual(domain, original)
+    assert.deepEqual(await encodePartition(domain), partition)
+    const rows = domain.records.foodEntries
+    rows[0].snapshot.metadata.nested[0].x = 2
+    rows[0].snapshot.metadata.__proto__.keep = false
+    assert.equal(rows[1].snapshot.metadata.nested[0].x, 1)
+    assert.equal(rows[1].snapshot.metadata.__proto__.keep, true)
+    assert.equal(Object.values(partition.snapshots)[0].metadata.nested[0].x, 1)
+    assert.equal({}.keep, undefined)
+    assert.equal(Object.values(partition.snapshots)[0].name, 'Oats')
+  })
+  it('combined recovery decode retains business, checksum and allocation boundaries', async () => {
+    const encoded = await encodePartition(journal())
+    await assert.rejects(decodePartitionDocument(encoded, { maxHydratedBytes: 1 }), hasCode('partition_hydration_limit'))
+    encoded.records.foodEntries[0].value.quantity.amount = -1
+    await assert.rejects(decodePartitionDocument(encoded), hasCode('checksum_mismatch'))
+    await assert.rejects(decodePartitionDocument(reseal(encoded)), hasCode('positive_number_required'))
   })
   it('captures caller data before asynchronous serialization', async () => {
     const input = journal(), result = encodePartition(input)

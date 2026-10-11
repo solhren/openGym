@@ -27,8 +27,8 @@ async function resolveRoot(text, scope, objects) {
     if (parts.has(key)) continue
     const value = objects.get(key)
     check(value !== undefined, `partitions.${ref.id}`, 'missing_partition')
-    // recoverCommit validates/hydrates every referenced document. Parse only here so we do
-    // not validate a 10-year history a third time before invoking the shared protocol.
+    // Capture only here: recoverCommit validates and hydrates every referenced document
+    // below. A preliminary hydration would only reconstruct the same history twice.
     parts.set(key, readDocument(value))
   }
   const recovery = await recoverCommit({ namespace: scope.namespace, generation: scope.generation,
@@ -36,7 +36,7 @@ async function resolveRoot(text, scope, objects) {
   validateLocalQueue(root, recovery.manifest)
   await validateConflictArchives(recovery.domains)
   for (const part of recovery.pendingPartitions) if (!recovery.partitions.some(p => p.integrity.digest === part.integrity.digest) &&
-    Object.hasOwn(part.extensions ?? {}, 'nutritionSyncConflicts')) await validateConflictArchives([await decodePartition(part)])
+    part.extensions !== undefined) await validateConflictArchives([await decodePartition(part)])
   let delivery = null
   if (root.delivery) {
     const raw = objects.get(documentKey('m', root.delivery.head.manifestDigest))
@@ -193,6 +193,7 @@ export async function createNutritionLocalStore(options) {
     get scope() { return jsonClone(scope) },
     deviceId,
     inspect() { return reader.inspect() },
+    readLibrary() { assertOpen(); return reader.library() },
     async readDay(date) { assertOpen(); return reader.period({ start: date, end: date }) },
     async readMonth(month) {
       assertOpen()

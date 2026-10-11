@@ -1,5 +1,9 @@
 # Nutrition local storage — step 2.2 and progressive reads
 
+Step 3's [UI adapter](NUTRITION_UI.md) adds `readLibrary()`: paired-root validated
+library-only reads with the same bounded cache and a 16 MiB hydration limit. Portable
+v1, write/cleanup authority and queue retention remain unchanged.
+
 The standalone coordinator reuses [the portable v1 contract](NUTRITION_PERSISTENCE.md).
 It does not change `gym_state_v1`, authentication, the UI or network sync. No dependency is added.
 
@@ -354,3 +358,19 @@ npm test -- src/lib/nutrition src/lib/sha256.test.js src/store/persistence.test.
   src/lib/sync-stamps-parity.test.js src/lib/media-store-idb.test.js src/lib/media-store-fs.test.js \
   src/lib/sync-merge.test.js --maxWorkers=2 --reporter=verbose
 ```
+
+### Write-path optimization (UI performance review)
+
+A restore/mutation capture gathers immutable document bytes under the same paired-root
+CAS guards and byte/hydration budgets. It does not hydrate them twice: local-store
+immediately passes the private capture to complete recovery, which validates every
+current and pending reference plus staged delivery and history extensions. This is
+not a progressive-read/cache authorization shortcut. Recovery obtains validated
+portable and hydrated data together; queued-only expanded domains are discarded after
+validation while their portable documents remain retained. Publication still checks
+the full proposed dataset, preserves history, and writes under the unchanged durable
+backend CAS protocol. No v1 format, limit, lock or retention rule changes.
+
+See NUTRITION_UI.md for measurements, regression coverage and remaining O(history)
+write/sync costs. Byte capture alone is internal and must never be treated as a
+verified domain or exposed to UI consumers without the subsequent recovery validator.

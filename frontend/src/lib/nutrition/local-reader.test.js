@@ -46,6 +46,20 @@ async function fixture(kind, cache) {
 }
 
 for (const kind of ['idb', 'fs']) describe(`progressive Nutrition reads (${kind})`, () => {
+  test('library-only reads avoid eager/journal reads, validate snapshots and isolate the cache', async () => {
+    const f = await fixture(kind)
+    await f.store.commit({ commitId: 'ui-library', partitions: [await encodePartition(library()), await encoded('2026-10', [entry()])] })
+    const next = await f.reopen(), original = next.backend.readDocuments.bind(next.backend), reads = []
+    next.backend.readDocuments = input => { reads.push(...input.keys); return original(input) }
+    const result = await next.store.readLibrary()
+    assert.equal(reads.length, 1); assert.equal(result.domains.length, 1)
+    result.domains[0].records.customFoods[0].name = 'tampered'
+    assert.equal((await next.store.readLibrary()).domains[0].records.customFoods[0].name, 'Oats')
+    assert.equal(reads.length, 1)
+    const digest = (await f.store.inspect()).manifest.partitions.find(ref => ref.id.startsWith('library-')).digest
+    await f.damage(documentKey('p', digest), '{}'); next.store.invalidateCache()
+    await assert.rejects(next.store.readLibrary(), hasCode('unsupported_storage_version'))
+  })
   test('complete verification detects duplicate identities across separately valid shards', async () => {
     const f = await fixture(kind)
     const corrupt = await prepareCommit({ namespace, generation: options.generation, commitId: 'invalid', baseManifest: null,
@@ -56,7 +70,28 @@ for (const kind of ['idb', 'fs']) describe(`progressive Nutrition reads (${kind}
       { key: documentKey('m', corrupt.manifest.integrity.digest), text: boundedJson(corrupt.manifest) }] })
     const next = await f.reopen()
     await assert.rejects(next.store.verify(), hasCode('duplicate_dataset_id'))
+    await assert.rejects(next.store.readForRestore({ maxBytes: 32 * 1024 * 1024 }), hasCode('no_complete_commit'))
     await assert.rejects(next.store.readDay('2026-10-10'), hasCode('duplicate_dataset_id'))
+  })
+
+  test('restore captures validate backup metadata in a pending-only version before exposing writable data', async () => {
+    const f = await fixture(kind)
+    const pending = await encodePartition(journal({ extensions: { nutritionBackupRestores: { version: 99, records: {} } } }))
+    const current = await encoded('2026-10', [entry()], 1)
+    const operation = { id: 'frozen', stamp: { counter: 1, deviceId: 'device-a' },
+      partitions: [{ id: pending.id, digest: pending.integrity.digest, revision: pending.sync.revision, writeId: pending.sync.writeId }], removedPartitionIds: [] }
+    const plan = await prepareCommit({ namespace, generation: options.generation, commitId: 'invalid-pending-metadata',
+      baseManifest: null, partitions: [current], pendingOperations: [operation] })
+    const root = await makeLocalRoot(options, plan.head, 1, null, operation.id, '0'.repeat(64))
+    await f.backend.publish({ expectedRoot: null, root: boundedJson(root), writes: [
+      ...[current, pending].map(part => ({ key: documentKey('p', part.integrity.digest), text: boundedJson(part) })),
+      { key: documentKey('m', plan.manifest.integrity.digest), text: boundedJson(plan.manifest) }] })
+    await assert.rejects(f.store.verify(), hasCode('unsupported_backup_metadata'))
+    // Local recovery wraps exhausted candidates as no_complete_commit, whereas the
+    // streaming verifier exposes the exact unsupported metadata issue above.
+    await assert.rejects(f.store.readForRestore({ maxBytes: 32 * 1024 * 1024 }), hasCode('no_complete_commit'))
+    await assert.rejects(f.store.commit({ commitId: 'must-refuse', partitions: [], expectedHead: plan.head }, { maxBytes: 32 * 1024 * 1024 }), hasCode('no_complete_commit'))
+    assert.equal((await f.store.inspect()).head.commitId, plan.head.commitId)
   })
 
   test('failed derived-index writes cannot roll back history or remove the persistent outbox', async () => {

@@ -3,6 +3,11 @@ import { test, vi } from 'vitest'
 import { saveNutritionBackup } from './backup-file.js'
 import { hasCode } from './persistence.test-util.js'
 const result = { blob: new Blob(['data']), digest: 'a'.repeat(64) }
+test('a changed session before hand-off refuses download/share without dropping the Blob', async () => {
+  const share = vi.fn(), guard = () => { throw new Error('session changed') }
+  await assert.rejects(saveNutritionBackup(result, { native: true, share, guard }), /session changed/)
+  assert.equal(share.mock.calls.length, 0); assert.equal(result.blob.size, 4)
+})
 test('native share uses generated path-safe filename and keeps Blob on rejection', async () => {
   const calls = [], shared = await saveNutritionBackup(result, { native: true, share: async (...args) => calls.push(args) })
   assert.equal(shared.filename, 'opengym-backup-aaaaaaaaaaaaaaaa.zip'); assert.equal(calls[0][0], result.blob)

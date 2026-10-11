@@ -70,6 +70,16 @@ export async function encodePartition(input) {
     domainVersion: DOMAIN_VERSION, records, snapshots: Object.fromEntries(snapshots) })
 }
 
+// Only for the private JSON tree returned by loadPartition, never caller objects.
+// Its descriptors have already been inspected and captured before any await. Copying
+// own data preserves independent historical snapshots without re-encoding/re-inspecting
+// every recurring snapshot. fromEntries also preserves own __proto__ keys safely.
+function copyCapturedJson(value) {
+  if (value === null || typeof value !== 'object') return value
+  if (Array.isArray(value)) return value.map(copyCapturedJson)
+  return Object.fromEntries(Object.keys(value).map(key => [key, copyCapturedJson(value[key])]))
+}
+
 async function hydrate(doc) {
   exactKeys(doc, [...domainKeys, 'format', 'storageVersion', 'domainVersion', 'snapshots', 'integrity'], '$',
     [...requiredKeys, 'format', 'storageVersion', 'domainVersion', 'snapshots', 'integrity'])
@@ -84,20 +94,20 @@ async function hydrate(doc) {
   const resolve = (ref, path, foodOnly = false) => {
     check(typeof ref === 'string' && HASH_PATTERN.test(ref), path, 'invalid_snapshot_reference')
     check(Object.hasOwn(doc.snapshots, ref), path, 'missing_snapshot')
-    const value = jsonClone(doc.snapshots[ref])
+    const value = copyCapturedJson(doc.snapshots[ref])
     if (foodOnly) check(value.kind === 'food', path, 'food_reference_required')
     return value
   }
   const valueOf = (row, excluded, path) => {
     check(isObject(row.value), `${path}.value`, 'object_required')
     check(!Object.hasOwn(row.value, excluded), `${path}.value.${excluded}`, 'reserved_storage_field')
-    return jsonClone(row.value)
+    return copyCapturedJson(row.value)
   }
   check(isObject(doc.records), 'records', 'object_required')
   const records = {}
   for (const [collection, rows] of Object.entries(doc.records)) {
     check(COLLECTIONS.includes(collection) && (doc.kind === 'journal') === (collection === 'foodEntries'), `records.${collection}`, 'invalid_collection')
-    if (collection === 'nutritionSettings') { records[collection] = jsonClone(rows); continue }
+    if (collection === 'nutritionSettings') { records[collection] = copyCapturedJson(rows); continue }
     check(Array.isArray(rows), `records.${collection}`, 'array_required')
     records[collection] = rows.map((row, i) => {
       const path = `records.${collection}[${i}]`
@@ -123,11 +133,11 @@ async function hydrate(doc) {
         return { ...valueOf(row, key, path), [key]: items }
       }
       exactKeys(row, ['value'], path)
-      return jsonClone(row.value)
+      return copyCapturedJson(row.value)
     })
   }
-  const domain = Object.fromEntries(requiredKeys.map(key => [key, key === 'records' ? records : jsonClone(doc[key])]))
-  if (Object.hasOwn(doc, 'extensions')) domain.extensions = jsonClone(doc.extensions)
+  const domain = Object.fromEntries(requiredKeys.map(key => [key, key === 'records' ? records : copyCapturedJson(doc[key])]))
+  if (Object.hasOwn(doc, 'extensions')) domain.extensions = copyCapturedJson(doc.extensions)
   validateDomain(domain)
   return domain
 }
@@ -146,9 +156,7 @@ async function loadPartition(value) {
   return doc
 }
 export async function migratePartition(value) {
-  const doc = await loadPartition(value)
-  await hydrate(doc)
-  return doc
+  return (await decodePartitionDocument(value)).partition
 }
 /** Conservative JSON-size estimate before allocating repeated dictionary snapshots.
  * A small packed partition may expand enormously; resource-sensitive callers must gate it
@@ -175,13 +183,19 @@ export function estimateHydratedPartitionBytes(doc) {
   }
   return bytes
 }
-export async function decodePartition(value, { maxHydratedBytes } = {}) {
+/** Capture and validate once, returning both portable document and hydrated domain.
+ * Recovery needs both; calling migrate then decode used to hydrate everything twice.
+ * Neither result shares objects with the caller, nor snapshot objects with each other. */
+export async function decodePartitionDocument(value, { maxHydratedBytes } = {}) {
   const doc = await loadPartition(value)
   if (maxHydratedBytes !== undefined) {
     check(Number.isSafeInteger(maxHydratedBytes) && maxHydratedBytes > 0, 'limits', 'invalid_hydration_limit')
     check(estimateHydratedPartitionBytes(doc) <= maxHydratedBytes, 'snapshots', 'partition_hydration_limit')
   }
-  return hydrate(doc)
+  return { partition: doc, domain: await hydrate(doc) }
+}
+export async function decodePartition(value, options) {
+  return (await decodePartitionDocument(value, options)).domain
 }
 export async function stringifyPartition(value) { return boundedJson(await migratePartition(value)) }
 export async function parsePartition(text) {

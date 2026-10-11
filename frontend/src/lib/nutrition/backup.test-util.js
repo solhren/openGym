@@ -18,6 +18,10 @@ export async function backupFixture(kind = 'idb', overrides = {}) {
   const session = { value: { userId: options.namespace.profileId, serverOrigin: options.namespace.serverOrigin, epoch: 1 } }
   return { get store() { return store }, control: disk?.control ?? memory.control, session,
     service(extra = {}) { return createNutritionBackup({ store, getSession: () => session.value, getWorkoutRevision: () => ({ namespace: options.namespace, revision: 'fixture-version' }), ...extra }) },
+    async fork() {
+      const other = await createNutritionLocalStore({ ...options, backend: backend() })
+      cleanups.push(() => other.close()); return other
+    },
     async reopen() { store.close(); store = await createNutritionLocalStore({ ...options, backend: backend() }); return store },
     async commit(domain = journal(), id = 'initial') { return store.commit({ commitId: id, partitions: [await encodePartition({ ...domain, namespace: options.namespace, generation: options.generation })] }) },
   }

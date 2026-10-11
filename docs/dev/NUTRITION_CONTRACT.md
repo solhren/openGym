@@ -1,5 +1,9 @@
 # Nutrition data contract — step 1
 
+The pure contract remains unchanged. Its [step 3 interface](NUTRITION_UI.md) now
+connects forms/displays to the engine and stores. Deferred-UI statements below
+describe the original step 1 boundary.
+
 The separate [step 2 persistence contract](NUTRITION_PERSISTENCE.md) now defines versioned
 serialization and publication/recovery plans. It leaves these business models, calculations
 and the existing profile storage unchanged; real storage and network adapters remain deferred.

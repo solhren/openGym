@@ -24,6 +24,7 @@ const run = packs => {
     for (const [lang, dict] of Object.entries(packs))
       writeFileSync(join(dir, 'src', 'locales', `${lang}.js`), `export default ${JSON.stringify(dict, null, 2)}\n`)
     const r = spawnSync(process.execPath, [join(dir, 'scripts', 'check-locales.mjs')], { encoding: 'utf8' })
+    if (r.error) throw r.error // A blocked child must never masquerade as a successful checker.
     return { code: r.status, out: r.stdout + r.stderr }
   } finally { rmSync(dir, { recursive: true, force: true }) }
 }
@@ -72,6 +73,7 @@ describe('check-locales.mjs', () => {
   // The app's own packs, so the suite carries the same check CI does rather than only the rule.
   it('passes the locale packs this app ships', () => {
     const r = spawnSync(process.execPath, [script], { encoding: 'utf8' })
+    if (r.error) throw r.error
     expect(r.stdout + r.stderr).toContain('in sync')
     expect(r.status).toBe(0)
   })

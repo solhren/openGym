@@ -210,10 +210,31 @@ export function nutritionLocalReader({ backend, scope, assertOpen, cache = {} })
         const key = documentKey('m', meta.root.delivery.head.manifestDigest)
         objects.set(key, (await fetch(meta, [key])).get(key))
       }
-      await scan(meta, async (_, flags) => {
-        const raw = readDocument(flags.text)
-        objects.set(documentKey('p', raw.integrity.digest), flags.text)
-      }, maxBytes)
+      // Capture bounded immutable bytes under paired-root guards. The caller immediately
+      // runs complete recoverCommit validation (including outbox/delivery) on this private
+      // snapshot. Hydrating here as well would inspect the entire history twice, without
+      // adding an integrity guarantee. No UI cache participates in this capture.
+      let deliveryManifest = null
+      if (meta.root.delivery) deliveryManifest = await readManifest(objects.get(documentKey('m', meta.root.delivery.head.manifestDigest)))
+      const refs = new Map()
+      for (const ref of [...meta.manifest.partitions, ...meta.manifest.pendingOperations.flatMap(op => op.partitions), ...(deliveryManifest?.partitions ?? [])]) {
+        const key = documentKey('p', ref.digest), previous = refs.get(key)
+        check(!previous || JSON.stringify(previous) === JSON.stringify(ref), 'partitions', 'revision_mismatch')
+        refs.set(key, ref)
+      }
+      let totalBytes = 0, hydratedBytes = 0
+      const keys = [...refs.keys()]
+      for (let i = 0; i < keys.length; i += MAX_READ_DOCUMENTS) {
+        const batch = await fetch(meta, keys.slice(i, i + MAX_READ_DOCUMENTS))
+        for (const [key, text] of batch) {
+          totalBytes += new TextEncoder().encode(text).length
+          check(totalBytes <= maxBytes, 'backup', 'backup_too_large')
+          hydratedBytes += estimateHydratedPartitionBytes(readDocument(text))
+          check(hydratedBytes <= 96 * 1024 * 1024, 'backup', 'backup_hydration_limit')
+          objects.set(key, text)
+        }
+      }
+      await fetch(meta, [])
       return { root: meta.snapshot.root, previous: meta.snapshot.previous,
         objects: [...objects].map(([key, text]) => ({ key, text })) }
     },
@@ -236,6 +257,38 @@ export function nutritionLocalReader({ backend, scope, assertOpen, cache = {} })
     async inspect() {
       const meta = await metadata()
       return { status: status(meta), head: meta.head ?? null, manifest: meta.manifest ?? null, issues: meta.issues }
+    },
+    /** Library-only capture. The root CAS, dataset and snapshot validators are identical
+     * to period reads; this does not authorize writes or certify unvisited history. */
+    async library() {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const meta = await metadata(), domains = [], validation = createDatasetValidator()
+          let libraryBytes = 0
+          if (meta.empty) return { status: status(meta), head: null, domains, issues: meta.issues }
+          // Visit existing cache hits before misses: scanning >8 library shards in fixed
+          // order would otherwise evict each hit just before reaching it on the next read.
+          const refs = meta.manifest.partitions.filter(row => row.id.startsWith('library-'))
+            .sort((a, b) => Number(cached.has(documentKey('p', b.digest))) - Number(cached.has(documentKey('p', a.digest))))
+          for (const ref of refs) {
+            const key = documentKey('p', ref.digest)
+            let row = cached.get(key)
+            if (row) { cached.delete(key); cached.set(key, row) }
+            else {
+              const objects = await fetch(meta, [key]), domain = await decode(objects.get(key), ref, 16 * 1024 * 1024)
+              alive(meta.token); remember(key, domain); row = { domain }
+            }
+            libraryBytes += new TextEncoder().encode(JSON.stringify(row.domain)).length
+            check(libraryBytes <= 16 * 1024 * 1024, 'library', 'library_hydration_limit')
+            validation.add(row.domain); domains.push(jsonClone(row.domain))
+          }
+          domains.sort((a, b) => a.id.localeCompare(b.id))
+          validation.finish(); await fetch(meta, [])
+          return { status: status(meta), head: meta.head, domains, issues: meta.issues, verification: 'selected-partitions' }
+        } catch (error) {
+          if (attempt === 2 || !error?.issues?.some(i => ['stale_root', 'read_invalidated'].includes(i.code))) throw error
+        }
+      }
     },
     async verify() {
       try {

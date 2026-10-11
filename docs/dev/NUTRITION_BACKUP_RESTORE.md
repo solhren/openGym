@@ -1,5 +1,9 @@
 # Nutrition backup and restore (step 2.5)
 
+The [step 3 interface](NUTRITION_UI.md) exposes Nutrition-only backup, preview,
+conflict choices and confirmed restore. Global restoration remains blocked. The
+file hand-off adapter now accepts an optional session guard before download/share.
+
 ## Analysis and decisions
 
 Existing workout backups are raw state JSON (the state stored under localStorage's
