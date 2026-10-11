@@ -2,6 +2,7 @@ import { canonicalJson, check, contentHash, exactKeys, jsonClone, isCounter } fr
 import { encodePartition } from './serialization.js'
 import { preserveHistory } from '../../../../api/nutrition/core/history.js'
 import { validateConflictArchives } from './sync-contract.js'
+import { BACKUP_METADATA, unionBackupMetadata } from './backup-history.js'
 
 const keyOf = row => canonicalJson([row.collection, row.id])
 const same = (a, b) => canonicalJson(a) === canonicalJson(b)
@@ -54,7 +55,9 @@ export async function mergeNutritionDomains({ remote, local, localStamp, writeId
     const target = parts.get(part.id), extensions = { ...(target.extensions ?? {}) }
     for (const collection of Object.keys(part.records)) if (collection !== 'nutritionSettings') target.records[collection] ??= []
     for (const [key, value] of Object.entries(part.extensions ?? {})) {
-      if (key === 'nutritionSyncConflicts') {
+      if (BACKUP_METADATA.includes(key)) {
+        extensions[key] = unionBackupMetadata(extensions[key], value, key)
+      } else if (key === 'nutritionSyncConflicts') {
         exactKeys(value, ['version', 'records'], 'extensions.nutritionSyncConflicts')
         check(value.version === 1 && value.records && typeof value.records === 'object' && !Array.isArray(value.records), 'extensions', 'invalid_conflict_archive')
         const prior = extensions[key] ?? { version: 1, records: {} }

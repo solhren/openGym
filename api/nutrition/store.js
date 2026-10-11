@@ -6,6 +6,7 @@ import { boundedJson, canonicalJson, check, contentHash, exactKeys, jsonClone, r
 import { readHead, readManifest, createDatasetValidator } from './core/persistence-commit.js';
 import { decodePartition } from './core/serialization.js';
 import { preserveHistory } from './core/history.js';
+import { validateBackupMetadata } from './core/backup-history.js';
 import { capacity, privateDirectory, privateFiles, userDirectory } from './files.js';
 import { NutritionHttpError, RECEIPT_FORMAT, REQUEST_FORMAT, digest, validateServerScope } from './protocol.js';
 
@@ -52,6 +53,7 @@ export async function createNutritionServerStore({ dataDir, scope: input, limits
     const part = readDocument(raw);
     check(part.storageVersion === 1, 'storageVersion', part.storageVersion === 0 ? 'committed_migration_required' : 'unsupported_storage_version');
     const domain = await decodePartition(part); scopeOf(part);
+    await validateBackupMetadata(domain.extensions);
     if (ref) check(same(refOf(part), ref), 'partitions', 'partition_reference_mismatch');
     return { part, domain };
   };
@@ -74,9 +76,16 @@ export async function createNutritionServerStore({ dataDir, scope: input, limits
     for (const ref of manifest.partitions) {
       const domain = await load(ref); check(domain !== null, 'partitions', 'duplicate_partition_id');
       validator.add(domain);
-      // Keep only the identities and sync markers needed by preserveHistory. Fully validate
+      // Keep identities, sync markers and history-content digests needed by preserveHistory. Fully validate
       // one partition at a time; historical snapshots must not all remain resident in a worker.
-      domains.push({ records: Object.fromEntries(Object.entries(domain.records).map(([collection, rows]) =>
+      const extensions = {};
+      for (const name of ['nutritionSyncConflicts', 'nutritionBackupRestores', 'nutritionBackupRestorePreparations', 'nutritionBackupTombstones']) {
+        if (!Object.hasOwn(domain.extensions ?? {}, name)) continue;
+        const records = Object.create(null);
+        for (const [hash, value] of Object.entries(domain.extensions[name]?.records ?? {})) records[hash] = await contentHash(value);
+        extensions[name] = { records };
+      }
+      domains.push({ extensions, records: Object.fromEntries(Object.entries(domain.records).map(([collection, rows]) =>
         [collection, collection === 'nutritionSettings' ? {} : rows.map(row => ({ id: row.id }))])),
       sync: { tombstones: domain.sync.tombstones, edits: domain.sync.edits } });
     }

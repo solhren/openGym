@@ -2,7 +2,7 @@ import { assertValid } from './contracts.js'
 import { validateFood, validateRecipe, validateSnapshot, validateFoodEntry, validateMealTemplate, validateNutritionGoal } from './validate.js'
 import {
   STORAGE_VERSION, DOMAIN_VERSION, COLLECTIONS, HASH_PATTERN, check, isObject, exactKeys,
-  jsonClone, canonicalJson, boundedJson, contentHash, sealDocument, verifiedDocument,
+  jsonClone, canonicalJson, boundedJson, byteLength, contentHash, sealDocument, verifiedDocument,
   validateScope, validateSync, partitionKind,
 } from './persistence-contract.js'
 
@@ -150,7 +150,39 @@ export async function migratePartition(value) {
   await hydrate(doc)
   return doc
 }
-export async function decodePartition(value) { return hydrate(await loadPartition(value)) }
+/** Conservative JSON-size estimate before allocating repeated dictionary snapshots.
+ * A small packed partition may expand enormously; resource-sensitive callers must gate it
+ * before hydration. This adds no incompatible field or default limit to portable v1. */
+export function estimateHydratedPartitionBytes(doc) {
+  let bytes = byteLength(canonicalJson(doc))
+  const sizes = new Map(Object.entries(doc.snapshots ?? {}).map(([hash, value]) => [hash, byteLength(canonicalJson(value))]))
+  const add = ref => {
+    check(typeof ref === 'string' && sizes.has(ref), 'snapshots', 'missing_snapshot')
+    bytes += sizes.get(ref) + 16
+  }
+  for (const [collection, rows] of Object.entries(doc.records ?? {})) {
+    if (collection === 'nutritionSettings') continue
+    check(Array.isArray(rows), 'records', 'array_required')
+    for (const row of rows) {
+      if (collection === 'foodEntries') add(row?.snapshotRef)
+      else if (collection === 'customFoods' || collection === 'savedFoods') add(row?.foodRef)
+      else if (collection === 'recipes' || collection === 'mealTemplates') {
+        const items = collection === 'recipes' ? row?.ingredients : row?.items
+        check(Array.isArray(items), 'records', 'array_required')
+        for (const item of items) add(collection === 'recipes' ? item?.foodRef : item?.snapshotRef)
+      }
+    }
+  }
+  return bytes
+}
+export async function decodePartition(value, { maxHydratedBytes } = {}) {
+  const doc = await loadPartition(value)
+  if (maxHydratedBytes !== undefined) {
+    check(Number.isSafeInteger(maxHydratedBytes) && maxHydratedBytes > 0, 'limits', 'invalid_hydration_limit')
+    check(estimateHydratedPartitionBytes(doc) <= maxHydratedBytes, 'snapshots', 'partition_hydration_limit')
+  }
+  return hydrate(doc)
+}
 export async function stringifyPartition(value) { return boundedJson(await migratePartition(value)) }
 export async function parsePartition(text) {
   check(typeof text === 'string', '$', 'string_required')

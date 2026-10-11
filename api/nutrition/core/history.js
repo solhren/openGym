@@ -1,6 +1,17 @@
-import { check } from './persistence-contract.js'
+import { check, canonicalJson } from './persistence-contract.js'
 
 export function preserveHistory(before, after) {
+  // Divergent snapshots and restoration evidence are durable user/recovery data. An older
+  // client or partial restore must not erase them by merely omitting an extension map.
+  for (const name of ['nutritionSyncConflicts', 'nutritionBackupRestores', 'nutritionBackupRestorePreparations', 'nutritionBackupTombstones']) {
+    const retained = new Map()
+    for (const part of after) for (const [hash, value] of Object.entries(part.extensions?.[name]?.records ?? {})) {
+      check(!retained.has(hash) || canonicalJson(retained.get(hash)) === canonicalJson(value), 'extensions', 'history_metadata_collision')
+      retained.set(hash, value)
+    }
+    for (const part of before) for (const [hash, value] of Object.entries(part.extensions?.[name]?.records ?? {}))
+      check(retained.has(hash) && canonicalJson(retained.get(hash)) === canonicalJson(value), 'extensions', 'history_metadata_missing')
+  }
   const keyOf = row => JSON.stringify([row.collection, row.id])
   const live = new Set(), tombstones = new Map(), edits = new Map()
   const retainStamp = (previous, next) => {

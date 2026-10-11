@@ -191,3 +191,15 @@ Daily/monthly UI reads retain their existing bounded progressive reader. This is
 browser/native memory ceiling or proof of OS/hardware flush guarantees. Browser crash/multi-tab
 tests, Android/iOS power loss, token changes during native requests and representative mobile
 memory/quotas require real-device validation. Nothing is automatically wired to the UI yet.
+
+## Step 2.5 restore coordination
+
+[Backup/restore](NUTRITION_BACKUP_RESTORE.md) queues restored data through ordinary local
+publication, retaining frozen deliveries even after cancel/lost response. Preview-head CAS
+blocks stale application. The three reserved additive maps `nutritionBackupRestores`,
+`nutritionBackupRestorePreparations` and `nutritionBackupTombstones` are strictly
+validated and unioned by the existing merge. The preparation journal permits startup
+discovery without changing user records before the final atomic publication.
+Shared history validation protects these maps and conflict variants, including server
+compact graphs (which retain content digests rather than hydrated archive snapshots).
+Older clients dropping this evidence are refused; training sync remains unchanged.

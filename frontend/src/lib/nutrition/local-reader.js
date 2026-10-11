@@ -3,7 +3,7 @@ import { isNutritionDate } from './validate.js'
 import { DOMAIN_VERSION, boundedJson, check, contentHash, exactKeys, jsonClone, readDocument, sealDocument,
   validateScope, verifiedDocument } from './persistence-contract.js'
 import { readManifest, createDatasetValidator } from './persistence-commit.js'
-import { decodePartition } from './serialization.js'
+import { decodePartition, estimateHydratedPartitionBytes } from './serialization.js'
 import { documentKey, isDocumentKey, MAX_READ_DOCUMENTS, readLocalRoot, validateLocalQueue } from './local-contract.js'
 import { publicationRequest, validateConflictArchives } from './sync-contract.js'
 
@@ -110,10 +110,10 @@ export function nutritionLocalReader({ backend, scope, assertOpen, cache = {} })
     for (const key of keys) check(objects.has(key), 'partitions', 'missing_partition')
     return objects
   }
-  const decode = async (text, ref) => {
+  const decode = async (text, ref, maxHydratedBytes) => {
     const raw = readDocument(text)
     check(raw.storageVersion === 1, 'partition', raw.storageVersion === 0 ? 'committed_migration_required' : 'unsupported_storage_version')
-    const domain = await decodePartition(raw)
+    const domain = await decodePartition(raw, { maxHydratedBytes })
     await validateConflictArchives([domain])
     sameScope(domain, scope)
     check(raw.id === ref.id && raw.integrity.digest === ref.digest, 'partition', 'partition_reference_mismatch')
@@ -131,7 +131,7 @@ export function nutritionLocalReader({ backend, scope, assertOpen, cache = {} })
     }
     cached.set(key, { domain, size }); bytes += size
   }
-  const scan = async meta => {
+  const scan = async (meta, visit = null, maxBytes = Infinity) => {
     const validation = createDatasetValidator(), ranges = [], refs = new Map()
     let deliveryManifest = null
     if (meta.root.delivery) {
@@ -148,7 +148,7 @@ export function nutritionLocalReader({ backend, scope, assertOpen, cache = {} })
       check(await contentHash(operation) === delivery.operationDigest, 'delivery', 'delivery_operation_mismatch')
     }
     const deliveryValidation = createDatasetValidator(), delivered = new Set(deliveryManifest?.partitions.map(ref => ref.digest) ?? [])
-    let records = 0
+    let records = 0, totalBytes = 0, hydratedBytes = 0
     for (const ref of [...meta.manifest.partitions, ...meta.manifest.pendingOperations.flatMap(op => op.partitions), ...(deliveryManifest?.partitions ?? [])]) {
       const key = documentKey('p', ref.digest), previous = refs.get(key)
       check(!previous || JSON.stringify(previous) === JSON.stringify(ref), 'partitions', 'revision_mismatch')
@@ -159,19 +159,26 @@ export function nutritionLocalReader({ backend, scope, assertOpen, cache = {} })
     for (let i = 0; i < list.length; i += MAX_READ_DOCUMENTS) {
       const batch = list.slice(i, i + MAX_READ_DOCUMENTS), objects = await fetch(meta, batch.map(([key]) => key))
       for (const [key, ref] of batch) {
-        const domain = await decode(objects.get(key), ref); alive(meta.token)
+        totalBytes += new TextEncoder().encode(objects.get(key)).length
+        check(totalBytes <= maxBytes, 'backup', 'backup_too_large')
+        if (maxBytes !== Infinity) {
+          hydratedBytes += estimateHydratedPartitionBytes(readDocument(objects.get(key)))
+          check(hydratedBytes <= 96 * 1024 * 1024, 'backup', 'backup_hydration_limit')
+        }
+        const domain = await decode(objects.get(key), ref, maxBytes === Infinity ? undefined : 96 * 1024 * 1024); alive(meta.token)
         if (delivered.has(ref.digest)) deliveryValidation.add(domain)
         if (current.has(ref.digest)) {
           validation.add(domain)
           records += domain.records.foodEntries?.length ?? 0
           if (domain.kind === 'journal') ranges.push(coverage(domain, ref))
         }
+        if (visit) { await visit(domain, { current: current.has(ref.digest), text: objects.get(key) }); alive(meta.token) }
       }
     }
     validation.finish()
     deliveryValidation.finish()
     await fetch(meta, [])
-    return { ranges, records, documents: list.length }
+    return { ranges, records, documents: list.length, totalBytes }
   }
   const buildIndex = async meta => {
     const verified = await scan(meta)
@@ -193,6 +200,35 @@ export function nutritionLocalReader({ backend, scope, assertOpen, cache = {} })
   const status = meta => meta.empty ? meta.degraded ? 'recovery-required' : 'empty' : meta.degraded ? 'recovery-required' : 'partially-verified'
   return {
     metadata,
+    async captureRestore(maxBytes) {
+      check(Number.isSafeInteger(maxBytes) && maxBytes > 0, 'backup', 'invalid_export_options')
+      const meta = await metadata()
+      if (meta.empty) return { empty: true, degraded: meta.degraded }
+      check(!meta.degraded, 'backup', 'recovery_required')
+      const objects = new Map(meta.snapshot.objects.map(row => [row.key, row.text]))
+      if (meta.root.delivery) {
+        const key = documentKey('m', meta.root.delivery.head.manifestDigest)
+        objects.set(key, (await fetch(meta, [key])).get(key))
+      }
+      await scan(meta, async (_, flags) => {
+        const raw = readDocument(flags.text)
+        objects.set(documentKey('p', raw.integrity.digest), flags.text)
+      }, maxBytes)
+      return { root: meta.snapshot.root, previous: meta.snapshot.previous,
+        objects: [...objects].map(([key, text]) => ({ key, text })) }
+    },
+    /** Bounded hydration with paired-root CAS on every batch and after the last callback.
+     * A failed export must discard its partial sink; no partial archive is authoritative. */
+    async exportPartitions({ visit, maxBytes, guard = () => {} }) {
+      check(typeof visit === 'function' && Number.isSafeInteger(maxBytes) && maxBytes > 0, 'backup', 'invalid_export_options')
+      guard()
+      const meta = await metadata()
+      check(!meta.degraded, 'backup', 'recovery_required')
+      if (meta.empty) { guard(); return { documents: 0, records: 0, totalBytes: 0 } }
+      const result = await scan(meta, async (...args) => { guard(); await visit(...args); guard() }, maxBytes)
+      guard()
+      return result
+    },
     invalidate: () => invalidate(true),
     changed: () => invalidate(),
     acceptIndex: () => { ignoreIndex = false },

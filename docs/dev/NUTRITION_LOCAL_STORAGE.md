@@ -125,7 +125,7 @@ head, reference and delivery state uses the shared recovery validation. A corrup
 with a complete prior root yields `recovery-required`, exposing prior history/diagnostics, and
 blocks writes, queue transitions and cleanup. Newer unsent evidence is preserved, never overwritten
 by automatic rollback. No complete root means visible failure; future formats refuse fallback.
-Manual repair/import/export is a future workflow.
+Step 2.5 adds coherent export and validated restore; see [backup/restore](NUTRITION_BACKUP_RESTORE.md). Corrupt committed roots still require explicit repair.
 
 `collect()` validates both current/prior roots and pins all their current and queued versions.
 Snapshots stay embedded in pinned partitions. Both root comparisons and deletions share the
@@ -141,9 +141,9 @@ browser estimate/persistence and requests persistence only with `requestPersiste
 Quota errors never trigger history eviction or queue deletion. Estimates cannot reserve space.
 User-cleared storage, origin changes, app removal, private browsing and hardware failure still need
 external backups. Android's existing 25 MiB cloud-backup cap is unchanged and cannot guarantee a
-ten-year archive. Consistent export/restore and server conservation remain future stages.
+ten-year archive. Step 2.5 provides explicit bounded external backup/restore; it does not rely on cloud retention.
 
-Full recovery, mutations, export and collection still eagerly copy/validate history. Their
+Full recovery, mutations and collection still eagerly copy/validate history. Step 2.5 export scans bounded batches with paired-root guards; restore preparation remains bounded but eager. Their
 memory and CPU cost scale with retained data. Progressive opening and period reads below avoid
 this path. Large native publications still transfer a complete write batch: 512 KiB bounds each
 document, not that aggregate message. Bounded write staging remains future work.

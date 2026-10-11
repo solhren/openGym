@@ -1,6 +1,7 @@
 import { check, contentHash, exactKeys, jsonClone, sameNamespace, verifiedDocument, HASH_PATTERN, COLLECTIONS, isObject, isText } from './persistence-contract.js'
 import { readHead, recoverCommit } from './persistence-commit.js'
 import { encodePartition } from './serialization.js'
+import { validateBackupMetadata } from './backup-history.js'
 
 export const RECEIPT_FORMAT = 'opengym-nutrition-server-receipt'
 export const publicationRequest = plan => ({ expectedHead: plan.expectedHead, manifest: plan.manifest, head: plan.head })
@@ -18,6 +19,7 @@ export function preserveConflictArchives(before, after) {
 
 export async function validateConflictArchives(domains) {
   for (const part of domains) {
+    await validateBackupMetadata(part.extensions)
     if (!Object.hasOwn(part.extensions ?? {}, 'nutritionSyncConflicts')) continue
     const archive = part.extensions.nutritionSyncConflicts
     exactKeys(archive, ['version', 'records'], 'extensions.nutritionSyncConflicts')

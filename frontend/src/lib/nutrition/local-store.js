@@ -125,6 +125,22 @@ export async function createNutritionLocalStore(options) {
     assertOpen()
     return state
   }
+  const loadForRestore = async maxBytes => {
+    assertOpen()
+    const captured = await reader.captureRestore(maxBytes)
+    let snapshot = captured
+    if (captured.empty) {
+      // No graph can authorize orphan bytes. Exact first-write replay still needs the
+      // complete orphan set; adapters currently expose that exceptional path eagerly.
+      snapshot = captured.degraded ? await backend.snapshot() : { root: null, previous: null, objects: [] }
+      check(snapshot.objects.reduce((n, row) => n + new TextEncoder().encode(row.text).length, 0) <= maxBytes,
+        'backup', 'backup_too_large')
+    }
+    assertOpen()
+    const state = await readSnapshot(snapshot, scope)
+    assertOpen()
+    return state
+  }
   const writable = state => check(!state.degraded, 'storage', 'recovery_required')
   const publish = async (state, plan, root, extraWrites = [], guard = () => {}) => {
     const available = [...(state.partitions ?? []), ...(state.pendingPartitions ?? []), ...plan.writes]
@@ -188,6 +204,7 @@ export async function createNutritionLocalStore(options) {
     },
     async readPeriod(period) { assertOpen(); return reader.period(period) },
     verify() { return reader.verify() },
+    exportPartitions(options) { return reader.exportPartitions(options) },
     invalidateCache() { assertOpen(); reader.invalidate() },
     cacheStatus() { assertOpen(); return reader.cacheStatus() },
     async read() {
@@ -198,38 +215,49 @@ export async function createNutritionLocalStore(options) {
           manifest: state.manifest, domains: state.domains, pendingOperations: state.manifest.pendingOperations,
           inFlightId: state.root.inFlightId, unsentId: state.root.unsentId, counter: state.root.counter, issues: state.issues }
     },
+    async readForRestore({ maxBytes }) {
+      const state = await loadForRestore(maxBytes)
+      return { status: state.degraded ? 'recovery-required' : state.empty ? 'empty' : 'current',
+        head: state.head ?? null, domains: state.domains ?? [], pendingOperations: state.manifest?.pendingOperations ?? [],
+        counter: state.root?.counter ?? 0, issues: state.issues }
+    },
     async syncState() {
       const state = await load()
       return { status: state.degraded ? 'recovery-required' : state.empty ? 'empty' : 'current',
         head: state.head ?? null, manifest: state.manifest ?? null, domains: state.domains ?? [],
         partitions: state.partitions ?? [], pendingPartitions: state.pendingPartitions ?? [], delivery: state.delivery ?? null }
     },
-    async commit(input) {
+    async commit(input, { guard = () => {}, maxBytes } = {}) {
       assertOpen()
+      guard()
       const request = jsonClone(input)
-      exactKeys(request, ['commitId', 'partitions', 'removePartitionIds'], '$', ['commitId', 'partitions'])
+      exactKeys(request, ['commitId', 'partitions', 'removePartitionIds', 'expectedHead'], '$', ['commitId', 'partitions'])
       check(isText(request.commitId), 'commitId', 'text_required')
       check(Array.isArray(request.partitions), 'partitions', 'array_required')
       const removed = Object.hasOwn(request, 'removePartitionIds') ? request.removePartitionIds : []
       check(Array.isArray(removed), 'removePartitionIds', 'array_required')
       const requestDigest = await contentHash({ type: 'commit', request })
-      const state = await load()
+      const state = maxBytes === undefined ? await load() : await loadForRestore(maxBytes)
+      guard()
       if (!state.empty) writable(state) // first-write replay is checked against every staged byte
       if (!state.empty && state.head.commitId === request.commitId) {
         check(state.root.requestDigest === requestDigest, 'commitId', 'reused_commit_id')
         return { head: state.head, manifest: state.manifest, repeated: true }
       }
+      guard()
+      if (Object.hasOwn(request, 'expectedHead')) check(same(request.expectedHead, state.head ?? null), 'commit', 'stale_root')
+      const { expectedHead: ignored, ...changes } = request
       // Validation of writes occurs in prepareCommit BEFORE inspecting their descriptors.
-      const preliminary = await prepareCommit({ ...scope, ...request, baseManifest: state.manifest ?? null })
+      const preliminary = await prepareCommit({ ...scope, ...changes, baseManifest: state.manifest ?? null })
       const counter = nextCounter(state, preliminary.writes)
       const previous = state.manifest?.pendingOperations.find(op => op.id === state.root.unsentId)
       const checkpoint = compactUnsent(previous, preliminary.writes, removed)
       const id = `checkpoint-${requestDigest}`
       const pending = (state.manifest?.pendingOperations ?? []).filter(op => op.id === state.root.inFlightId)
       pending.push({ id, stamp: { deviceId, counter }, ...checkpoint })
-      const plan = await prepareCommit({ ...scope, ...request, baseManifest: state.manifest ?? null, pendingOperations: pending })
+      const plan = await prepareCommit({ ...scope, ...changes, baseManifest: state.manifest ?? null, pendingOperations: pending })
       const root = await makeLocalRoot(scope, plan.head, counter, id, state.root?.inFlightId ?? null, requestDigest, state.root?.delivery ?? null)
-      return publish(state, plan, root)
+      return publish(state, plan, root, [], guard)
     },
     async beginPending() {
       const state = await load(); writable(state)
