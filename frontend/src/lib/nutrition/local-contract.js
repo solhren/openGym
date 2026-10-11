@@ -1,6 +1,7 @@
 import { DOMAIN_VERSION, HASH_PATTERN, check, exactKeys, isCounter, isText,
   jsonClone, readDocument, sealDocument, validateScope, verifiedDocument, NutritionPersistenceError } from './persistence-contract.js'
 import { readHead } from './persistence-commit.js'
+import { validateDelivery } from './sync-contract.js'
 
 export const LOCAL_FORMAT = 'opengym-nutrition-local-root'
 export const documentKey = (kind, digest) => `${kind}-${digest}`
@@ -38,7 +39,8 @@ export function manifestKey(text) {
 export async function readLocalRoot(value, scope) {
   const root = await verifiedDocument(value, LOCAL_FORMAT)
   exactKeys(root, ['format', 'storageVersion', 'domainVersion', 'namespace', 'generation', 'head',
-    'counter', 'unsentId', 'inFlightId', 'requestDigest', 'integrity'], '$')
+    'counter', 'unsentId', 'inFlightId', 'requestDigest', 'integrity', 'delivery'], '$',
+    ['format', 'storageVersion', 'domainVersion', 'namespace', 'generation', 'head', 'counter', 'unsentId', 'inFlightId', 'requestDigest', 'integrity'])
   validateScope(root)
   check(JSON.stringify(root.namespace) === JSON.stringify(jsonClone(scope.namespace)), 'namespace', 'namespace_mismatch')
   check(root.generation === scope.generation, 'generation', 'generation_mismatch')
@@ -49,12 +51,17 @@ export async function readLocalRoot(value, scope) {
   for (const key of ['unsentId', 'inFlightId']) check(root[key] === null || isText(root[key]), key, 'invalid_operation_id')
   check(root.unsentId === null || root.unsentId !== root.inFlightId, 'unsentId', 'duplicate_operation_id')
   check(typeof root.requestDigest === 'string' && HASH_PATTERN.test(root.requestDigest), 'requestDigest', 'invalid_digest')
+  if (Object.hasOwn(root, 'delivery')) {
+    await validateDelivery(root.delivery, scope)
+    check(root.delivery.operationId === root.inFlightId, 'delivery', 'delivery_operation_mismatch')
+  }
   return root
 }
 
-export async function makeLocalRoot(scope, head, counter, unsentId, inFlightId, requestDigest) {
+export async function makeLocalRoot(scope, head, counter, unsentId, inFlightId, requestDigest, delivery = null) {
   return sealDocument({ format: LOCAL_FORMAT, storageVersion: 1, domainVersion: DOMAIN_VERSION,
-    namespace: scope.namespace, generation: scope.generation, head, counter, unsentId, inFlightId, requestDigest })
+    namespace: scope.namespace, generation: scope.generation, head, counter, unsentId, inFlightId, requestDigest,
+    ...(delivery ? { delivery } : {}) })
 }
 
 export function validateLocalQueue(root, manifest) {

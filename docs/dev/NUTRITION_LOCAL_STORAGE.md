@@ -3,6 +3,12 @@
 The standalone coordinator reuses [the portable v1 contract](NUTRITION_PERSISTENCE.md).
 It does not change `gym_state_v1`, authentication, the UI or network sync. No dependency is added.
 
+Step 2.4 adds a dedicated [Nutrition synchronization coordinator](NUTRITION_SYNC.md). Its optional
+root delivery envelope pins the exact server request, manifest and complete graph before network
+publication. Cleanup and full verification also include these pins; identity-only acknowledgment
+cannot bypass an active delivery's validated server receipt. Progressive day/month reads remain
+separate from full mutation/synchronization validation. No portable v1 or native bridge format changes.
+
 ## API and isolation
 
 ```js

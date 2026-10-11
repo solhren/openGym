@@ -7,7 +7,9 @@ import { nutritionIdbBackend } from './local-store-idb.js'
 import { nutritionFsBackend } from './local-store-fs.js'
 import { nutritionLocalReader, makeDateIndex } from './local-reader.js'
 import { isNutritionDate } from './validate.js'
+import { decodePartition, encodePartition } from './serialization.js'
 import { preserveHistory } from '../../../../api/nutrition/core/history.js'
+import { domainContent, preserveAcknowledgedValues, preserveConflictArchives, publicationRequest, resolveDelivery, same, scoped, validateConflictArchives, validateNutritionReceipt } from './sync-contract.js'
 
 const refOf = part => ({ id: part.id, digest: part.integrity.digest, revision: part.sync.revision, writeId: part.sync.writeId })
 const unsupported = error => error?.issues?.some(issue => ['unsupported_storage_version', 'unsupported_domain_version',
@@ -32,7 +34,23 @@ async function resolveRoot(text, scope, objects) {
   const recovery = await recoverCommit({ namespace: scope.namespace, generation: scope.generation,
     heads: [root.head], manifests: [manifest], partitions: [...parts.values()] })
   validateLocalQueue(root, recovery.manifest)
-  return { ...recovery, root, text }
+  await validateConflictArchives(recovery.domains)
+  for (const part of recovery.pendingPartitions) if (!recovery.partitions.some(p => p.integrity.digest === part.integrity.digest) &&
+    Object.hasOwn(part.extensions ?? {}, 'nutritionSyncConflicts')) await validateConflictArchives([await decodePartition(part)])
+  let delivery = null
+  if (root.delivery) {
+    const raw = objects.get(documentKey('m', root.delivery.head.manifestDigest))
+    check(raw !== undefined, 'delivery', 'missing_manifest')
+    const deliveryManifest = await readManifest(raw)
+    const deliveryParts = deliveryManifest.partitions.map(ref => {
+      const raw = objects.get(documentKey('p', ref.digest))
+      check(raw !== undefined, 'delivery', 'missing_partition')
+      return readDocument(raw)
+    })
+    delivery = await resolveDelivery(root.delivery, scope, deliveryManifest, deliveryParts,
+      recovery.manifest.pendingOperations.find(op => op.id === root.inFlightId))
+  }
+  return { ...recovery, root, text, delivery }
 }
 
 async function readSnapshot(snapshot, scope) {
@@ -108,13 +126,15 @@ export async function createNutritionLocalStore(options) {
     return state
   }
   const writable = state => check(!state.degraded, 'storage', 'recovery_required')
-  const publish = async (state, plan, root) => {
+  const publish = async (state, plan, root, extraWrites = [], guard = () => {}) => {
     const available = [...(state.partitions ?? []), ...(state.pendingPartitions ?? []), ...plan.writes]
     const checked = await assertPublishable(plan, { currentHead: state.empty ? null : state.head, partitions: available })
+    await validateConflictArchives(checked.domains)
     preserveHistory(state.domains ?? [], checked.domains)
     validateLocalQueue(root, checked.manifest)
     const writes = plan.writes.map(part => ({ key: documentKey('p', part.integrity.digest), text: boundedJson(part) }))
     writes.push({ key: documentKey('m', plan.manifest.integrity.digest), text: boundedJson(plan.manifest) })
+    writes.push(...extraWrites)
     if (state.empty && state.objects.size > 0) {
       // Missing roots might be an interrupted FIRST write, or lost publication evidence.
       // Only replay a plan retaining EVERY existing byte document verbatim. Never initialize
@@ -123,6 +143,7 @@ export async function createNutritionLocalStore(options) {
       check([...state.objects].every(([key, text]) => replay.get(key) === text), 'storage', 'recovery_required')
     }
     assertOpen()
+    guard()
     reader.changed()
     await backend.publish({ expectedRoot: state.snapshot.root, root: boundedJson(root), writes })
     // A derived index is dispensable. Its separate CAS cannot alter publication/outbox state.
@@ -137,12 +158,13 @@ export async function createNutritionLocalStore(options) {
     } catch (error) { indexIssue = error.issues ?? [{ path: 'index', code: 'index_unavailable' }] }
     return { head: plan.head, manifest: plan.manifest, ...(indexIssue ? { indexIssue } : {}) }
   }
-  const queuePlan = async (state, pendingOperations, requestDigest, unsentId, inFlightId) => {
+  const queuePlan = async (state, pendingOperations, requestDigest, unsentId, inFlightId,
+    delivery = state.root.delivery ?? null, extraWrites = [], guard = () => {}) => {
     const commitId = `local-${requestDigest}-${state.root.counter + 1}`
     const plan = await prepareCommit({ ...scope, commitId, baseManifest: state.manifest, partitions: [], pendingOperations })
     check(state.root.counter < Number.MAX_SAFE_INTEGER, 'counter', 'counter_overflow')
-    const root = await makeLocalRoot(scope, plan.head, state.root.counter + 1, unsentId, inFlightId, requestDigest)
-    await publish(state, plan, root)
+    const root = await makeLocalRoot(scope, plan.head, state.root.counter + 1, unsentId, inFlightId, requestDigest, delivery)
+    await publish(state, plan, root, extraWrites, guard)
     return plan
   }
   // Opening validates headers only; it never labels unvisited partitions as verified.
@@ -152,6 +174,8 @@ export async function createNutritionLocalStore(options) {
   return {
     name: backend.name,
     scopeId,
+    get scope() { return jsonClone(scope) },
+    deviceId,
     inspect() { return reader.inspect() },
     async readDay(date) { assertOpen(); return reader.period({ start: date, end: date }) },
     async readMonth(month) {
@@ -173,6 +197,12 @@ export async function createNutritionLocalStore(options) {
         { status: state.degraded ? 'recovery-required' : 'current', head: state.head,
           manifest: state.manifest, domains: state.domains, pendingOperations: state.manifest.pendingOperations,
           inFlightId: state.root.inFlightId, unsentId: state.root.unsentId, counter: state.root.counter, issues: state.issues }
+    },
+    async syncState() {
+      const state = await load()
+      return { status: state.degraded ? 'recovery-required' : state.empty ? 'empty' : 'current',
+        head: state.head ?? null, manifest: state.manifest ?? null, domains: state.domains ?? [],
+        partitions: state.partitions ?? [], pendingPartitions: state.pendingPartitions ?? [], delivery: state.delivery ?? null }
     },
     async commit(input) {
       assertOpen()
@@ -198,7 +228,7 @@ export async function createNutritionLocalStore(options) {
       const pending = (state.manifest?.pendingOperations ?? []).filter(op => op.id === state.root.inFlightId)
       pending.push({ id, stamp: { deviceId, counter }, ...checkpoint })
       const plan = await prepareCommit({ ...scope, ...request, baseManifest: state.manifest ?? null, pendingOperations: pending })
-      const root = await makeLocalRoot(scope, plan.head, counter, id, state.root?.inFlightId ?? null, requestDigest)
+      const root = await makeLocalRoot(scope, plan.head, counter, id, state.root?.inFlightId ?? null, requestDigest, state.root?.delivery ?? null)
       return publish(state, plan, root)
     },
     async beginPending() {
@@ -224,6 +254,7 @@ export async function createNutritionLocalStore(options) {
         'receipt', 'invalid_receipt')
       const requestDigest = await contentHash({ type: 'ack', receipt })
       const state = await load(); writable(state)
+      check(!state.root?.delivery, 'receipt', 'durable_delivery_receipt_required')
       if (!state.empty && state.root.requestDigest === requestDigest) {
         return { head: state.head, manifest: state.manifest, repeated: true }
       }
@@ -232,6 +263,83 @@ export async function createNutritionLocalStore(options) {
       check(await contentHash(operation) === receipt.operationDigest, 'receipt', 'receipt_mismatch')
       return queuePlan(state, state.manifest.pendingOperations.filter(op => op.id !== receipt.operationId),
         requestDigest, state.root.unsentId, null)
+    },
+    async stageDelivery(input, { guard = () => {} } = {}) {
+      const request = jsonClone(input)
+      exactKeys(request, ['expectedLocalHead', 'operationId', 'operationDigest', 'plan', 'uploads'], 'delivery')
+      const state = await load(); writable(state)
+      check(!state.empty && state.root.inFlightId === request.operationId, 'delivery', 'not_in_flight')
+      const operation = state.manifest.pendingOperations.find(op => op.id === request.operationId)
+      check(await contentHash(operation) === request.operationDigest, 'delivery', 'delivery_operation_mismatch')
+      // First durable plan wins across tabs. Its exact request must be retried, even if a
+      // later reader constructed a different merge on a newer server head.
+      if (state.delivery) return state.delivery
+      check(same(request.expectedLocalHead, state.head), 'delivery', 'stale_root')
+      const plan = request.plan
+      const graph = await assertPublishable(plan, { currentHead: plan.expectedHead, partitions: plan.writes })
+      scoped(graph.head, scope)
+      const original = state.pendingPartitions.filter(p => operation.partitions.some(ref => ref.digest === p.integrity.digest))
+      preserveHistory(await Promise.all(original.map(decodePartition)), graph.domains)
+      const delivery = { operationId: request.operationId, operationDigest: request.operationDigest,
+        expectedHead: plan.expectedHead, head: plan.head, requestDigest: await contentHash(publicationRequest(plan)), uploads: request.uploads }
+      const resolved = await resolveDelivery(delivery, scope, plan.manifest, graph.partitions, operation)
+      const writes = graph.partitions.map(p => ({ key: documentKey('p', p.integrity.digest), text: boundedJson(p) }))
+      writes.push({ key: documentKey('m', plan.manifest.integrity.digest), text: boundedJson(plan.manifest) })
+      const digest = await contentHash({ type: 'delivery', delivery })
+      await queuePlan(state, state.manifest.pendingOperations, digest, state.root.unsentId, state.root.inFlightId, delivery, writes, guard)
+      return resolved
+    },
+    async rejectDelivery(requestDigest, { guard = () => {} } = {}) {
+      const state = await load(); writable(state)
+      check(state.delivery?.requestDigest === requestDigest, 'delivery', 'stale_delivery')
+      // Caller may use this ONLY after a definitive nutrition-stale-head HTTP 409.
+      // Busy, authentication, timeout and unknown errors must keep the exact request.
+      return queuePlan(state, state.manifest.pendingOperations, await contentHash({ type: 'reject', requestDigest }),
+        state.root.unsentId, state.root.inFlightId, null, [], guard)
+    },
+    async acknowledgeDelivery(response, { guard = () => {} } = {}) {
+      const captured = jsonClone(response), state = await load(); writable(state)
+      check(!!state.delivery, 'delivery', 'stale_delivery')
+      const receipt = await validateNutritionReceipt(captured, state.delivery, scope)
+      const digest = await contentHash({ type: 'delivery-ack', receipt })
+      return queuePlan(state, state.manifest.pendingOperations.filter(op => op.id !== state.root.inFlightId),
+        digest, state.root.unsentId, null, null, [], guard)
+    },
+    async importRemote(input, { guard = () => {} } = {}) {
+      const request = jsonClone(input)
+      exactKeys(request, ['expectedLocalHead', 'commitId', 'head', 'manifest', 'partitions'], 'remote')
+      const state = await load(); writable(state)
+      check(same(request.expectedLocalHead, state.head ?? null), 'remote', 'stale_root')
+      check((state.manifest?.pendingOperations.length ?? 0) === 0 && !state.delivery, 'remote', 'pending_local_changes')
+      const graph = await recoverCommit({ ...scope, heads: [request.head], manifests: [request.manifest], partitions: request.partitions })
+      await validateConflictArchives(graph.domains)
+      preserveAcknowledgedValues(state.domains ?? [], graph.domains)
+      // Acknowledged conflict archives are data, too. An older/restored/foreign client
+      // dropping extensions cannot authorize their automatic removal on this device.
+      preserveConflictArchives(state.domains ?? [], graph.domains)
+      const writes = []
+      for (const domain of graph.domains) {
+        const old = state.partitions?.find(p => p.id === domain.id), remote = graph.partitions.find(p => p.id === domain.id)
+        if (old?.integrity.digest === remote.integrity.digest ||
+          state.domains?.some(p => p.id === domain.id && same(domainContent(p), domainContent(domain)))) continue
+        if (!old || remote.sync.revision > old.sync.revision && remote.sync.writeId !== old.sync.writeId) {
+          writes.push(remote)
+          continue
+        }
+        // Local publication revisions are independent of the server. Record/field clocks
+        // and snapshots are retained verbatim; an imported server revision is only a hint.
+        const maximum = Math.max(domain.sync.revision, old?.sync.revision ?? 0)
+        check(maximum < Number.MAX_SAFE_INTEGER, 'sync', 'counter_overflow')
+        writes.push(await encodePartition({ ...domain, sync: { ...domain.sync, revision: maximum + 1,
+          writeId: request.commitId, remote: { revision: remote.sync.revision, writeId: remote.sync.writeId } } }))
+      }
+      const removed = (state.manifest?.partitions ?? []).filter(ref => !graph.manifest.partitions.some(p => p.id === ref.id)).map(ref => ref.id)
+      if (!writes.length && !removed.length && !state.empty) return { head: state.head, manifest: state.manifest, repeated: true }
+      const plan = await prepareCommit({ ...scope, commitId: request.commitId, baseManifest: state.manifest ?? null,
+        partitions: writes, removePartitionIds: removed, pendingOperations: [] })
+      const root = await makeLocalRoot(scope, plan.head, nextCounter(state, writes), null, null,
+        await contentHash({ type: 'remote', head: graph.head }))
+      return publish(state, plan, root, [], guard)
     },
     async collect() {
       const state = await load(); writable(state)
@@ -246,6 +354,10 @@ export async function createNutritionLocalStore(options) {
         pinned.add(documentKey('m', root.manifest.integrity.digest))
         for (const ref of [...root.manifest.partitions, ...root.manifest.pendingOperations.flatMap(op => op.partitions)]) {
           pinned.add(documentKey('p', ref.digest))
+        }
+        if (root.delivery) {
+          pinned.add(documentKey('m', root.delivery.head.manifestDigest))
+          for (const part of root.delivery.partitions) pinned.add(documentKey('p', part.integrity.digest))
         }
       }
       const keys = [...state.objects.keys()].filter(key => !pinned.has(key))

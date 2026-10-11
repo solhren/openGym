@@ -8,6 +8,11 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { boundPort } from './helpers.mjs';
 import { fixture, part, plan, request, scope, origin } from './nutrition-fixtures.mjs';
+import { createNutritionLocalStore } from '../../frontend/src/lib/nutrition/local-store.js';
+import { nutritionIdbBackend } from '../../frontend/src/lib/nutrition/local-store-idb.js';
+import { transactionalIdb } from '../../frontend/src/lib/nutrition/local-storage.test-util.js';
+import { createNutritionSync } from '../../frontend/src/lib/nutrition/sync.js';
+import { encodePartition } from '../nutrition/core/serialization.js';
 
 let missing;
 try { for (const name of ['@simplewebauthn/server', 'web-push', 'undici']) import.meta.resolve(name); }
@@ -114,4 +119,46 @@ test('real server: Nutrition leaves workout revision, write ids and legacy saves
   assert.equal((await call('PUT', '/api/data', { state: { workouts: [], routines: [], restSec: 75 } })).status, 200);
   assert.equal((await (await call('GET', '/api/data/rev')).json()).rev, 2);
   assert.equal((await (await call('GET', '/api/nutrition/head' + query)).json()).head.commitId, 'second');
+});
+
+test('real server: client Nutrition coordinator replays a lost response, pulls and merges two devices', testOptions, async t => {
+  const f = await serverFixture(t); if (!f) return;
+  const calls = []; let sequence = 0, loseResponse = true;
+  const transport = async (path, options = {}) => {
+    const body = options.body ? JSON.parse(options.body) : undefined;
+    calls.push({ path, method: options.method || 'GET', body });
+    const response = await f.call(options.method || 'GET', path, body), data = await response.json();
+    if (!response.ok) throw Object.assign(new Error(data.error), { status: response.status, data });
+    if (options.method === 'POST' && loseResponse) { loseResponse = false; throw new Error('lost publication response'); }
+    return data;
+  };
+  const makeClient = async device => {
+    const memory = transactionalIdb();
+    const open = () => createNutritionLocalStore({ ...scope, deviceId: device, backend: nutritionIdbBackend({ idb: memory.idb }) });
+    let store = await open(); t.after(() => store.close());
+    const coordinator = () => createNutritionSync({ store, transport, getSession: () => ({ userId: 'alice', serverOrigin: origin, epoch: 1 }),
+      newId: () => `${device}-${++sequence}` });
+    return { get store() { return store; }, coordinator, async reopen() { store.close(); store = await open(); } };
+  };
+  const a = await makeClient('a'), b = await makeClient('b');
+  await a.store.commit({ commitId: 'first-client-write', partitions: [await part()] });
+  assert.equal((await a.coordinator().run()).status, 'offline');
+  assert.equal((await a.store.read()).pendingOperations.length, 1);
+  const delivery = (await a.store.syncState()).delivery;
+  await a.store.collect(); await a.reopen();
+  assert.deepEqual((await a.store.syncState()).delivery, delivery);
+  assert.equal((await a.coordinator().run()).status, 'synced');
+  assert.deepEqual(calls.filter(c => c.method === 'POST').map(c => c.body), [delivery.request, delivery.request]);
+  assert.equal((await b.coordinator().run()).status, 'synced');
+  for (const [client, device, meal, counter] of [[a, 'a', 'lunch', 10], [b, 'b', 'dinner', 11]]) {
+    const value = (await client.store.read()).domains[0]; value.records.foodEntries[0].meal = meal;
+    value.sync.revision++; value.sync.writeId = `edit-${device}`;
+    value.sync.edits[0].stamp = { counter, deviceId: device };
+    await client.store.commit({ commitId: `edit-${device}`, partitions: [await encodePartition(value)] });
+    assert.equal((await client.coordinator().run()).status, 'synced');
+  }
+  assert.equal((await a.coordinator().run()).status, 'synced');
+  assert.equal((await a.store.read()).domains[0].records.foodEntries[0].meal, 'dinner');
+  assert.ok((await a.store.read()).domains[0].extensions.nutritionSyncConflicts);
+  assert.deepEqual(await (await f.call('GET', '/api/data/rev')).json(), { rev: 0 });
 });

@@ -1,10 +1,11 @@
 import { NutritionValidationError } from './contracts.js'
 import { isNutritionDate } from './validate.js'
-import { DOMAIN_VERSION, boundedJson, check, exactKeys, jsonClone, readDocument, sealDocument,
+import { DOMAIN_VERSION, boundedJson, check, contentHash, exactKeys, jsonClone, readDocument, sealDocument,
   validateScope, verifiedDocument } from './persistence-contract.js'
 import { readManifest, createDatasetValidator } from './persistence-commit.js'
 import { decodePartition } from './serialization.js'
 import { documentKey, isDocumentKey, MAX_READ_DOCUMENTS, readLocalRoot, validateLocalQueue } from './local-contract.js'
+import { publicationRequest, validateConflictArchives } from './sync-contract.js'
 
 const INDEX_FORMAT = 'opengym-nutrition-local-date-index'
 const unsupported = error => error?.issues?.some(issue => ['unsupported_storage_version', 'unsupported_domain_version',
@@ -113,6 +114,7 @@ export function nutritionLocalReader({ backend, scope, assertOpen, cache = {} })
     const raw = readDocument(text)
     check(raw.storageVersion === 1, 'partition', raw.storageVersion === 0 ? 'committed_migration_required' : 'unsupported_storage_version')
     const domain = await decodePartition(raw)
+    await validateConflictArchives([domain])
     sameScope(domain, scope)
     check(raw.id === ref.id && raw.integrity.digest === ref.digest, 'partition', 'partition_reference_mismatch')
     check(raw.sync.revision === ref.revision && raw.sync.writeId === ref.writeId, 'partition', 'revision_mismatch')
@@ -131,8 +133,23 @@ export function nutritionLocalReader({ backend, scope, assertOpen, cache = {} })
   }
   const scan = async meta => {
     const validation = createDatasetValidator(), ranges = [], refs = new Map()
+    let deliveryManifest = null
+    if (meta.root.delivery) {
+      const delivery = meta.root.delivery, key = documentKey('m', delivery.head.manifestDigest)
+      deliveryManifest = await readManifest((await fetch(meta, [key])).get(key))
+      sameScope(deliveryManifest, scope)
+      check(deliveryManifest.integrity.digest === delivery.head.manifestDigest && deliveryManifest.commitId === delivery.head.commitId &&
+        deliveryManifest.pendingOperations.length === 0 && deliveryManifest.parentCommitId === (delivery.expectedHead?.commitId ?? null) &&
+        (delivery.expectedHead !== null || deliveryManifest.sequence === 0), 'delivery', 'head_manifest_mismatch')
+      check(delivery.uploads.every(digest => deliveryManifest.partitions.some(ref => ref.digest === digest)), 'delivery.uploads', 'missing_partition')
+      check(await contentHash(publicationRequest({ ...delivery, manifest: deliveryManifest })) === delivery.requestDigest,
+        'delivery', 'delivery_request_mismatch')
+      const operation = meta.manifest.pendingOperations.find(op => op.id === delivery.operationId)
+      check(await contentHash(operation) === delivery.operationDigest, 'delivery', 'delivery_operation_mismatch')
+    }
+    const deliveryValidation = createDatasetValidator(), delivered = new Set(deliveryManifest?.partitions.map(ref => ref.digest) ?? [])
     let records = 0
-    for (const ref of [...meta.manifest.partitions, ...meta.manifest.pendingOperations.flatMap(op => op.partitions)]) {
+    for (const ref of [...meta.manifest.partitions, ...meta.manifest.pendingOperations.flatMap(op => op.partitions), ...(deliveryManifest?.partitions ?? [])]) {
       const key = documentKey('p', ref.digest), previous = refs.get(key)
       check(!previous || JSON.stringify(previous) === JSON.stringify(ref), 'partitions', 'revision_mismatch')
       refs.set(key, ref)
@@ -143,6 +160,7 @@ export function nutritionLocalReader({ backend, scope, assertOpen, cache = {} })
       const batch = list.slice(i, i + MAX_READ_DOCUMENTS), objects = await fetch(meta, batch.map(([key]) => key))
       for (const [key, ref] of batch) {
         const domain = await decode(objects.get(key), ref); alive(meta.token)
+        if (delivered.has(ref.digest)) deliveryValidation.add(domain)
         if (current.has(ref.digest)) {
           validation.add(domain)
           records += domain.records.foodEntries?.length ?? 0
@@ -151,6 +169,7 @@ export function nutritionLocalReader({ backend, scope, assertOpen, cache = {} })
       }
     }
     validation.finish()
+    deliveryValidation.finish()
     await fetch(meta, [])
     return { ranges, records, documents: list.length }
   }
