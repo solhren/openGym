@@ -162,11 +162,12 @@ class Reader:
  def barcode(self,code):
   require(type(code)is str and re.fullmatch(r'(?:\d{8}|\d{12,14})',code,re.ASCII),'invalid-barcode')
   p=self.off_product(off.ids.canonical(code))
-  if p:return [p]
-  result=[];seen=set()
+  # An accepted OFF reference replaces only proven bindings. Independent wger
+  # identities sharing the code must reach the relay's ambiguity guard too.
+  result=[p]if p else [];seen={p['id']}if p else set()
   for alias in variants(code):
    for original in self.base.barcode(alias):
-    p=self.quality.product(original['id'])
+    p=self.product(original['id'])
     if p['id']not in seen:result.append(p);seen.add(p['id'])
   return result[:20]
  def search(self,query,page=1,page_size=20,language='fr'):

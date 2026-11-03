@@ -26,12 +26,42 @@ class CombinedReferenceTests(unittest.TestCase):
  def build(self,**kw):return m.build('base','quality','normalized','index',**kw)
  def reader(self):
   r=m.Reader(m.quality.Reader(m.quality.wger.Reader(self.base),self.q),self.root/'normalized',self.root/'index');self.addCleanup(r.close);return r
+ def collision_reader(self,count=1,code='3017620422003'):
+  base=m.quality.wger.Reader(self.base)
+  try:rows=[m.parse_json(raw)for(raw,)in base.c.execute('SELECT payload FROM products ORDER BY id')]
+  finally:base.close()
+  independent=[]
+  for i in range(count):
+   p=copy.deepcopy(rows[2]);p.update(id=f'wger:00000000-0000-4000-8000-{i:012x}',barcode=code,name=f'Independent declared product {i}',nameFr=f'Independent declared product {i}');independent.append(p)
+  path=self.root/'base-collision';path.mkdir();quality=self.root/'quality-collision';quality.mkdir()
+  m.quality.wger.build(path,wire(rows+independent));base=m.quality.wger.Reader(path)
+  try:m.quality.build(base,quality,{'baseSha256':base.manifest['sha256'],'aliases':[{'uid':rows[2]['id'],'label':'Riz cru','terms':'riz','expectedName':rows[2]['name']}]})
+  finally:base.close()
+  m.build('base-collision','quality-collision','normalized','index-collision')
+  r=m.Reader(m.quality.Reader(m.quality.wger.Reader(path),quality),self.root/'normalized',self.root/'index-collision');self.addCleanup(r.close);return r,independent
+ def test_accepted_off_reference_does_not_hide_independent_wger_barcode_collision(self):
+  r,independent=self.collision_reader()
+  for code in ['3017620422003','03017620422003']:
+   with self.subTest(code=code):
+    products=r.barcode(code)
+    self.assertEqual({p['id']for p in products},{'off:03017620422003',independent[0]['id']})
+    self.assertEqual(len(products),2);self.assertTrue(all(p['food']is not None for p in products))
+    self.assertEqual([p for p in products if p['id']==independent[0]['id']],[r.product(independent[0]['id'])])
+ def test_barcode_without_off_reference_still_preserves_independent_variants(self):
+  r,independent=self.collision_reader(code='12345678');products=r.barcode('12345678')
+  self.assertEqual({p['id']for p in products},{independent[0]['id'],'wger:12345678-1234-1234-1234-123456789abf'})
+  self.assertEqual(sum(p['food']is not None for p in products),1)
+ def test_barcode_collision_cap_stays_conservative_with_an_accepted_off_reference(self):
+  r,_=self.collision_reader(count=21);products=r.barcode('3017620422003')
+  self.assertEqual(len(products),20);self.assertEqual(len({p['id']for p in products}),20)
+  self.assertEqual(products[0]['id'],'off:03017620422003')
  def test_deduplicated_literal_union_hydrates_and_discovers_missing_wger_products(self):
   manifest=self.build();self.assertEqual(manifest['rows'],2);self.assertEqual(manifest['bindings'],2)
   r=self.reader();p=r.search('nutella')['products'];self.assertEqual(len(p),1);self.assertEqual(p[0]['id'],'off:03017620422003');self.assertEqual(p[0]['food']['reference']['unit'],'g')
   liquid=r.search('Coca-Cola')['products'];self.assertEqual(len(liquid),1);self.assertEqual(liquid[0]['food']['reference']['unit'],'ml')
   self.assertEqual(r.product('wger:12345678-1234-1234-1234-123456789abc')['id'],p[0]['id'])
-  self.assertEqual(r.barcode('03017620422003')[0]['id'],p[0]['id']);self.assertEqual(r.search('nutela')['products'],[]);self.assertEqual(r.search('cocacola')['products'],[])
+  self.assertEqual(r.barcode('3017620422003'),p);self.assertEqual(r.barcode('03017620422003'),p)
+  self.assertEqual(r.search('nutela')['products'],[]);self.assertEqual(r.search('cocacola')['products'],[])
   self.assertEqual(r.search('riz')['products'][0]['name'],'Riz cru')
  def test_exact_unusable_product_precedes_different_usable_prefix_and_pagination_is_stable(self):
   self.build();r=self.reader();found=r.search('Coca');self.assertEqual(found['count'],2);self.assertEqual(found['products'][0]['name'],'Coca');self.assertIsNone(found['products'][0]['food']);self.assertIsNotNone(found['products'][1]['food'])
