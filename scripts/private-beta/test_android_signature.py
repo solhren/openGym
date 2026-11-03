@@ -66,6 +66,12 @@ class SignatureTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.verify(self.certificate, self.report)
 
+    def test_cli_public_pin_accepts_and_rejects(self):
+        for pin, accepted in [(self.fingerprint, True), ('0' * 64, False), ('not-a-pin', False)]:
+            with self.subTest(pin=pin):
+                result = subprocess.run([sys.executable, str(SCRIPT), '--sha256', pin, str(self.report)], capture_output=True)
+                self.assertEqual(result.returncode == 0, accepted)
+
     def test_cli_accepts_matching_certificate(self):
         result = subprocess.run([sys.executable, str(SCRIPT), str(self.certificate), str(self.report)], capture_output=True)
         self.assertEqual(result.returncode, 0)

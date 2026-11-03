@@ -1,0 +1,56 @@
+name: Distribute personal Android beta
+
+on:
+  workflow_call:
+    inputs:
+      run_id:
+        description: Fully successful Tests run containing the signed personal APK
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: personal-android-beta-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == 'solhren'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Check out distribution tools from the selected owner branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: solhren/openGym
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Test distribution and signing guards without credentials
+        run: python3 -m unittest discover -s scripts/private-beta -p 'test_android_*.py' -q
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up APK verification tools
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          packages: 'build-tools;35.0.0'
+          log-accepted-android-sdk-licenses: false
+
+      # Only this step receives the ephemeral repository token. Unlike a personal
+      # token, its release event does not trigger the existing Docker publisher.
+      - name: Verify the selected successful run and update the prerelease APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_HOST: github.com
+          SOURCE_RUN: ${{ inputs.run_id }}
+        run: python3 scripts/private-beta/publish-android-release.py "$SOURCE_RUN"

@@ -7,22 +7,20 @@ catalogue du VPS. Aucun catalogue, mot de passe, invitation ou jeton personnel
 n'est embarqué dans l'APK. Le build ne contacte pas le VPS. L'application porte
 l'identifiant `ch.duartesantos.opengym.test`, distinct de l'application principale.
 
-1. Sur **github.com/solhren/openGym**, ouvrir **Actions → Tests → Run workflow**,
-   sélectionner **feature/nutrition**, puis lancer avec le compte **solhren**.
-   Ne pas choisir main. Les tests existants continuent de s'exécuter ; le job
-   `android-personal-beta / apk` construit l'APK en parallèle.
-2. Attendre que ce job ait réellement réussi. Dans les artefacts du run,
-   télécharger `opengym-personal-debug-<run>-<tentative>` (conservé 14 jours).
-3. Sur Android, extraire le ZIP puis ouvrir `opengym-beta-debug.apk`. Autoriser
-   temporairement l'installation depuis le navigateur/gestionnaire utilisé.
-   Aucun Google Play ni tunnel SSH n'est nécessaire. Une alerte Play Protect
-   est possible pour une application debug privée.
-4. Depuis une session authentifiée dans l'application Web sur gym.solhren.fr,
+1. Télécharger directement [opengym-beta-debug.apk](https://github.com/solhren/openGym/releases/download/android-personal-beta/opengym-beta-debug.apk)
+   depuis la [préversion personnelle](https://github.com/solhren/openGym/releases/tag/android-personal-beta).
+   Aucun ZIP à extraire. Le dépôt étant public, l'APK est téléchargeable publiquement ;
+   l'accès aux données du compte reste authentifié.
+2. Sur Android, ouvrir ce fichier et autoriser temporairement l'installation depuis
+   le navigateur/gestionnaire utilisé. Ne pas désinstaller une version existante
+   pour contourner un problème de signature. Une alerte Play Protect est possible
+   pour une application debug privée. Aucun Google Play ni tunnel SSH nécessaire.
+3. Depuis une session authentifiée dans l'application Web sur gym.solhren.fr,
    ouvrir **Paramètres → Compte → Associer l’application mobile**, générer un code et le
    saisir dans l'écran d'appairage Android avant son expiration. Ne jamais
    publier ce code. La passkey reste celle du compte existant ; le jeton
    d'appareil est conservé dans le stockage natif sécurisé.
-5. Dans Nutrition, rechercher un produit, vérifier la référence **100 g / 100 ml**,
+4. Dans Nutrition, rechercher un produit, vérifier la référence **100 g / 100 ml**,
    choisir une quantité, ajouter puis modifier/supprimer une entrée de test.
    Fermer et rouvrir pour vérifier la persistance. Essayer **Scanner**, accorder
    la permission au moment de l'action, lire un EAN/UPC puis vérifier le produit.
@@ -245,3 +243,105 @@ failures. The actual restoration step was also exercised in four isolated cases
 (missing, malformed, non-keystore, retained valid key). The real intermediate
 certificate was independently refused against the retained public certificate.
 Final distribution must use a later run whose signer comparison succeeds.
+
+
+## Distribution directe et mise à jour de la préversion
+
+Le canal est `android-personal-beta`, titre **openGym — Bêta Android personnelle**.
+Son unique asset ajouté est **opengym-beta-debug.apk**. Le SHA-256, le certificat
+public et le lien vers la compilation exacte figurent dans les notes, pas dans
+un ZIP ou un fichier privé annexe. GitHub peut afficher ses liens automatiques
+vers les archives du code public ; ce ne sont pas des assets privés téléversés.
+Les artefacts Actions ZIP restent un recours temporaire, conservé 14 jours.
+
+### Deux actions manuelles simples
+
+1. **Compiler** : Actions → Tests → Run workflow → `feature/nutrition`, laisser
+   `android_release_run` vide. Attendre le succès de tous les jobs.
+2. **Distribuer** : relancer Tests depuis la CLI ci-dessous, sur cette même branche,
+   en renseignant `android_release_run` avec l'identifiant du run de compilation réussi.
+   La publication réutilise son APK exact, sans le recompiler. Les tests frontend,
+   API, MCP et images continuent de s'exécuter normalement ; le job de compilation
+   APK est volontairement absent de ce mode, puis la publication attend ces contrôles.
+
+```bash
+# Compte CLI solhren, dépôt solhren/openGym :
+gh workflow run test.yml --repo solhren/openGym --ref feature/nutrition
+# Après succès du run de compilation, remplacer RUN_ID :
+gh workflow run test.yml --repo solhren/openGym --ref feature/nutrition \
+  -f android_release_run=RUN_ID
+```
+
+Le formulaire GitHub peut rester basé sur les entrées de main : si ce nouveau
+champ n'y apparaît pas, utiliser la commande CLI, sans modifier main.
+
+Le lien direct reste identique pour les mises à jour. Installer le nouveau fichier
+par-dessus l'application signée avec la même clé. Aucun auto-updater n'est ajouté.
+Le run source doit toujours disposer de son artefact non expiré.
+
+### Pourquoi la publication passe par Actions
+
+Le workflow existant `docker-publish.yml` réagit à **release: published**, y compris
+une préversion : le créer directement avec un token personnel risquerait de publier
+des images `latest`. Le job dédié utilise uniquement le **GITHUB_TOKEN temporaire
+du dépôt**, dont les événements release/push ne déclenchent pas d'autres workflows
+([règle GitHub](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#triggering-a-workflow-from-a-workflow)).
+Aucun token personnel n'est ajouté aux secrets, aucun workflow Docker désactivé,
+aucune modification de main ou de la production. Le déclenchement est limité au
+compte `solhren`, à son dépôt et à `feature/nutrition` ; l'auteur technique de la
+publication est le bot Actions du dépôt.
+
+`.github/workflows/android-personal-release.yml` reçoit seulement `contents: write`
+et `actions: read` pour son job de publication. Le jeton est transmis uniquement
+à l'étape de distribution. Pas de permission packages, de Play Store ni de clé
+privée de signature. Checkout et setup actions restent fixés à leurs commits.
+Le script refuse une exécution locale habituelle : ne pas simuler l'environnement
+Actions avec un token personnel.
+
+### Contrôles et garanties
+
+`publish-android-release.py` vérifie dépôt, acteur, branche, workflow, tentative,
+réussite complète des cinq jobs source, unicité et taille de l'artefact, profil
+personnel, nom exact et SHA-256 du fichier, puis signature réelle via SDK 35 et
+identifiant réel via aapt. Le certificat est épinglé à l'empreinte publique :
+
+`8c883ac845e2abd0d04e9f6230cf5362e5c61f749723b55c09fbf456881218d8`
+
+Une modification accidentelle du secret de signature ne suffit donc pas à changer
+la clé du canal publié. La distribution n'a accès à aucune clé privée. Les entrées
+APK privées et les profils invités ou destinés à un autre backend sont refusés.
+
+La première Release est créée en brouillon ; publication seulement après contrôle
+du SHA-256 et de la taille calculés par GitHub pour l'asset téléversé. Les mises à
+jour refusent les anciennes compilations, les autres préversions/assets et les
+changements de certificat. Une répétition du même run et du même fichier réutilise
+l'asset sans nouveau transfert. Une seule publication est active à la fois.
+
+Le tag est un **canal de distribution mutable**, pas une version source immuable :
+il suit la révision du workflow de publication, uniquement en avance rapide
+(`force: false`). Le commit exact ayant produit l'APK est indiqué séparément dans
+les notes et le run source ; les archives automatiques du tag incluent les outils
+de distribution. Ce choix reste compatible avec les restrictions du jeton Actions
+sur les références. Aucune branche principale ni autre tag n'est modifié.
+
+Le remplacement d'un asset GitHub avec `--clobber` n'est pas une transaction globale :
+le lien peut être temporairement indisponible pendant son transfert. Toutes les
+vérifications locales précèdent ce remplacement ; l'état distant est revérifié
+avant de déclarer le succès. Une panne se traite en relançant la publication du
+même run. Les données installées sur téléphone, le VPS, la clé privée et les
+artefacts Actions ne sont pas effacés. Aucune restauration de données utilisateur
+n'est liée à cette opération.
+
+### Tests de distribution
+
+```bash
+python3 -m unittest discover -s scripts/private-beta -p 'test_android_*.py' -q
+```
+
+**22 tests locaux réussis** : sources étrangères/échouées/incomplètes, tentative
+incorrecte ou expirée, corruption, références de checksum malveillantes, symlinks,
+fichiers privés, mauvais profil, ancienne version, remplacement d'une Release
+étrangère, digest serveur incorrect et certificat divergent. Tests sans réseau ni
+clé privée. Les nouvelles fonctions de contrôle ont aussi accepté l'APK réel du
+run `41667081441` avec son SHA-256 vérifié ; la publication effective reste à
+attester par le job dédié et le contrôle de la Release distante.
