@@ -48,6 +48,9 @@ jobs:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
           log-accepted-android-sdk-licenses: false
 
+      - name: Test the signing certificate guard
+        run: python3 -m unittest discover -s scripts/private-beta -p 'test_android_signature.py' -q
+
       - name: Install frontend dependencies from the lockfile
         working-directory: frontend
         run: npm ci
@@ -66,14 +69,13 @@ jobs:
               content = base64.b64decode(raw, validate=True)
               if not 0 < len(content) <= 65536:
                   raise SystemExit('Invalid debug signing file size')
-              folder = Path.home() / '.android'
-              folder.mkdir(mode=0o700, exist_ok=True)
-              target = folder / 'debug.keystore'
+              target = Path(os.environ['RUNNER_TEMP']) / 'opengym-debug.keystore'
               with target.open('wb') as stream:
                   os.fchmod(stream.fileno(), 0o600)
                   stream.write(content)
           PY
-          keytool -list -keystore "$HOME/.android/debug.keystore" \
+          echo "OPENGYM_ANDROID_DEBUG_KEYSTORE=$RUNNER_TEMP/opengym-debug.keystore" >> "$GITHUB_ENV"
+          keytool -list -keystore "$RUNNER_TEMP/opengym-debug.keystore" \
             -storepass android -alias androiddebugkey > /dev/null
 
       - name: Build the personal Android APK using the existing script
@@ -99,7 +101,11 @@ jobs:
           assert meta['applicationId'] == 'ch.duartesantos.opengym.test'
           assert meta['variant'] == 'debug'
           PY
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$apk"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$apk" > "$RUNNER_TEMP/apk-certificate.txt"
+          keytool -exportcert -keystore "$OPENGYM_ANDROID_DEBUG_KEYSTORE" \
+            -storepass android -alias androiddebugkey -file "$RUNNER_TEMP/expected-signing.der" > /dev/null
+          python3 scripts/private-beta/verify-android-signature.py \
+            "$RUNNER_TEMP/expected-signing.der" "$RUNNER_TEMP/apk-certificate.txt"
           badging=$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$apk")
           [[ "$badging" == *"package: name='ch.duartesantos.opengym.test'"* ]]
           (cd "$folder" && sha256sum opengym-beta-debug.apk > opengym-beta-debug.apk.sha256)
@@ -119,4 +125,4 @@ jobs:
 
       - name: Remove the runner signing key
         if: always()
-        run: rm -f "$HOME/.android/debug.keystore"
+        run: rm -f "${OPENGYM_ANDROID_DEBUG_KEYSTORE:-$RUNNER_TEMP/opengym-debug.keystore}"

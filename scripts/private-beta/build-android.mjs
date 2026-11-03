@@ -13,6 +13,8 @@ try{
  if(Number(process.versions.node.split('.')[0])!==22)throw Error('Node 22 required');
  const java=spawnSync('java',['-version'],{encoding:'utf8'});if(java.error||java.status!==0||!/version "21(?:[.\"])/.test(java.stderr+java.stdout))throw Error('JDK 21 must be installed and on PATH; nothing was downloaded');
  const sdk=process.env.ANDROID_HOME||process.env.ANDROID_SDK_ROOT;if(!sdk||!fs.existsSync(path.join(sdk,'platforms/android-35/android.jar')))throw Error('Set ANDROID_HOME to an installed Android SDK including platform 35');
+ const signing=process.env.OPENGYM_ANDROID_DEBUG_KEYSTORE;
+ if(!signing||!path.isAbsolute(signing)||!fs.lstatSync(signing).isFile()||fs.lstatSync(signing).isSymbolicLink())throw Error('Set OPENGYM_ANDROID_DEBUG_KEYSTORE to the retained private debug keystore; no automatic key is allowed');
  command('npm',['run','build:mobile'],path.join(root,'frontend'),{...process.env,VITE_OPENGYM_PERSONAL_BETA:'1',VITE_NUTRITION_LOCAL_V1:'1',VITE_NUTRITION_CATALOG_ORIGIN:origin});
  command('./gradlew',['--no-daemon','--max-workers=2','assembleDebug'],path.join(root,'frontend/android'));
  const source=path.join(root,'frontend/android/app/build/outputs/apk/debug/app-debug.apk');if(!fs.existsSync(source))throw Error('Gradle returned without APK');

@@ -204,3 +204,44 @@ Le garde externe a surveillé les validations sans abaisser les limites : minimu
 observé **24,05 Gio libres et 2,61 Gio de RAM disponible**. Aucun import réel,
 redémarrage de service, modification du domaine/proxy ou accès aux données de
 production n'a été réalisé par cette validation.
+
+### Stable signing correction after the first compiled artifact
+
+Run `41664952165` compiled successfully, but independent certificate inspection
+showed a newly generated Gradle debug certificate rather than the retained key.
+**Do not install that intermediate artifact.** Merely decoding the key into
+`$HOME/.android` did not bind the Gradle signing configuration to it on the runner.
+The private retained key has not been replaced or regenerated.
+
+The workflow now restores the key to a private file in `RUNNER_TEMP` and exports
+its absolute path as `OPENGYM_ANDROID_DEBUG_KEYSTORE`. The Android module explicitly
+binds its debug signing config to that file, with the conventional debug alias and
+password. A configured missing file is an error. The personal build script also
+requires this variable instead of accepting an automatic key. Ordinary Android
+Studio debug builds without this opt-in and release signing are unchanged.
+For a manual personal build, set it to the absolute path of the **existing** key:
+
+```bash
+export OPENGYM_ANDROID_DEBUG_KEYSTORE=/ABSOLUTE/PRIVATE/PATH/debug.keystore
+node scripts/private-beta/build-android.mjs https://gym.solhren.fr
+```
+
+After `apksigner verify --print-certs`, keytool exports only the retained key's
+public certificate. `verify-android-signature.py` compares its SHA-256 with the
+single verified APK signer; a mismatch prevents artifact upload. The comparison
+is additional to APK signature verification, not a substitute for it. Inputs are
+bounded public metadata; neither the key nor its password is logged or uploaded
+as an artifact. This uses the standard [Gradle signing configuration](https://developer.android.com/build/gradle-tips#sign-your-app).
+
+Regression tests use synthetic **public metadata**, not new signing keys:
+
+```bash
+python3 -m unittest discover -s scripts/private-beta -p 'test_android_signature.py' -q
+```
+
+All **8 tests pass**, including rejection of the certificate observed in the
+intermediate artifact, multiple signers, malformed/oversized metadata and CLI
+failures. The actual restoration step was also exercised in four isolated cases
+(missing, malformed, non-keystore, retained valid key). The real intermediate
+certificate was independently refused against the retained public certificate.
+Final distribution must use a later run whose signer comparison succeeds.
