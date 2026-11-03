@@ -622,8 +622,13 @@ function sessionOf(req) {
   if (!Number.isInteger(claimed) || claimed !== sessionVersion(user)) return null;
   return { user, exp: +exp, bearer: !cookie };
 }
+// Remember only a session the handler actually depends on. Anonymous sign-in routes may carry
+// an unrelated cookie; receiving their body must not turn that cookie into an auth requirement.
+const requiredSessionUser = Symbol('requiredSessionUser');
 function readSession(req) {
-  return sessionOf(req)?.user || null;
+  const user = sessionOf(req)?.user || null;
+  if (user) req[requiredSessionUser] = user;
+  return user;
 }
 // Guard for /api/admin/* — resolves the caller and 401/403s if they aren't an admin.
 function requireAdmin(req, res) {
@@ -745,6 +750,7 @@ class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 function readBody(req) {
+  const user = req[requiredSessionUser];
   return new Promise((resolve, reject) => {
     let size = 0, over = false; const chunks = [];
     req.on('data', d => {
@@ -768,6 +774,11 @@ function readBody(req) {
     });
     req.on('end', () => {
       if (over) return;
+      // Waiting for a body yields to logout/all, account disablement or deletion on another
+      // connection. Recheck before returning control to the mutation: its original user object
+      // alone no longer proves the cookie/Bearer token is valid. Synchronous writes after this
+      // await cannot interleave with another request; later awaits still need their own checks.
+      if (user && sessionOf(req)?.user !== user) return reject(new HttpError(401, 'not signed in'));
       if (!chunks.length) return resolve({});
       let body;
       try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
