@@ -13,6 +13,34 @@ publication. Cleanup and full verification also include these pins; identity-onl
 cannot bypass an active delivery's validated server receipt. Progressive day/month reads remain
 separate from full mutation/synchronization validation. No portable v1 or native bridge format changes.
 
+## Native startup correction — 3 November 2026
+
+The default `nutritionFsBackend` loader returned `registerPlugin('NutritionStorage')`
+from an async function. In the locked Capacitor 7.6.8 runtime the returned Proxy
+manufactures a callable property for `then`, just as it does for plugin methods.
+Promise resolution calls it with resolve/reject callbacks. Capacitor instead tries
+to dispatch a nonexistent `NutritionStorage.then()` method and rejects its own
+promise, without settling the loader's promise. Consequently `open()` never reaches
+its first `headers` call. This is a JavaScript integration error before Java file
+I/O, locking or fsync; neither SQLite nor network availability participates.
+
+A Node reproduction using the actual dependency and unmodified adapter, with Android plugin
+headers and a synthetic native dispatcher, observed an opening still pending after
+250 ms, **zero native calls**, and an unhandled `UNIMPLEMENTED` rejection:
+`"NutritionStorage.then()" is not implemented on android`. This proves the code
+defect, not execution on the user's phone. Existing filesystem tests injected plain
+objects and therefore never exercised this Proxy/Promise boundary.
+
+The fix awaits only the dynamic module import and registers the Proxy synchronously
+inside `open()`. No proxy value crosses a Promise resolution boundary. The optional
+test loader still accepts plain protocol implementations. The first native operation
+is again `headers`; registration, Java/Swift methods, scope ids, installation ids,
+JSON bytes, locks, CAS, durability and sync rules are unchanged. Existing files are
+opened in place without migration, reset or fallback.
+
+Validation and physical-device limits are recorded in the Android startup section
+of [the Nutrition UI reference](NUTRITION_UI.md#android-startup-diagnosis--3-november-2026).
+
 ## API and isolation
 
 ```js

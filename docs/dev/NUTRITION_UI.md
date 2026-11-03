@@ -1,5 +1,173 @@
 # Nutrition interface — step 3
 
+## Android startup diagnosis — 3 November 2026
+
+Opening Home → Nutrition lazy-loads `views/Nutrition.jsx`. `useNutrition()` starts
+its account-bound singleton and initially renders `Loading…` and `Opening Nutrition
+storage…`. It awaits installation identity, then the scoped local store, the server
+binding for signed-in users and the first service inspection. Only after those local
+steps does it expose the service and start Nutrition synchronization. Journal/library
+reads run through `useRead`; catalogue capabilities/search run later in the picker.
+Backend availability is not a prerequisite for opening the local journal.
+
+On Web, installation identity and journal use IndexedDB. On Android/iOS, platform
+detection selects the private JSON `NutritionStorage` plugin; Android registers it
+before `BridgeActivity.onCreate`. Its methods run on a single I/O executor under an
+OS file lock. SQLite/Python belongs to the backend's public food catalogue, not this
+local journal. The installation identity needs the first native headers call even
+on completely empty storage. The confirmed Proxy/Promise bug and minimal correction
+are detailed in [local storage](NUTRITION_LOCAL_STORAGE.md#native-startup-correction--3-november-2026).
+
+The stalled loader leaves both `current` and the hook's `opened` unset. The hook's
+effect depends on account/server/guest scope and user identity; status updates alone
+do not retrigger it. No React render loop is needed to reproduce this hang. A
+route remount reuses the same pending opening promise; changing account invalidates
+its epoch but starts the same broken loader. Focus/online only refresh an existing
+service, so they cannot unstick it. `useSyncExternalStore` returns a stable empty
+snapshot while opening. None of these hooks, cancellation guards or synchronization
+rules needs modification to correct the dependency boundary.
+
+The defect reproduces with the locked Capacitor runtime in Node, before the first
+native call; this is not an Android execution. The adapter, startup hook, native
+plugin and frontend lockfile are identical in the distributed APK source
+`3d2f9c9f` and this correction's base `0923642b`. Device logs are still needed to
+attribute the installed APK incident conclusively and detect any subsequent
+OS/filesystem issue. No timeout, automatic retry/reset, data migration or additional
+production logging is needed to correct this reproducible dependency boundary.
+
+### Regression evidence and commands
+
+`native-startup.test.jsx` keeps the actual locked Capacitor runtime and default
+backend loader. Only the native dispatcher/filesystem and HTTP boundary are
+simulated. It exercises the real identity, React hook/screen under StrictMode,
+commands, API transport and sync coordinator: empty guest storage with no HTTP;
+authenticated offline opening, saving and reopening with identical installation
+ids, history and frozen outbox; reconnecting through `api()` to a temporary real
+server store; and visible native I/O failure. Native registration/JSON/filesystem
+behavior is simulated, so these cases do not certify Java or a physical phone.
+
+Node 22.23.3 / npm 10.9.9, isolated branch `fix/android-nutrition-startup`, base
+`0923642b`. Dependencies were installed from lockfiles with `npm ci --offline`;
+the API installation omitted optional dependencies. These overlapping runs must
+not be added together:
+
+| Execution | Exact result |
+| --- | --- |
+| New first-open case with the original adapter temporarily restored | 1 failed by 1,000 ms timeout; 1 unhandled `NutritionStorage.then()` rejection; 3 other cases unselected; exit 1 |
+| Four new native-startup cases after the fix | 4 passed, 0 failed, 0 skipped, 0 unhandled errors; 5.00 s |
+| Targeted frontend regression, 13 files below | 240 passed, 0 failed, 0 skipped; 143.70 s |
+| Strict real local HTTP tests, 2 files below | 15 passed, 0 failed, 0 skipped; 11.979 s |
+| Web build | Passed; 2.12 s |
+| Personal-beta mobile-flavor web build and `checkCopy` | Passed; 1.97 s plus successful flavor/asset check |
+| `git diff --check` | Passed |
+
+The first new-fixture run had four passing assertions but one unhandled missing
+`App` plugin error: the shared UI installs a native listener. The fixture now
+supplies that listener protocol; no production App code was changed and no
+unhandled error is ignored. Final runs retain older React `act` warnings and
+Capacitor duplicate-registration warnings (the runtime returns the registered
+Proxy). Builds retain the existing large-chunk/ineffective-dynamic-import warnings.
+
+The HTTP tests start disposable local servers/workers with synthetic users and
+files. They exercise cookie/Bearer auth, account isolation, CSRF, durable publication,
+lost responses and two-device merge. No request goes to `gym.solhren.fr` or an
+external food provider. Their success tests the local HTTP boundary; it does not
+verify the phone's production network. No sync algorithm/API/contract changed.
+
+Commands from the isolated worktree (runtime contains only ignored test artifacts;
+`TMPDIR` uses the project disk, not the small `/tmp` tmpfs):
+
+```sh
+cd /home/codex/openGym/scripts/nutrition-local-catalog/runtime/android-nutrition-startup
+export PATH="/home/codex/.local/opt/node22/bin:$PATH"
+mkdir -p scripts/nutrition-local-catalog/runtime/tmp scripts/nutrition-local-catalog/runtime/artifacts
+export TMPDIR="$PWD/scripts/nutrition-local-catalog/runtime/tmp"
+cd frontend
+npm ci --offline --no-audit --no-fund
+npm test -- src/lib/nutrition/native-startup.test.jsx --maxWorkers=1 --reporter=verbose
+npm test -- src/lib/nutrition/native-startup.test.jsx \
+  src/lib/nutrition/local-store-fs.test.js src/lib/nutrition/local-store.test.js \
+  src/lib/nutrition/local-reader.test.js src/lib/nutrition/ui-identity.test.js \
+  src/lib/nutrition/use-nutrition.test.jsx src/lib/nutrition/ui-session.test.js \
+  src/lib/nutrition/ui-service.test.js src/lib/nutrition/sync.test.js \
+  src/lib/nutrition/catalog/native-transport.test.js src/lib/nutrition/catalog/mobile-catalog.test.js \
+  src/lib/api.test.js src/views/Nutrition.test.jsx --maxWorkers=1 --reporter=dot
+cd ../api
+npm ci --offline --omit=optional --no-audit --no-fund
+env -i PATH=/home/codex/.local/opt/node22/bin:/usr/bin:/bin TMPDIR="$TMPDIR" \
+  COACH_DISABLED=1 NUTRITION_REQUIRE_HTTP_TESTS=1 node --test --test-concurrency=1 \
+  test/nutrition-http.test.js test/server-nutrition.test.js
+cd ../frontend
+npm run build
+VITE_MOBILE=1 VITE_OPENGYM_PERSONAL_BETA=1 VITE_NUTRITION_LOCAL_V1=1 \
+  VITE_NUTRITION_CATALOG_ORIGIN=https://gym.solhren.fr npm run build \
+  -- --outDir ../scripts/nutrition-local-catalog/runtime/artifacts/mobile-web
+node --input-type=module -e "import { checkCopy } from './scripts/check-mobile-bundle.mjs'; checkCopy('../scripts/nutrition-local-catalog/runtime/artifacts/mobile-web')"
+cd ..
+git diff --check
+```
+
+The baseline failure used the native-startup test command with
+`--testTimeout=1000 -t '^first native open'` against only the original adapter
+from `git show HEAD:frontend/src/lib/nutrition/local-store-fs.js` (HEAD was the base
+commit). The fixed source was restored immediately in a `finally` block. Retained
+logs under `scripts/nutrition-local-catalog/runtime/artifacts/` are
+`native-startup-before.log`, `native-startup-fixed.log`,
+`android-startup-regressions.log`, `nutrition-http.log`, `build-web.log` and
+`build-mobile-web.log`. They contain test fixtures only and are not Git artifacts.
+
+### Safe physical diagnosis
+
+No ADB, Java/Javac, Android SDK/emulator or attached device is available in this
+environment. No APK compilation, installed-app execution, Android fsync/lock test,
+real WebView rendering or production connectivity is claimed. The local simulations
+do not prove these properties. The existing APK/signature/release is untouched.
+
+On the tester's computer with authorized ADB, leave the app open on Home. Record
+only package/OS versions and filter logcat before opening Nutrition. The Python
+filter below emits fixed markers and source line numbers only; it discards original
+log lines, arguments, paths, account ids and tokens. Ctrl-C stops the collection.
+It neither clears logcat nor reads app-private files.
+
+```sh
+adb shell getprop ro.build.version.release
+adb shell getprop ro.build.version.sdk
+adb shell dumpsys package ch.duartesantos.opengym.test | grep -E 'versionName=|versionCode='
+APP_PID=$(adb shell pidof -s ch.duartesantos.opengym.test | tr -d '\r')
+test -n "$APP_PID" && adb logcat --pid="$APP_PID" -T 1 -v brief \
+  Capacitor/Console:E Capacitor:E AndroidRuntime:E '*:S' | \
+python3 -u -c '
+import re, sys
+from datetime import datetime, timezone
+markers = {
+    "NutritionStorage.then()": "capacitor-then-assimilation",
+    "Nutrition storage failed": "native-storage-failure",
+    "nutrition-session-changed": "session-invalidated",
+}
+for line in sys.stdin:
+    found = [label for text, label in markers.items() if text in line]
+    found += re.findall(r"NutritionStoragePlugin\.java:[0-9]+", line)
+    for label in found:
+        print(datetime.now(timezone.utc).isoformat(), label, flush=True)
+' > nutrition-startup-markers.txt
+```
+
+Open Nutrition once while capture runs; report whether `capacitor-then-assimilation`
+appears and whether the two loading messages stay visible. An empty marker file
+does not establish success (wrong PID, filtered/non-emitted errors and other native
+blocking remain possible). Restart capture if Android has restarted the app process.
+Do not use `pm clear`, uninstall, `run-as`, database/file dumps or unfiltered native
+call logs for this diagnosis. There is no need to inspect credentials or journal data.
+
+After an explicitly approved test build containing the correction, verify opening
+and route return on the existing sandbox without deleting it. For a truly empty
+first-launch test use a separate Android user/test device and synthetic account/data
+on a test backend; do not empty the personal installation or write test meals to
+production. Check offline opening/save/reopen, then reconnect and verify receipt-based
+queue drain without duplicates, and account switching without adopting another scope.
+Native file locks, interrupted writes and device filesystem durability remain separate
+physical checks. Do not change the stable signing key to perform any of these tests.
+
 ## Goal feedback after browser trials
 
 Journal indicators and the selected nutrient in history share `GoalStatus` in
