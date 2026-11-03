@@ -372,3 +372,30 @@ pour publier. Deux tests supplémentaires couvrent la reconnaissance du brouillo
 renommé et le parcours complet initial/reprise, avec APIs/SDK simulés : une reprise
 ne crée pas de doublon et ne retéléverse pas l'APK déjà vérifié. Les véritables
 contrôles de signature et de digest restent obligatoires en CI.
+
+### Distribution attestée — 3 novembre 2026
+
+La publication [41677952445](https://github.com/solhren/openGym/actions/runs/41677952445)
+a réussi après reprise du même brouillon. Les **25 tests** des gardes ont réussi
+en CI. Aucun APK n'a été recompilé ; les cinq jobs réussis de la compilation
+source **41667081441** ont été contrôlés par l'API GitHub.
+
+- [Préversion personnelle](https://github.com/solhren/openGym/releases/tag/android-personal-beta),
+  identifiant 432957371, `draft: false`, `prerelease: true`, mutable.
+- [Téléchargement direct APK](https://github.com/solhren/openGym/releases/download/android-personal-beta/opengym-beta-debug.apk),
+  seul asset ajouté, identifiant 706313758, **238182649 octets**.
+- SHA-256 local et GitHub identiques :
+  `e9803c92bc495d883c6475aa5bd4c1ab75cfa29031854ebe6dbba371e9283f42`.
+- Certificat vérifié contre l'empreinte stable épinglée ci-dessus. Aucune clé
+  privée n'est accessible au job de distribution.
+- Contrôle anonyme HTTPS du lien : **200**, taille exacte,
+  `application/vnd.android.package-archive`, pièce jointe `opengym-beta-debug.apk`.
+- L'asset du brouillon a été conservé : pas de doublon ni nouveau transfert lors
+  de la reprise. Le tag de canal pointe sur la révision de publication ae60ae53 ;
+  le commit de compilation exact 3d2f9c9f est indiqué dans les notes.
+- Aucune exécution Docker déclenchée par un événement release. Main et le VPS de
+  production n'ont pas été modifiés. Les suites frontend/API n'ont pas été
+  relancées dans le mode distribution seul ; leurs résultats source sont requis.
+
+Le téléchargement APK est public, conformément à la visibilité du dépôt. Cela
+ne donne ni jeton ni accès aux données du compte ; l'appairage reste nécessaire.
