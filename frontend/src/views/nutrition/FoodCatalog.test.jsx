@@ -59,7 +59,10 @@ test('V1 local-only combobox -> UUID -> durable journal -> edit -> reopen -> del
   const local=vi.fn(async path=>response(path.includes('/search?')?localSearchBody():localBody({product:localRecord()})))
   const make=()=>createNutritionUISession({store:fixture.store,session:fixture.session.value,getSession:()=>fixture.session.value,online:()=>false,
     catalogLocalOnly:true,catalogTransport:transport,catalogLocalTransport:local,catalogCapabilitiesTransport:async()=>response(localCapabilities)})
-  service=make();await mount();await click('Add food');await type(field('Meal'),'lunch');await click('Food catalogue')
+  service=make();await mount();await click('Add food');await type(field('Meal'),'lunch')
+  await wait(()=>host.querySelector('[role="combobox"]'));expect(host.querySelector('.nutrition-summary')).toBeNull()
+  expect(host.querySelector('[aria-label="Food catalogue"]')).toBe(document.activeElement)
+  expect(local).not.toHaveBeenCalled();expect(transport).not.toHaveBeenCalled()
   const input=host.querySelector('[role="combobox"]');await act(async()=>input.focus());await type(input,'riz');await wait(()=>host.querySelector('[role="option"]'))
   await key(input,'ArrowDown');await key(input,'Enter');await wait(()=>host.querySelector('.nutrition-product'))
   expect(host.textContent).toContain('Riz cru');expect(host.textContent).toContain('USDA');await click('Choose quantity');await type(field('Quantity'),'50');await save()
@@ -71,7 +74,7 @@ test('V1 local-only combobox -> UUID -> durable journal -> edit -> reopen -> del
   expect((await service.day('2026-10-10')).entries[0].snapshot).toEqual(first.snapshot)
   await act(async()=>host.querySelector('[aria-label="Delete Rice, raw"]').click());await click('Delete');await wait(()=>!service.getSnapshot().busy && !host.querySelector('[aria-label="Edit Rice, raw"]'))
   expect((await service.day('2026-10-10')).entries).toHaveLength(0);expect(service.getSnapshot().pending).toBeGreaterThan(0)
-  await click('Add food');await wait(()=>host.querySelector('.nutrition-result'));await act(async()=>host.querySelector('.nutrition-result').click());await save()
+  await click('Add food');await click('Local foods and recipes');await wait(()=>host.querySelector('.nutrition-result'));await act(async()=>host.querySelector('.nutrition-result').click());await save()
   expect((await service.day('2026-10-10')).entries[0].snapshot).toEqual(first.snapshot);expect(transport).not.toHaveBeenCalled();expect(local).toHaveBeenCalledTimes(2)
 },10000)
 
@@ -96,7 +99,7 @@ for(const kind of ['spread','drink'])test(`certified OFF ${kind}: real React sea
   await wait(()=>host.querySelector(`[aria-label="Delete ${food.name}"]`))
   await act(async()=>host.querySelector(`[aria-label="Delete ${food.name}"]`).click());await click('Delete');await wait(()=>!service.getSnapshot().busy&&!host.querySelector(`[aria-label="Edit ${food.name}"]`))
   expect((await service.day('2026-10-10')).entries).toHaveLength(0)
-  await click('Add food');await wait(()=>host.querySelector('.nutrition-result'));await act(async()=>host.querySelector('.nutrition-result').click());await save()
+  await click('Add food');await click('Local foods and recipes');await wait(()=>host.querySelector('.nutrition-result'));await act(async()=>host.querySelector('.nutrition-result').click());await save()
   expect((await service.day('2026-10-10')).entries[0].snapshot).toEqual(food);expect(transport).not.toHaveBeenCalled();expect(local).toHaveBeenCalledTimes(2)
 },15000)
 

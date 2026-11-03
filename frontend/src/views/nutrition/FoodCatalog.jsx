@@ -19,7 +19,7 @@ const messages = {
 }
 /** Local autocomplete uses manual-selection APG combobox; remote stays explicit. Scope/unmount/request epochs reject out-of-order responses;
  * selecting a result only prepares an editor, and does not publish a meal. */
-export default function FoodCatalog({ service, onChoose }) {
+export default function FoodCatalog({ service, onChoose, autoFocus = false }) {
   const [query, setQuery] = useState(''), [mode, setMode] = useState('text'), [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null), [selected, setSelected] = useState(null), [error, setError] = useState(null), [camera, setCamera] = useState(null)
   const [local, setLocal] = useState(false), [open, setOpen] = useState(false), [activeOption, setActiveOption] = useState(-1), [composing, setComposing] = useState(false)
@@ -106,10 +106,10 @@ export default function FoodCatalog({ service, onChoose }) {
   if (camera) return <CameraScan decode={camera} hint="Point the camera at the product barcode" onFound={onFound} onCancel={() => setCamera(null)} />
   return <div className="nutrition-catalog">
     <p className="muted small">{service.catalog.localOnly ? `${t('Food catalogue')} · wger / USDA / Open Food Facts` : local ? t('Source: Open Food Facts contributors') : t('Search Open Food Facts explicitly. Products are contributed by the community; values may be incomplete.')}</p>
-    <div className="nutrition-actions"><Button aria-pressed={mode === 'text'} onClick={() => { cancel(); setMode('text'); setResult(null); setSelected(null); setQuery(''); setError(null) }}>{t('Product name or brand')}</Button>
-      <Button aria-pressed={mode === 'barcode'} onClick={() => { cancel(); setMode('barcode'); setResult(null); setSelected(null); setQuery(''); setError(null) }}>{t('Barcode')}</Button><Button disabled={loading} onClick={scan}>{t('Scan product barcode')}</Button></div>
+    <div className="nutrition-actions nutrition-catalog-modes"><Button size="sm" aria-pressed={mode === 'text'} onClick={() => { cancel(); setMode('text'); setResult(null); setSelected(null); setQuery(''); setError(null) }}>{t('Product name or brand')}</Button>
+      <Button size="sm" aria-pressed={mode === 'barcode'} onClick={() => { cancel(); setMode('barcode'); setResult(null); setSelected(null); setQuery(''); setError(null) }}>{t('Barcode')}</Button><Button size="sm" icon="camera" className="nutrition-icon-action" aria-label={t('Scan product barcode')} title={t('Scan product barcode')} disabled={loading} onClick={scan}><span className="sr-only">{t('Scan product barcode')}</span></Button></div>
     <form onSubmit={e => { e.preventDefault(); if (!loading) explicitSearch() }}>
-      <SearchField ref={input} aria-label={t(mode === 'text' ? service.catalog.localOnly ? 'Food catalogue' : 'Search Open Food Facts' : 'Product barcode')} value={query}
+      <SearchField ref={input} autoFocus={autoFocus} aria-label={t(mode === 'text' ? service.catalog.localOnly ? 'Food catalogue' : 'Search Open Food Facts' : 'Product barcode')} value={query}
         onChange={e => changeQuery(e.target.value)} onClear={() => { changeQuery(''); input.current?.focus() }}
         onCompositionStart={() => { cancel(); setComposing(true) }} onCompositionEnd={() => setComposing(false)}
         onKeyDown={keyboard} onFocus={() => { if (local && !selected) setOpen(true) }} onBlur={() => { setOpen(false); setActiveOption(-1) }}

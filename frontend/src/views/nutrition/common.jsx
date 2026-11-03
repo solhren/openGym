@@ -87,11 +87,11 @@ export function Editor({ title, close, onSave, busy, children }) {
       <ErrorNotice error={error} /><div className="nutrition-actions"><Button variant="primary" type="submit" disabled={busy}>{busy ? t('Saving…') : t('Save')}</Button>
         <Button type="button" onClick={close} disabled={busy}>{t('Cancel')}</Button></div></fieldset></form></section>
 }
-export function DeleteAction({ name, remove, busy }) {
+export function DeleteAction({ name, remove, busy, compact = false }) {
   const [confirm, setConfirm] = useState(false), [error, setError] = useState(null), pending = useRef(false)
   return <>{confirm ? <div className="nutrition-confirm"><p>{t('Delete {0}? Historical food snapshots are preserved.', name)}</p>
     <Button variant="danger" disabled={busy} onClick={async () => { if (pending.current) return; pending.current = true; setError(null); try { await remove(); setConfirm(false) } catch (e) { setError(e) } finally { pending.current = false } }}>{t('Delete')}</Button>
-    <Button disabled={busy} onClick={() => setConfirm(false)}>{t('Cancel')}</Button></div> : <Button size="sm" disabled={busy} onClick={() => setConfirm(true)} aria-label={t('Delete {0}', name)}>{t('Delete')}</Button>}
+    <Button disabled={busy} onClick={() => setConfirm(false)}>{t('Cancel')}</Button></div> : <Button size="sm" icon={compact ? 'trash' : undefined} className={compact ? 'nutrition-icon-action' : ''} disabled={busy} onClick={() => setConfirm(true)} aria-label={t('Delete {0}', name)} title={compact ? t('Delete {0}', name) : undefined}>{compact ? <span className="sr-only">{t('Delete')}</span> : t('Delete')}</Button>}
     <ErrorNotice error={error} /></>
 }
 export function useRead(service, revision, descriptor, load) {

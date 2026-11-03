@@ -1196,3 +1196,145 @@ Les crédits suivent également les ingrédients et snapshots wger/USDA. Les mé
 Les 18 recherches curatées sont des régressions de libellés, pas une preuve de 90 % des parcours. Le [benchmark public indépendant](NUTRITION_CATALOG_BENCHMARK.md) distingue produits attendus, résultat quelconque, référence fiable et ajoutabilité. Les mesures sur 1 000 cas issus d’un préfixe OFF ne prouvent pas la couverture nationale. Le laboratoire reste à vérifier dans Firefox et sur appareil Android ; le pont natif et l’accessibilité en vrai navigateur ne sont pas réputés validés par happy-dom. Aucun identifiant Android ni contrat de synchronisation/sauvegarde n’a changé.
 
 La revue finale a ajouté deux protections de disponibilité/cohérence : une recherche peut reprendre la sonde locale après un premier échec de capacités, sans repli fournisseur ; chaque sélection V1 relit la fiche locale au lieu d’utiliser une fiche mémoire de 24 h après une publication/redémarrage. Le cache de recherche reste borné et les aliments déjà consommés restent utilisables hors ligne dans `savedFoods`. Les tests de reprise et de révision de descripteur font partie de la passe ciblée finale, séparée du décompte de la suite complète.
+
+## Nutrition layout review — isolated UI branch
+
+Work in progress on `ui/nutrition-layout`, independent of the Android startup
+correction. The user requested changes to layout and style because adding food,
+finding information and reading the screen were all cumbersome.
+
+Implemented presentation decisions:
+
+- Four frequent destinations (journal, personal foods, recipes, history) share a
+  compact navigation row. Goals, backups and preserved versions stay accessible
+  under the native HTML More disclosure, including keyboard Escape.
+- Date controls stay visible to retain the target day while navigating. Healthy
+  local/synced status moves below the content; pending, saving, offline, error and
+  conflict states remain prominent above it. Existing retry commands are reused.
+- Calories have primary visual weight and the three macros share a secondary
+  row. Goal calculation and absent/zero/exceeded/missing-value semantics are not
+  changed. The 4/4/9 detail is disclosed on demand.
+- Choosing food gets a focused view rather than being appended below the daily
+  totals. Local-only V1 opens its own catalogue immediately, with focus in search;
+  local foods/recipes remain one button away. Ordinary remote catalogue mode
+  keeps its explicit opt-in. Date, meal, quantities and durable save commands are
+  unchanged; cameras still open only following the user's scan action.
+- Meal names, quantity and calories are visible first. Entry editing/deletion use
+  labelled touch controls; delete confirmation is retained. Detailed macros are
+  expandable and source/licence attribution remains visible separately. Meal
+  totals stay available below the entries. Desktop displays two meal columns.
+
+All colours reuse openGym theme tokens. The scope is React presentation/CSS;
+no persistence, models, authentication, backend, catalogue, synchronization or
+signature change. Existing translation keys are reused in all locales.
+
+Browser captures use synthetic data in an isolated local preview; they must not
+be presented as physical Android tests.
+No merge, push or deployment has been performed for this UI branch.
+
+Review corrections during implementation:
+
+- Browser review exposed collisions with generic `.btn.sm` rules when the design
+  system is injected after Nutrition styles: navigation labels wrapped inside
+  words, and the primary add button could exceed the row width. Nutrition nav
+  styles now have explicit scoped specificity, preserve word boundaries, and the
+  add action can shrink/wrap. The calorie amount occupies its own line so the
+  target cannot run into the unit.
+- Cancelling the focused picker restores keyboard focus to the journal's add
+  action after the journal remounts. Saving continues to use the existing inline
+  editor and its durable commands.
+- Local-only journal tests now select Local foods and recipes explicitly when
+  testing offline reuse, because the default destination is intentionally the
+  local public catalogue. They still assert unchanged snapshots, pending queue
+  preservation and no provider requests for both grams and millilitres.
+
+Automated component regressions cover the four primary destinations, secondary
+navigation/Escape, prominent pending state, picker autofocus/cancellation and
+retention of the selected date and meal. Goal-indicator tests retain absent,
+zero, exceeded, overlapping and unknown values with the new calorie/three-macro
+layout. Happy DOM verifies CSS rules only; actual pixel layout is reviewed
+separately in an isolated Chromium preview with synthetic records.
+
+The journal add action is before the daily balance, so opening the picker does not
+require scrolling past the summary. Name/barcode modes and the explicit camera
+button share a compact row. The camera button retains a translated accessible
+name, tooltip and 44 px target; permission/cancellation handling is unchanged.
+
+Validation of this UI branch (Node 22.23.3, 2026-11-03):
+
+```sh
+cd frontend
+npm test -- --maxWorkers=1 src/views/Nutrition.test.jsx src/views/nutrition/Journal.indicators.test.jsx src/views/nutrition/FoodCatalog.test.jsx src/views/nutrition/FoodCatalog.native.test.jsx src/lib/nutrition/ui-session.test.js src/lib/nutrition/ui-service.test.js src/App.scroll.test.jsx src/lib/locale-coverage.test.js
+node scripts/check-locales.mjs
+npm run build
+```
+
+- Final targeted run: **111 passed / 8 files**, no failed or skipped tests,
+  36.08 s. Earlier runs are superseded, not added to this total.
+- Locales: **18 languages, 2,466 keys each**, synchronized; no new keys needed.
+- Web build: successful, 2.25 s. Vite still reports a large bundle and a scanner
+  import that cannot be split; this presentation change does not address those
+  separate bundle concerns.
+- Real headless Chromium 156.0.8078.4 / Playwright 1.64.1: journal captures at
+  320, 390, 768 and 1,280 px, each in dark/light mode. Each document width equals
+  its viewport width. The real screen and IndexedDB store also passed keyboard
+  menu/Escape, catalogue autofocus and debounced selection, durable add, reload
+  with snapshot preservation, quantity edit, confirmed deletion and cancel-focus
+  restoration. No page exceptions or external HTTP requests occurred.
+- Browser products and account scope are synthetic. The preview uses real React,
+  commands and IndexedDB, with a synthetic catalogue transport; it does not
+  validate the server, the public catalogue, authentication or camera hardware.
+- `git diff --check`: successful. No API files, native code, dependencies, lockfiles,
+  storage contracts or synchronization code changed; full API/frontend suites
+  and an Android APK build were not rerun for this layout-only branch.
+
+The one-off Playwright runner, preview harness, logs and captures remain in the
+ignored `scripts/nutrition-local-catalog/runtime/ui-validation/` directory of the
+UI worktree (the harness is under its `frontend/node_modules/`). Browser libraries
+were extracted locally there; no system packages were installed and no permanent
+project dependency was added. The temporary Vite server is stopped after review.
+These artifacts are development evidence, not application assets.
+
+Before integrating/releasing, review the captures and test on an actual small
+Android screen: add from each meal, use the keyboard with the picker, switch
+between catalogue and personal foods, scan explicitly, inspect source attribution,
+edit/delete, change dates and reopen the application. Verify secondary tools via
+More and visibility of pending/offline/conflict states. Physical Android/Firefox
+and assistive-technology testing remain outstanding. The separate native startup
+fix is neither merged nor published by this UI work.
+
+## Combined Android startup fix and layout integration — 2026-11-03
+
+Following the owner's approval, the native startup fix and the reviewed UI were
+combined on `feature/nutrition`; the isolated-review statements above describe
+validation before this integration. `main`, deployed services, personal data,
+catalogues and the retained signing key are unchanged.
+
+The native fix is production JavaScript only: register the Capacitor Proxy after
+awaiting the module import, rather than resolving an async loader with a thenable
+Proxy. The layout changes keep the real store commands and sync coordinator.
+Publishing code does not prove the original phone incident has been retested.
+
+The existing owner-dispatched `Tests` workflow builds the personal APK and runs
+frontend/API/MCP/image checks. Only a fully successful run may be supplied to its
+`android_release_run` input. That publication workflow verifies the pinned public
+signing certificate, checksum, package ID and authenticated/local-only build
+profile before updating the existing `android-personal-beta` prerelease. It uses
+the ephemeral Actions token to avoid triggering the Docker release publisher.
+No signing material, runtime screenshots, database, export or private fixture
+artifact is included in these source commits.
+
+Keep the installed application when updating: download the replacement APK from
+the existing direct release URL and install it over `ch.duartesantos.opengym.test`.
+Do not uninstall or clear storage. On a physical phone, verify Nutrition opens,
+then add/edit/remove a synthetic meal, reopen the app, and confirm normal account
+and catalogue access. APK compilation/signature checks do not replace this test.
+
+Combined local validation before push: **297 frontend tests / 18 files passed**,
+0 failed/skipped (167.91 s), including the real Capacitor runtime startup tests,
+local/native storage, synchronization, catalogue transport/scanner and updated
+UI paths. Strict loopback HTTP: **15 passed**, 0 failed/skipped (11.89 s).
+Android signing/distribution guards: **25 passed**. Web and personal mobile-web
+builds succeeded (2.31 s / 2.06 s), mobile copy check succeeded, locales remain
+18 × 2,466, and the diff passed whitespace checks. Full suites and the actual
+APK are delegated to the owner-dispatched CI; no physical-phone success is claimed.

@@ -259,3 +259,44 @@ test('decimal-comma density enables the same compatible logging units as the dom
   const saved = (await ui.library()).domains.flatMap(p => p.records.customFoods ?? [])[0]
   expect(saved.densityGPerMl).toBe(1.1); expect(saved.defaultQuantity).toEqual({ amount: 10, unit: 'ml' })
 })
+
+test('compact primary navigation keeps secondary tools reachable by keyboard and closes after selection', async () => {
+  await mount()
+  const nav = host.querySelector('nav[aria-label="Nutrition navigation"]')
+  expect([...nav.querySelectorAll('button')].map(b => b.textContent.trim())).toEqual(['Journal', 'Personal foods', 'Recipes', 'History'])
+  const tools = host.querySelector('.nutrition-tools'), summary = tools.querySelector('summary')
+  await act(async () => { summary.focus(); summary.click() })
+  expect(tools.open).toBe(true)
+  await act(async () => summary.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+  expect(tools.open).toBe(false); expect(document.activeElement).toBe(summary)
+  await act(async () => summary.click()); await click('Nutrition goals')
+  await wait(() => host.textContent.includes('Create nutrition goal'))
+  expect(host.querySelector('.nutrition-tools').open).toBe(false)
+  expect(host.querySelector('.nutrition-tools > summary').getAttribute('aria-current')).toBe('page')
+})
+
+test('healthy status is secondary while offline operations and conflicts remain prominent', async () => {
+  await mount()
+  const content = host.querySelector('.nutrition-content'), sync = host.querySelector('.nutrition-sync')
+  expect(content.nextElementSibling).toBe(sync)
+  await act(async () => { await ui.save('foodEntries', entry()); await ui.inspect() })
+  await wait(() => host.querySelector('.nutrition-sync-attention'))
+  expect(host.querySelector('.nutrition-sync').nextElementSibling).toBe(content)
+  expect(host.textContent).toContain('pending operations')
+  expect(host.textContent).not.toContain('Nutrition synchronized')
+})
+
+test('meal picker replaces the daily dashboard, retains target meal and returns without a write on cancellation', async () => {
+  await mount('/nutrition?date=2026-10-10', async ui => ui.save('customFoods', food()))
+  const before = ui.getSnapshot().revision
+  await act(async () => host.querySelector('[aria-label="Add food to Dinner"]').click())
+  expect(host.querySelector('.nutrition-summary')).toBeNull()
+  expect(field('Meal').value).toBe('dinner')
+  expect(search('Search foods and recipes')).toBe(document.activeElement)
+  expect(field('Date').value).toBe('2026-10-10')
+  await click('Cancel')
+  await wait(() => host.querySelector('.nutrition-summary'))
+  await wait(() => document.activeElement === host.querySelector('.nutrition-journal-heading button'))
+  expect(ui.getSnapshot().revision).toBe(before)
+  expect((await ui.day('2026-10-10')).entries).toHaveLength(0)
+})

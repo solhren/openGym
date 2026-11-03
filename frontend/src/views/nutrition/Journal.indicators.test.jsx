@@ -93,7 +93,8 @@ test('French absence text matches the requested wording for all four indicators'
 test.each([320, 390, 768, 1280])('indicator grid applies responsive rules at %i px', async width => {
   window.happyDOM.setWindowSize({ width, height: 800 }); await show([goal({ kcal: 0 })])
   const style = window.getComputedStyle(host.querySelector('.nutrition-indicators'))
-  expect(style.gridTemplateColumns.replace(/\s/g, '')).toBe(`repeat(${width <= 600 ? 2 : 4},minmax(0,1fr))`)
+  expect(style.gridTemplateColumns.replace(/\s/g, '')).toBe('repeat(3,minmax(0,1fr))')
+  expect(window.getComputedStyle(cards()[0]).gridColumn).toBe('1 / -1')
   expect(window.getComputedStyle(cards()[0]).minWidth).toBe('0')
   expect(cards()).toHaveLength(4)
 })

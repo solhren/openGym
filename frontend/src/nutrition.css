@@ -62,3 +62,104 @@
 .nutrition-result[aria-selected="true"] { outline: 2px solid var(--acc); outline-offset: -2px; }
 .nutrition-results[hidden] { display: none; }
 .nutrition-source { overflow-wrap: anywhere; }
+
+/* Daily workflow: four frequent destinations, management in a disclosure, and
+   the food picker at the top of the content rather than below the dashboard. */
+.nutrition-header { gap:12px; margin-bottom:12px; }
+.nutrition-title { min-width:0; }
+.nutrition-title .sub { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.nutrition-header-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.nutrition-tools { position:relative; }
+.nutrition-tools > summary { display:flex; align-items:center; justify-content:center; gap:5px; min-height:44px; padding:8px; border-radius:var(--r); list-style:none; color:var(--label-2); font-size:13px; }
+.nutrition-tools > summary::-webkit-details-marker { display:none; }
+.nutrition-tools > summary[aria-current] { color:var(--acc); background:var(--acc-soft); }
+.nutrition-tools-menu { position:absolute; inset-inline-end:0; top:calc(100% + 6px); z-index:20; display:grid; gap:4px; padding:8px; width:min(280px,calc(100vw - 40px)); border:1px solid var(--sep); background:var(--bg-el); box-shadow:0 12px 36px #0003; border-radius:var(--r-lg); }
+.nutrition-tools:not([open]) > .nutrition-tools-menu { display:none; }
+.nutrition-tools-menu .btn { justify-content:flex-start; text-align:start; }
+.nutrition-nav { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; background:var(--surface); padding:4px; border-radius:var(--r-lg); margin-block:0 12px; }
+.nutrition .nutrition-nav .btn { display:grid; grid-template-rows:20px 2.4em; gap:5px; align-content:center; justify-items:center; padding:10px 6px; border-radius:var(--r); min-width:0; font-size:12px; line-height:1.2; }
+.nutrition .nutrition-nav .btn > span { white-space:normal; overflow-wrap:normal; align-self:center; }
+.nutrition .nutrition-nav .icn { width:19px; height:19px; }
+.nutrition-date { gap:4px; flex-wrap:nowrap; padding:4px; border:1px solid var(--sep); border-radius:var(--r-lg); background:var(--surface); margin-bottom:16px; }
+.nutrition-date label { flex:1 1 112px; }
+.nutrition-date .field { background:transparent; border:0; text-align:center; padding-inline:6px; }
+.nutrition .nutrition-date > .btn { flex-shrink:0; font-size:12px; padding-inline:8px; }
+.nutrition .nutrition-date .field { font-size:14px; }
+.nutrition-sync { border:0; padding:0; margin-block:16px; color:var(--label-2); }
+.nutrition-sync-line { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.nutrition-sync-line > p { flex:1; min-width:120px; font-size:12px; margin:0; }
+.nutrition-sync-dot { width:7px; height:7px; border-radius:50%; background:var(--acc); flex-shrink:0; }
+.nutrition-sync-attention { padding:10px 12px; background:var(--surface); border:1px solid var(--sep); border-radius:var(--r); }
+.nutrition-sync-attention .nutrition-sync-dot { background:var(--orange); }
+.nutrition-sync-details > summary { font-size:12px; padding-block:8px; }
+.nutrition-summary { padding:18px; overflow:hidden; }
+.nutrition .nutrition-summary { margin-block:0 18px; }
+.nutrition-indicators { grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px 12px; }
+.nutrition-indicator { min-width:0; }
+.nutrition-metric-label { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.nutrition-indicators h2 { color:var(--label-2); font-weight:500; font-size:13px; }
+.nutrition-indicators strong { font-size:25px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.025em; }
+.nutrition-indicators strong small { margin-inline-start:2px; }
+.nutrition-indicators p { font-size:12px; line-height:1.4; margin-block:5px; }
+.nutrition-indicator-kcal { grid-column:1 / -1; padding:16px; border-radius:var(--r); background:linear-gradient(120deg,var(--acc-soft),transparent); border-bottom:1px solid var(--sep); }
+.nutrition-indicator-kcal strong { display:block; font-size:46px; line-height:1.1; margin-block:8px; }
+.nutrition-indicator-kcal .nutrition-metric-label > svg { width:24px; height:24px; color:var(--acc); }
+.nutrition-indicator-kcal > p { display:inline-block; margin-inline-end:12px; }
+.nutrition-indicator-kcal progress { display:block; margin-block:10px 4px; height:6px; }
+.nutrition-breakdown { border-top:1px solid var(--sep); margin-top:14px; }
+.nutrition-breakdown > summary { color:var(--label-2); font-size:12px; }
+.nutrition-journal-heading, .nutrition-meal-heading, .nutrition-picker-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.nutrition-journal-heading { margin-block:14px 12px; }
+.nutrition-journal-heading h2, .nutrition-meal-heading h2, .nutrition-picker-heading h2 { margin:0; }
+.nutrition-journal-heading > .btn { width:auto; flex:0 1 auto; min-width:0; font-size:14px; padding:12px; }
+.nutrition-meals { display:grid; gap:12px; }
+.nutrition .nutrition-meal { margin:0; padding:14px; }
+.nutrition-meal-heading > div { min-width:0; }
+.nutrition .nutrition-meal-heading h2 { font-size:17px; font-weight:600; color:var(--label); margin:0; }
+.nutrition-meal-heading p { margin-block:5px 0; font-size:12px; }
+.nutrition-meal-heading > .btn { flex-shrink:0; }
+.nutrition-meal .nutrition-list { margin-block:12px 0; }
+.nutrition-meal .nutrition-list > li { padding-block:10px; }
+.nutrition-entry-heading { display:grid; grid-template-columns:minmax(0,1fr) 44px 44px; gap:4px; align-items:start; }
+.nutrition-entry-heading > div:first-child { min-width:0; padding-top:4px; }
+.nutrition-entry-heading p { margin-block:5px 0; font-size:12px; line-height:1.4; }
+.nutrition .nutrition-icon-action { width:44px; padding:0; }
+.nutrition-entry-heading > .nutrition-confirm, .nutrition-entry-heading > .nutrition-error { grid-column:1 / -1; }
+.nutrition-entry-footer { display:grid; grid-template-columns:72px minmax(0,1fr); align-items:start; gap:8px; }
+.nutrition-entry-details > summary { font-size:12px; color:var(--label-2); }
+.nutrition-entry-details[open] { grid-column:1 / -1; }
+.nutrition-entry-source { grid-column:2; min-width:0; font-size:12px; }
+.nutrition-entry-source:empty { display:none; }
+.nutrition-entry-source p { font-size:12px; margin-block:8px; }
+.nutrition-entry-source summary { font-size:12px; }
+.nutrition-meal-totals { border-top:1px solid var(--sep); }
+.nutrition-meal-totals .nutrition-values { margin-block:10px 0; }
+.nutrition-meal .nutrition-values dt { font-size:11px; }
+.nutrition-meal .nutrition-values dd { font-size:13px; }
+.nutrition-picker-heading { padding-bottom:4px; }
+.nutrition .nutrition-picker-heading h2 { font-size:18px; color:var(--label); margin:0; }
+.nutrition .nutrition-picker { margin-top:0; }
+.nutrition-picker-sources { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; padding:4px; margin-block:14px; border-radius:var(--r); background:var(--surface-2); }
+.nutrition-picker-sources > .btn { font-size:13px; line-height:1.3; padding:10px 8px; }
+.nutrition-picker-footer { padding-top:12px; margin-top:14px; border-top:1px solid var(--sep); }
+@media (min-width:800px) {
+  .nutrition-meals { grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
+  .nutrition .nutrition-nav .btn { display:flex; flex-direction:row; font-size:14px; gap:8px; }
+  .nutrition-indicator-kcal { padding:20px; }
+}
+@media (max-width:480px) {
+  .nutrition-home > span { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+  .nutrition .nutrition-header h1 { font-size:28px; }
+  .nutrition-header-actions { gap:2px; }
+  .nutrition-summary { padding:14px; }
+  .nutrition-indicators { gap:14px 8px; }
+  .nutrition-indicators strong { font-size:23px; }
+  .nutrition-indicator-kcal strong { font-size:42px; }
+  .nutrition-indicator-kcal { padding:12px; }
+}
+
+@media (max-width:360px) { .nutrition .nutrition-nav .btn { font-size:11px; } }
+
+.nutrition-catalog-modes { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px; gap:6px; margin-block:10px; }
+.nutrition .nutrition-catalog-modes > .btn { width:100%; min-width:0; padding:8px; font-size:12px; line-height:1.3; }
+.nutrition .nutrition-catalog-modes > .btn[aria-pressed="true"] { background:var(--acc-soft); color:var(--label); }
