@@ -1338,3 +1338,44 @@ Android signing/distribution guards: **25 passed**. Web and personal mobile-web
 builds succeeded (2.31 s / 2.06 s), mobile copy check succeeded, locales remain
 18 × 2,466, and the diff passed whitespace checks. Full suites and the actual
 APK are delegated to the owner-dispatched CI; no physical-phone success is claimed.
+
+## Public-readiness accessibility pass — 2026-11-03
+
+The global navigation now exposes its current destination with `aria-current`,
+including nested routes and Nutrition under Home. Resume remains an action while
+another destination is current. Nutrition deletion confirmations have a named
+group and linked prompt, move focus to Cancel, and return focus to the recreated
+delete button on Cancel or Escape. Escape respects saving/deletion in progress.
+No Journal layout, editor, storage, synchronization or translation changed.
+
+Validation on isolated `audit/public-ux-design`, base `2a6133bd`, Node 22:
+
+```sh
+cd frontend
+node node_modules/vitest/vitest.mjs run src/components/TabBar.test.jsx \
+  src/views/nutrition/DeleteAction.accessibility.test.jsx src/views/Nutrition.test.jsx \
+  --maxWorkers=1 --reporter=dot
+```
+
+Final result: **49 passed / 3 files**, no failed or skipped tests, 11.18 s
+(11.86 s wall time; maximum child RSS 613,108 KiB). The new tests cover eleven
+route mappings, compact/ordinary confirmation, focus restoration, Escape,
+busy/pending/error states, and resolution/rejection after leaving the screen
+without moving focus on the new screen. The pre-existing React `act` warnings
+remain. Against the original production components, the initial 22-test subset
+failed 16 tests; the corrected source was restored immediately afterwards.
+
+Real headless Chromium 156.0.8078.4 / Playwright checks passed using real React,
+commands and IndexedDB with synthetic records/catalogue transport: confirmation
+focus and keyboard cancellation, explicit durable deletion, and current navigation
+updates. All eight width/theme measurements (320, 390, 768 and 1,280 px; light/dark)
+had document width equal to viewport width. No page errors or external HTTP
+requests occurred. The temporary server was stopped. The runner, screenshot and
+logs are ignored artifacts under this worktree's
+`scripts/nutrition-local-catalog/runtime/ux-validation/`; existing local browser
+libraries were reused without installation.
+
+After a successful deletion removes the entire row, choosing a neighboring focus
+target still belongs to the parent list; this pass only restores the delete
+control when cancellation keeps the row. Physical Android, camera, assistive
+technology, authentication and production/server behavior were not tested.

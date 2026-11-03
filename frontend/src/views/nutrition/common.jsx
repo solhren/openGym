@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Button, TextField } from '../../components/ui.jsx'
 import { dateLocale, t } from '../../lib/i18n.js'
 import { NUTRIENTS } from '../../lib/nutrition/contracts.js'
@@ -89,9 +89,17 @@ export function Editor({ title, close, onSave, busy, children }) {
 }
 export function DeleteAction({ name, remove, busy, compact = false }) {
   const [confirm, setConfirm] = useState(false), [error, setError] = useState(null), pending = useRef(false)
-  return <>{confirm ? <div className="nutrition-confirm"><p>{t('Delete {0}? Historical food snapshots are preserved.', name)}</p>
+  const trigger = useRef(null), cancel = useRef(null), restoreFocus = useRef(false), promptId = useId()
+  useEffect(() => {
+    if (confirm) cancel.current?.focus()
+    else if (restoreFocus.current) { restoreFocus.current = false; trigger.current?.focus() }
+  }, [confirm])
+  const dismiss = () => { restoreFocus.current = true; setConfirm(false) }
+  return <>{confirm ? <div className="nutrition-confirm" role="group" aria-label={t('Delete {0}', name)} aria-describedby={promptId} onKeyDown={event => {
+    if (event.key === 'Escape' && !busy && !pending.current) { event.stopPropagation(); event.preventDefault(); dismiss() }
+  }}><p id={promptId}>{t('Delete {0}? Historical food snapshots are preserved.', name)}</p>
     <Button variant="danger" disabled={busy} onClick={async () => { if (pending.current) return; pending.current = true; setError(null); try { await remove(); setConfirm(false) } catch (e) { setError(e) } finally { pending.current = false } }}>{t('Delete')}</Button>
-    <Button disabled={busy} onClick={() => setConfirm(false)}>{t('Cancel')}</Button></div> : <Button size="sm" icon={compact ? 'trash' : undefined} className={compact ? 'nutrition-icon-action' : ''} disabled={busy} onClick={() => setConfirm(true)} aria-label={t('Delete {0}', name)} title={compact ? t('Delete {0}', name) : undefined}>{compact ? <span className="sr-only">{t('Delete')}</span> : t('Delete')}</Button>}
+    <Button ref={cancel} disabled={busy} onClick={dismiss}>{t('Cancel')}</Button></div> : <Button ref={trigger} size="sm" icon={compact ? 'trash' : undefined} className={compact ? 'nutrition-icon-action' : ''} disabled={busy} onClick={() => setConfirm(true)} aria-label={t('Delete {0}', name)} title={compact ? t('Delete {0}', name) : undefined}>{compact ? <span className="sr-only">{t('Delete')}</span> : t('Delete')}</Button>}
     <ErrorNotice error={error} /></>
 }
 export function useRead(service, revision, descriptor, load) {

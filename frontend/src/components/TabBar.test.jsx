@@ -8,9 +8,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import TabBar from './TabBar.jsx'
 import { DEF, useStore } from '../store/useStore.js'
 
+const route = vi.hoisted(() => ({ pathname: '/home' }))
 vi.mock('react-router-dom', () => ({
   useNavigate: () => () => {},
-  useLocation: () => ({ pathname: '/home' }),
+  useLocation: () => route,
 }))
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -18,6 +19,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 let host, root, originalS, originalUser
 
 beforeEach(() => {
+  route.pathname = '/home'
   const store = useStore.getState()
   originalS = store.S
   originalUser = store.user
@@ -113,5 +115,26 @@ describe('the tab icons and labels', () => {
       act(() => { useStore.getState().update(s => { s.active.editingWorkoutId = 'w1' }, false) })
       expect(label(tabs()[2])).toBe('Edit workout')
     } finally { vi.useRealTimers() }
+  })
+})
+
+describe('the current destination for assistive technology', () => {
+  it.each([
+    ['/home', 0], ['/settings/account', 0], ['/nutrition', 0],
+    ['/plan', 1], ['/plan/r/routine', 1], ['/workout', 2],
+    ['/stats', 3], ['/history', 3], ['/structural-balance', 3],
+    ['/library', 4], ['/muscles', 4],
+  ])('marks only the destination containing %s', (pathname, index) => {
+    route.pathname = pathname
+    act(() => { root.render(<TabBar onStart={() => {}} />) })
+    expect(host.querySelectorAll('[aria-current="page"]')).toHaveLength(1)
+    expect(tabs()[index].getAttribute('aria-current')).toBe('page')
+  })
+
+  it('keeps Resume an action while another destination is current', () => {
+    act(() => { useStore.getState().update(s => { s.active = { id: 'a', entries: [], cur: 0, start: Date.now() } }, false) })
+    act(() => { root.render(<TabBar onStart={() => {}} />) })
+    expect(tabs()[0].getAttribute('aria-current')).toBe('page')
+    expect(tabs()[2].hasAttribute('aria-current')).toBe(false)
   })
 })
