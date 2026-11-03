@@ -94,7 +94,11 @@ def verify_uploaded(release, digest, size):
     assets = release.get('assets', [])
     require(len(assets) == 1 and assets[0].get('name') == APK and assets[0].get('state') == 'uploaded' and assets[0].get('size') == size and assets[0].get('digest') == 'sha256:' + digest, 'Uploaded release APK is not verified')
     url = f'https://github.com/{REPO}/releases/download/{TAG}/{APK}'
-    require(assets[0].get('browser_download_url') == url, 'Unexpected release download URL')
+    actual_url = assets[0].get('browser_download_url', '')
+    # Drafts without a published tag have an untagged-* URL. After publication
+    # only the fixed channel URL is accepted. Hash/size checks apply in both states.
+    temporary = re.fullmatch(re.escape(f'https://github.com/{REPO}/releases/download/') + r'untagged-[0-9a-f]{8,64}/' + re.escape(APK), actual_url)
+    require(actual_url == url or (release.get('draft') is True and temporary), 'Unexpected release download URL')
     return url
 
 
@@ -151,6 +155,8 @@ def main(run_id):
     notes.write_text(body, encoding='utf-8')
     if release is not None:
         validate_order(previous_manifest(release), run)
+        if release.get('draft') is True and release.get('target_commitish') != publication_sha:
+            release = gh.api('releases/' + str(release['id']), method='PATCH', body={'target_commitish': publication_sha})
     reference = gh.api('git/ref/tags/' + TAG, optional=True)
     if reference is not None:
         require(reference['object']['type'] == 'commit', 'Unexpected beta tag type')

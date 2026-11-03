@@ -114,6 +114,15 @@ class ReleaseTests(unittest.TestCase):
             with self.assertRaises(ValueError): m.verify_uploaded({'assets': [asset | changed]}, 'a' * 64, 300)
         with self.assertRaises(ValueError): m.verify_uploaded({'assets': [asset, asset]}, 'a' * 64, 300)
 
+    def test_draft_temporary_url_allowed_only_until_publication(self):
+        canonical = f'https://github.com/{m.REPO}/releases/download/{m.TAG}/{m.APK}'
+        temporary = f'https://github.com/{m.REPO}/releases/download/untagged-4529196a9a4d0dc097f4/{m.APK}'
+        asset = {'name': m.APK, 'state': 'uploaded', 'size': 300, 'digest': 'sha256:' + 'a' * 64, 'browser_download_url': temporary}
+        self.assertEqual(m.verify_uploaded({'draft': True, 'assets': [asset]}, 'a' * 64, 300), canonical)
+        with self.assertRaises(ValueError): m.verify_uploaded({'draft': False, 'assets': [asset]}, 'a' * 64, 300)
+        with self.assertRaises(ValueError): m.verify_uploaded({'draft': True, 'assets': [asset | {'browser_download_url': temporary.replace(m.REPO, 'other/repo')}]}, 'a' * 64, 300)
+        with self.assertRaises(ValueError): m.verify_uploaded({'draft': True, 'assets': [asset | {'digest': None}]}, 'a' * 64, 300)
+
     def test_local_or_untrusted_context_cannot_publish(self):
         with patch.dict(os.environ, {}, clear=True), patch.object(m, 'GitHub', side_effect=AssertionError('must not reach GitHub')):
             for run in ['100', '1;bad', '../main', '0']:

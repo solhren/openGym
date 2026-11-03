@@ -260,9 +260,11 @@ Les artefacts Actions ZIP restent un recours temporaire, conservé 14 jours.
    `android_release_run` vide. Attendre le succès de tous les jobs.
 2. **Distribuer** : relancer Tests depuis la CLI ci-dessous, sur cette même branche,
    en renseignant `android_release_run` avec l'identifiant du run de compilation réussi.
-   La publication réutilise son APK exact, sans le recompiler. Les tests frontend,
-   API, MCP et images continuent de s'exécuter normalement ; le job de compilation
-   APK est volontairement absent de ce mode, puis la publication attend ces contrôles.
+   La publication réutilise son APK exact, sans le recompiler. Le mode compilation
+   exécute toujours les suites complètes. Le mode distribution vérifie leurs cinq
+   résultats réussis dans le run source et exécute les tests des gardes de publication ;
+   il ne recommence pas les suites frontend/API ni la construction APK/images déjà
+   validées. Ces jobs sont explicitement ignorés dans le mode distribution uniquement.
 
 ```bash
 # Compte CLI solhren, dépôt solhren/openGym :
@@ -338,10 +340,23 @@ n'est liée à cette opération.
 python3 -m unittest discover -s scripts/private-beta -p 'test_android_*.py' -q
 ```
 
-**22 tests locaux réussis** : sources étrangères/échouées/incomplètes, tentative
+**23 tests locaux réussis** : sources étrangères/échouées/incomplètes, tentative
 incorrecte ou expirée, corruption, références de checksum malveillantes, symlinks,
 fichiers privés, mauvais profil, ancienne version, remplacement d'une Release
 étrangère, digest serveur incorrect et certificat divergent. Tests sans réseau ni
 clé privée. Les nouvelles fonctions de contrôle ont aussi accepté l'APK réel du
 run `41667081441` avec son SHA-256 vérifié ; la publication effective reste à
 attester par le job dédié et le contrôle de la Release distante.
+
+
+Correction observée sur la première publication : GitHub fournit une URL
+`untagged-*` aux assets d'un brouillon dont le tag n'est pas encore publié. Le
+premier contrôle de lien l'a refusée après le transfert, en conservant le
+brouillon et son APK vérifié. Ce lien provisoire est désormais accepté seulement
+pour un brouillon, dans le même dépôt, avec nom, digest et taille exacts ; une
+Release publiée doit obligatoirement exposer l'URL définitive du canal. Le test
+correspondant refuse ce lien provisoire après publication et refuse une origine
+étrangère ou un digest absent. Une reprise réutilise le fichier déjà téléversé
+s'il correspond ; le commit de publication d'un brouillon est remis à la révision
+courante avant la création finale de son tag. Aucune suppression d'APK local,
+de catalogue ou de données utilisateur n'est nécessaire.

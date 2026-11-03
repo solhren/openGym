@@ -54,7 +54,6 @@ jobs:
 
   android-personal-release:
     if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == 'solhren' && inputs.android_release_run != ''
-    needs: [test, mcp, api, api-image]
     permissions:
       contents: write
       actions: read
@@ -63,6 +62,7 @@ jobs:
       run_id: ${{ inputs.android_release_run }}
 
   test:
+    if: inputs.android_release_run == ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -93,6 +93,7 @@ jobs:
 
 
   mcp:
+    if: inputs.android_release_run == ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -113,6 +114,7 @@ jobs:
         working-directory: mcp
 
   api:
+    if: inputs.android_release_run == ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -144,6 +146,7 @@ jobs:
   # resolves the Agent SDK's per-platform runtime (musl on this base), which is the one thing
   # that cannot be checked from the source tree.
   api-image:
+    if: inputs.android_release_run == ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
