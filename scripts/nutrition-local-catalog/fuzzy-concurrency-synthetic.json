@@ -1,0 +1,143 @@
+{
+  "fixture": true,
+  "products": 50000,
+  "databaseBytes": 26562560,
+  "openFullHashVerificationMs": 26.891954243183136,
+  "search": {
+    "Nutella": {
+      "meanMs": 33.381442299999996,
+      "medianMs": 32.0041955,
+      "p95Ms": 40.392922,
+      "maxMs": 45.662067,
+      "firstNames": [
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner"
+      ],
+      "completeOnPage": 20
+    },
+    "Coca-Cola": {
+      "meanMs": 35.485943,
+      "medianMs": 33.9502825,
+      "p95Ms": 41.127118,
+      "maxMs": 43.083354,
+      "firstNames": [
+        "Coca-Cola boisson",
+        "Coca-Cola boisson",
+        "Coca-Cola boisson"
+      ],
+      "completeOnPage": 20
+    },
+    "lait": {
+      "meanMs": 30.631485500000004,
+      "medianMs": 29.9672675,
+      "p95Ms": 34.931837,
+      "maxMs": 35.455761,
+      "firstNames": [
+        "Lait demi-écrémé",
+        "Lait demi-écrémé",
+        "Lait demi-écrémé"
+      ],
+      "completeOnPage": 20
+    },
+    "riz": {
+      "meanMs": 32.5343842,
+      "medianMs": 31.905160000000002,
+      "p95Ms": 39.273555,
+      "maxMs": 41.774911,
+      "firstNames": [
+        "Riz basmati",
+        "Riz basmati",
+        "Riz basmati"
+      ],
+      "completeOnPage": 20
+    },
+    "pâtes": {
+      "meanMs": 32.7800692,
+      "medianMs": 31.381659499999998,
+      "p95Ms": 39.153168,
+      "maxMs": 43.868977,
+      "firstNames": [
+        "Pâtes complètes",
+        "Pâtes complètes",
+        "Pâtes complètes"
+      ],
+      "completeOnPage": 20
+    },
+    "yaourt": {
+      "meanMs": 33.8056197,
+      "medianMs": 32.995033500000005,
+      "p95Ms": 37.690908,
+      "maxMs": 42.766751,
+      "firstNames": [
+        "Yaourt nature",
+        "Yaourt nature",
+        "Yaourt nature"
+      ],
+      "completeOnPage": 20
+    },
+    "pates": {
+      "meanMs": 35.73894525,
+      "medianMs": 33.440949,
+      "p95Ms": 46.080743,
+      "maxMs": 56.23796,
+      "firstNames": [
+        "Pâtes complètes",
+        "Pâtes complètes",
+        "Pâtes complètes"
+      ],
+      "completeOnPage": 20
+    },
+    "Panzani": {
+      "meanMs": 37.44875665,
+      "medianMs": 36.995805,
+      "p95Ms": 43.119242,
+      "maxMs": 44.71369,
+      "firstNames": [
+        "Pâtes complètes",
+        "Pâtes complètes",
+        "Pâtes complètes"
+      ],
+      "completeOnPage": 20
+    },
+    "lait demi ecreme": {
+      "meanMs": 39.07212465,
+      "medianMs": 37.7220815,
+      "p95Ms": 47.563572,
+      "maxMs": 52.828678,
+      "firstNames": [
+        "Lait demi-écrémé",
+        "Lait demi-écrémé",
+        "Lait demi-écrémé"
+      ],
+      "completeOnPage": 20
+    }
+  },
+  "barcode": {
+    "meanMs": 0.07984175,
+    "medianMs": 0.06802749999999999,
+    "p95Ms": 0.121066,
+    "maxMs": 0.201448
+  },
+  "paginationPage20": {
+    "meanMs": 36.0256769,
+    "medianMs": 36.00553,
+    "p95Ms": 42.230768,
+    "maxMs": 48.501669
+  },
+  "iterations": 20,
+  "platform": "Linux-6.12.57+deb13-cloud-amd64-x86_64-with-glibc2.41",
+  "python": "3.13.5",
+  "concurrentReaders": {
+    "readers": 4,
+    "queries": 80,
+    "secondsIncludingOpens": 1.7577925845980644,
+    "queriesPerSecondIncludingOpens": 45.51162674195303,
+    "meanMs": 81.4259823,
+    "medianMs": 84.305192,
+    "p95Ms": 108.305633,
+    "maxMs": 132.096521
+  },
+  "peakRssKiB": 46172,
+  "cpuSeconds": 10.42998
+}

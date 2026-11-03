@@ -104,3 +104,30 @@ export function useRead(service, revision, descriptor, load) {
   const owned = result?.service === service && result?.key === key ? result : null
   return { data: owned?.data ?? null, error: owned?.error ?? null, reload: () => setRetry(n => n + 1) }
 }
+
+/** Attribution follows immutable snapshots, including locally reused/deleted products. */
+export function FoodSource({ food }) {
+  const candidates = food?.kind === 'recipe' ? food.ingredientSources ?? [] : [{ name: food?.name, source: food?.source }]
+  const sources = new Map(candidates.filter(item => item.source?.kind === 'open-food-facts').map(item => [item.source.url, item]))
+  const publicSources = new Map(candidates.filter(item => item.source?.publicCatalogImport?.provider === 'wger').map(item => [item.source.externalId,item]))
+  const licenses = { 'CC0-1.0':'https://creativecommons.org/publicdomain/zero/1.0/', 'CC-BY-SA-3.0':'https://creativecommons.org/licenses/by-sa/3.0/', 'CC-BY-SA-4.0':'https://creativecommons.org/licenses/by-sa/4.0/', 'CC-BY-4.0':'https://creativecommons.org/licenses/by/4.0/', 'ODbL-1.0':'https://opendatacommons.org/licenses/odbl/1-0/' }
+  return <>{[...sources.values()].map(item => {
+    // Portable provenance is JSON, not a guarantee that a restored URL is safe to open.
+    let href = null
+    try {
+      const url = new URL(item.source.url)
+      if (['https://world.openfoodfacts.org', 'https://world.openfoodfacts.net'].includes(url.origin) && !url.username && !url.password && /^\/product\/\d{8,14}$/.test(url.pathname) && !url.search && !url.hash) href = url.href
+    } catch { /* Retain attribution text without making an invalid source navigable. */ }
+    return <p className="muted small" key={item.source.url}>{food.kind === 'recipe' ? `${item.name} · ` : ''}{href ? <a href={href} target="_blank" rel="noopener noreferrer">{t('Source: Open Food Facts contributors')}</a> : t('Source: Open Food Facts contributors')} · ODbL / DbCL</p>
+  })}{[...publicSources.values()].map(item => {
+    const source=item.source, provenance=source.publicCatalogImport, license=source.license
+    const credit = value => typeof value === 'string' && value.length <= 10000 ? value : ''
+    const url=typeof license?.id==='string' ? licenses[license.id] : null
+    // Render supplied credits as text. Only fixed licence URLs are clickable;
+    // arbitrary links in portable/restored provenance never become navigation.
+    return <details className="muted small nutrition-source" key={source.externalId}><summary>{food.kind==='recipe'?`${item.name} · `:''}wger · {credit(provenance.sourceName) || 'wger'} · {license?.id}</summary>
+      <p>{license?.attribution}</p>{credit(provenance.licenseMetadata?.title) && <p>{provenance.licenseMetadata.title}</p>}
+      {[...new Set([source.url,provenance.sourceUrl,provenance.licenseMetadata?.authorUrl,provenance.licenseMetadata?.objectUrl,provenance.licenseMetadata?.derivativeUrl].filter(v=>typeof v==='string'&&v))].map(uri=><p key={uri}>{uri}</p>)}
+      {url && <a href={url} target="_blank" rel="noopener noreferrer">{license.id}</a>}</details>
+  })}</>
+}

@@ -246,7 +246,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <p class="api-facts">
     <span>OpenAPI 3.1.0</span>
     <span>openGym v1.4.1</span>
-    <span>74 endpoints</span>
+    <span>77 endpoints</span>
     <span>AGPL-3.0-or-later</span>
   </p>
 
@@ -1575,6 +1575,193 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <h2>Nutrition</h2>
   <p class="sub">Independent portable v1 Nutrition storage. Namespace comes from the configured server origin and authenticated user id. Upload immutable partitions before publishing their manifest with an exact expected head. No training-state sync changes or automatic GC.</p>
   <div class="eps">
+
+<details class="ep" id="op-undefined">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/nutrition/catalog/capabilities</code><span class="ep-chip public">public</span></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Discover public catalogue search mode without contacting OFF</span>
+  </summary>
+  <div class="ep-body">
+<p>Anonymous, origin-checked, no-store response. Legacy schemaVersion 1 advertises textSearch local or explicit-remote. Explicit development wger-v1 uses schemaVersion 2, textSearch local, provider wger, selection local-only and productIds true. A client built for local-only V1 must fail closed on older/unavailable capabilities. Neither text search nor product selection in wger-v1 contacts a food provider.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Public: no authentication required.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Legacy search-mode capability v1, or explicit local-only wger capability v2</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">403</span>
+    <span class="p-desc">Foreign origin refused</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Public request budget exhausted</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-undefined">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/nutrition/catalog/search</code><span class="ep-chip public">public</span></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Anonymous bounded food catalogue search</span>
+  </summary>
+  <div class="ep-body">
+<p>Experimental local mode uses the read-only SQLite catalogue; otherwise the fixed OFF CGI endpoint is used. Optional local=1 fails closed unless local mode is active (no text OFF fallback). Capability discovery is a separate public call. Development wger-v1 returns opengym-local-food-catalog schemaVersion 1, with wger UUID or off:canonical-barcode product identities, validated portable Foods and provenance. It uses literal AND tokens (at most eight, 40 characters each), final-word prefixes, no fuzzy, no provider requests and no staging dataset. Exact product-name matches remain ahead of different products; usable references rank first within a match class. The optional verified OFF complement is immutable and separately versioned. Public local overload protection still applies. 20 results per page; no arbitrary URL, fields or credentials. Outside wger-v1, the real application User-Agent is set by the server. Responses/cache contain public provider records only. One global egress budget allows 10 searches per rolling 60 seconds, without per-request spacing. Cache TTL 5 minutes; cache and in-flight dedup precede quota reservation. Bounded round-robin dispatch shares pending work among active clients; registered account count is unused. Optional X-openGym-Catalog-Client is a random tab tag, not authentication. No automatic retry. Foreign browser origins are refused. Error X-openGym-Catalog-Source identifies local-budget, local-overload, provider-http, provider-cooldown, network, timeout or validation without exposing queries/account information. OFF_CATALOG_TRACE=1 enables internal trace.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Public: no authentication required.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">X-openGym-Catalog-Client <span class="p-hint">(header)</span></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">local</span>
+    <span class="p-type">&quot;1&quot;</span>
+    <span class="p-desc">Require local catalogue</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">q<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string <span class="p-hint">(&le; 120 chars)</span></span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">page</span>
+    <span class="p-type">integer <span class="p-hint">(1&ndash;20, default 1)</span></span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">lc</span>
+    <span class="p-type">string <span class="p-hint">(default &quot;fr&quot;)</span></span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">staging</span>
+    <span class="p-type">&quot;0&quot; | &quot;1&quot;</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Legacy bounded provider JSON; development wger-v1 returns a versioned local envelope with count, products, portable Food records and provenance</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc">Invalid or unsupported parameters</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">403</span>
+    <span class="p-desc">Foreign browser origin</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">External exhaustion/backoff with Retry-After; local overload uses catalog-client-rate-limited without countdown</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">502</span>
+    <span class="p-desc">Provider/network error or invalid/oversized response</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">catalog-local-unavailable without artificial cooldown</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">504</span>
+    <span class="p-desc">Provider timeout</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-undefined">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/nutrition/catalog/product</code><span class="ep-chip public">public</span></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Anonymous bounded food product lookup</span>
+  </summary>
+  <div class="ep-body">
+<p>Fixed OFF v3 product endpoint. Barcode remains a string; public records only. One global egress budget allows 15 product reads per rolling 60 seconds; cache TTL 24 hours. No artificial interval between requests. Same validation, cache ceiling, origin and error rules as catalogue search. Development wger-v1 instead reads SQLite only, with exactly one of code or id. Stable ID selection preserves the exact catalogue variant. Verified OFF barcode aliases coalesce; a migrated wger ID includes lookupId and resolves to its OFF ID. Unverified barcode ambiguity (including a full bounded variants page) requires explicit choice by name. Misses, missing runtime and corruption never fall back to OFF. Staging 1 is refused in this mode.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Public: no authentication required.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">X-openGym-Catalog-Client <span class="p-hint">(header)</span></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">code</span>
+    <span class="p-type">string</span>
+    <span class="p-desc">Required in legacy mode; exactly one of code or id in development wger-v1</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">id</span>
+    <span class="p-type">string</span>
+    <span class="p-desc">Development wger-v1 only; excludes code; OFF IDs require the verified complement</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">lc</span>
+    <span class="p-type">string <span class="p-hint">(default &quot;fr&quot;)</span></span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">staging</span>
+    <span class="p-type">&quot;0&quot; | &quot;1&quot;</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Legacy bounded OFF envelope, or opengym-local-food-catalog schemaVersion 1 containing a local product and its immutable portable Food or an explicitly unusable identity</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc">Invalid or unsupported parameters</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">403</span>
+    <span class="p-desc">Foreign browser origin</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">404</span>
+    <span class="p-desc">Provider product not found</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">409</span>
+    <span class="p-desc">Development local barcode ambiguity requiring explicit variant choice, or cancelled request</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">External exhaustion/backoff with Retry-After; local overload uses catalog-client-rate-limited without countdown</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">502</span>
+    <span class="p-desc">Provider/network error or invalid/oversized response</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">catalog-local-unavailable without artificial cooldown</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">504</span>
+    <span class="p-desc">Provider timeout</span>
+  </div>
+    </div>
+  </div>
+</details>
 
 <details class="ep" id="op-undefined">
   <summary>

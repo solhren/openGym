@@ -118,7 +118,9 @@ export async function diskBridge({ baseDirectory } = {}) {
   const base = baseDirectory ?? await mkdtemp(join(tmpdir(), 'opengym-nutrition-'))
   const control = { failAt: null, phases: 0, base, beforeCollect: null, documentReads: 0 }
   const queues = new Map()
+  let closed = false
   const lock = async (scope, work) => {
+    if (closed) throw Object.assign(new Error('bridge closed'), { code: 'IO_FAILED' })
     const previous = queues.get(scope) ?? Promise.resolve()
     let release
     const next = new Promise(resolve => { release = resolve }); queues.set(scope, next)
@@ -194,5 +196,11 @@ export async function diskBridge({ baseDirectory } = {}) {
       })
     },
   }
-  return { plugin, control, cleanup: () => baseDirectory ? Promise.resolve() : rm(base, { recursive: true, force: true }) }
+  // A React read may still be draining after store.close(). Stop accepting work
+  // and await all admitted scopes before removing this fixture's own files.
+  return { plugin, control, cleanup: async () => {
+    closed = true
+    await Promise.all(queues.values())
+    if (!baseDirectory) await rm(base, { recursive: true, force: true })
+  } }
 }

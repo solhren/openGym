@@ -35,8 +35,15 @@ import { effectiveRoutineId } from './queue.js';
 import { stampPut } from './sync-stamps.js';
 import { atomicWrite as durableWrite } from './durable.js';
 import { nutritionRoutes } from './nutrition/routes.js';
+import { foodCatalogRoutes } from './nutrition/food-catalog.js';
+import { experimentalCatalogRelay } from './nutrition/catalog-local.js';
+import { privateBetaConfig } from './nutrition/catalog-beta.js';
 import { excusedOn, nudgeFor, nudgeWindowOpen, toneOf } from './nudge.js';
 
+// Refuse a beta configuration before loading/creating any account state. The
+// ordinary production profile is unaffected when this opt-in flag is absent.
+const BETA_CONFIG = privateBetaConfig();
+const PERSONAL_BETA = BETA_CONFIG?.personal === true;
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
 const RP_ID = process.env.RP_ID || 'localhost';
@@ -147,6 +154,11 @@ db.creds = db.creds || [];
 db.subs = db.subs || [];
 db.invites = db.invites || [];
 db.deviceLinks = db.deviceLinks || [];   // unused one-time device links, hashed (device-link.js)
+if (PERSONAL_BETA && (!Array.isArray(db.users)||db.users.length>1||(db.users.length===1&&!db.personalOwner)||(db.personalOwner&&(db.users.length!==1||db.users[0].id!==db.personalOwner)))) throw new Error('personal-beta-owner-state-invalid');
+const ownerSignupOpen = () => !PERSONAL_BETA || (!db.personalOwner && db.users.length === 0);
+const refuseOwnerSignup = res => { if(ownerSignupOpen())return false;json(res,403,{error:'registration is closed',code:'registration-closed'});return true; };
+// Synchronous with db.users.push; concurrent ceremonies cannot claim two users.
+const claimPersonalOwner = user => { if(PERSONAL_BETA)db.personalOwner=user.id; };
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
 // 0600: db.json holds passkey credential material. It used to be covered by a blanket 0700 on
 // the whole directory; now that the directory stays traversable, the file carries its own mode.
@@ -1282,6 +1294,7 @@ const passwordRoutes = {
   // For browsers that cannot make a passkey at all: plain http on a LAN address, some Firefox
   // setups. Same invite rules as /api/register/*, checked again and burned after the hash.
   'POST /api/register/password': async (req, res) => {
+    if(refuseOwnerSignup(res))return;
     const body = await readBody(req);
     const name = text(body.name).trim().slice(0, 40);
     if (!name) return json(res, 400, { error: 'name required', code: 'missing' });
@@ -1311,6 +1324,7 @@ const passwordRoutes = {
     };
     if (email && addressPaused(req, res, 'email')) return;
     const h = await hashPassword(body.password);
+    if(refuseOwnerSignup(res))return;
     let inv = null;
     if (INVITE_ONLY) {
       inv = invite();
@@ -1326,6 +1340,7 @@ const passwordRoutes = {
     const user = { id: crypto.randomBytes(12).toString('base64url'), name, created, pw: { h, set: created }, ...(email ? { email } : {}) };
     if (inv) { user.invitedBy = inv.code; inv.usedBy = user.id; inv.usedAt = created; }
     claimFirstAdmin(req, user);
+    claimPersonalOwner(user);
     db.users.push(user);
     saveDb();
     audit(req, 'auth.register.ok', { user, msg: inv ? inv.code + ' · password' : 'password' });
@@ -1905,6 +1920,7 @@ function dataWritable() {
   return ok;
 }
 
+const localCatalogue = await experimentalCatalogRelay({ dataDir: DATA, onEvent: event => console.warn(JSON.stringify({component:'nutrition-local-catalog',...event})) });
 const routes = {
   // 503 rather than a flag in a 200: the container healthcheck is `wget --spider`, which reads
   // the status and nothing else, and an instance that cannot write its data directory is exactly
@@ -1935,6 +1951,7 @@ const routes = {
     // that has no Coach. The key's absence is that answer.
     json(res, 200, {
       invite_only: INVITE_ONLY, allow_guest: ALLOW_GUEST,
+      ...(PERSONAL_BETA ? { personal_beta:true, registration_open:ownerSignupOpen() } : {}),
       // Only when on, so an instance without passwords answers exactly as it did before (#118).
       ...(PASSWORD_LOGIN ? { password_login: true } : {}),
       // Public: the sign-in screen is the first thing that reads it.
@@ -1962,6 +1979,7 @@ const routes = {
   },
 
   'POST /api/register/options': async (req, res) => {
+    if(refuseOwnerSignup(res))return;
     const body = await readBody(req);
     const name = text(body.name).trim().slice(0, 40);
     if (!name) return json(res, 400, { error: 'name required' });
@@ -1984,6 +2002,7 @@ const routes = {
   },
 
   'POST /api/register/verify': async (req, res) => {
+    if(refuseOwnerSignup(res))return;
     const body = await readBody(req);
     const c = takeChallenge(body.cid);
     if (!c || c.kind !== 'register' || !c.uid) {
@@ -2014,6 +2033,7 @@ const routes = {
       return json(res, 409, { error: 'credential already registered' });
     }
     // Re-check the invite at the last moment (it may have been used/revoked since options), then burn it.
+    if(refuseOwnerSignup(res))return;
     let invite = null;
     if (INVITE_ONLY) {
       invite = db.invites.find(i => i.code === c.code && !i.usedBy && !i.revoked);
@@ -2025,6 +2045,7 @@ const routes = {
     const user = { id: c.uid, name: c.name, created: new Date().toISOString() };
     if (invite) { user.invitedBy = invite.code; invite.usedBy = user.id; invite.usedAt = user.created; }
     claimFirstAdmin(req, user);
+    claimPersonalOwner(user);
     db.users.push(user);
     db.creds.push({
       id: credential.id, userId: user.id,
@@ -2508,6 +2529,7 @@ const routes = {
 
   'POST /api/admin/invites/new': async (req, res) => {
     const admin = requireAdmin(req, res); if (!admin) return;
+    if(PERSONAL_BETA)return json(res,403,{error:'registration is closed',code:'registration-closed'});
     const body = await readBody(req);
     let code;
     // 16 hex chars = 64 bits, up from 8 chars / 32 bits. Passkey signup has no rate limiting by
@@ -2578,6 +2600,8 @@ const routes = {
 
   /* ---------- Nutrition (independent v1 publications) ---------- */
   ...nutritionRoutes({ json, sessionOf, dataDir: DATA, origin: ORIGIN }),
+  // Public catalogue reads never load personal Nutrition documents or forward sessions.
+  ...foodCatalogRoutes({ json, origin: ORIGIN, limitAddress, ...(PERSONAL_BETA ? {requireUser:readSession} : {}), ...(localCatalogue ? {relay:localCatalogue} : {}) }),
 
   /* ---------- photos & videos ---------- */
   // Absent, not refusing, when MEDIA_UPLOADS=0: a 404 is what a server from before the feature
@@ -2712,4 +2736,13 @@ server.headersTimeout = 60000;
 // port that was actually bound: with PORT=0 the OS picks one, and a caller that did not choose it
 // (the tests spawn the server that way, and so does anyone running two instances on one box) has
 // no other way to learn it.
-server.listen(PORT, () => console.log(`gym-api on :${server.address().port} (rpID=${RP_ID}, origin=${ORIGIN})`));
+if (localCatalogue) {
+  // The experiment is only reachable through a local development proxy/tunnel.
+  // No lifecycle or bind-address change when it is disabled.
+  server.on('close', () => { void localCatalogue.close(); });
+  for (const signal of ['SIGTERM','SIGINT']) process.once(signal, async () => {
+    server.close(); server.closeAllConnections();
+    await localCatalogue.close(); process.exit(0);
+  });
+}
+server.listen(PORT, localCatalogue ? (BETA_CONFIG?.listenHost??'127.0.0.1') : undefined, () => console.log(`gym-api on :${server.address().port} (rpID=${RP_ID}, origin=${ORIGIN})`));

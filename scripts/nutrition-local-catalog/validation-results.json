@@ -1,0 +1,611 @@
+{
+  "recordedAt": "2026-10-12T02:17:14.608231+00:00",
+  "head": "6610d192",
+  "node": "22.23.3",
+  "python": "3.13.5",
+  "sqlite": "3.46.1",
+  "platform": "Linux-6.12.57+deb13-cloud-amd64-x86_64-with-glibc2.41",
+  "synthetic": {
+    "products": 50000,
+    "import": {
+      "barcodeIndexBytes": 942080,
+      "bytes": 26562560,
+      "cpuSeconds": 18.022602999999997,
+      "duplicates": 0,
+      "ftsBytes": 5419008,
+      "ftsSeconds": 0.4303986541926861,
+      "generation": "catalog-6ebcda74dca74c2195322d81a4d830b7.sqlite",
+      "hashPublicationSeconds": 0.02442343905568123,
+      "ingestSeconds": 23.657035905867815,
+      "pageAllocation": {
+        "metadata": 4096,
+        "products": 18210816,
+        "products_fts_config": 4096,
+        "products_fts_data": 4812800,
+        "products_fts_docsize": 589824,
+        "products_fts_idx": 12288,
+        "sqlite_autoindex_metadata_1": 4096,
+        "sqlite_autoindex_products_1": 942080,
+        "sqlite_schema": 4096
+      },
+      "peakRssKiB": 32844,
+      "products": 50000,
+      "resourcesBefore": {
+        "availableMemoryBytes": 4811407360,
+        "freeDiskBytes": 54483480576
+      },
+      "seconds": 27.966898564249277,
+      "verificationSeconds": 3.8086070753633976,
+      "totalSeconds": 28.045553325999997,
+      "nodePeakRssKiB": 96472,
+      "nodeCpuSeconds": 23.5543,
+      "inputBytes": 23315027,
+      "normalizedBytes": 19501695,
+      "normalizeMs": 21335.396579000128,
+      "scanned": 50000,
+      "rejected": 0,
+      "filtered": 0,
+      "reasons": {}
+    },
+    "resources": {
+      "measurement": {
+        "exitCode": 0,
+        "seconds": 28.137958616018295,
+        "sampledTreePeakRssBytes": 133246976,
+        "sampleIntervalMs": 25,
+        "samples": 1099,
+        "cpuSeconds": 41.672177999999995,
+        "cpuPercentOfOneCore": 148.09950703487416,
+        "maxChildRssKiB": 96472
+      }
+    },
+    "search": {
+      "fixture": true,
+      "products": 50000,
+      "databaseBytes": 26562560,
+      "openFullHashVerificationMs": 25.24159476161003,
+      "search": {
+        "Nutella": {
+          "meanMs": 29.884154133333332,
+          "medianMs": 29.517319,
+          "p95Ms": 33.40384,
+          "maxMs": 35.752627,
+          "firstNames": [
+            "Nutella pâte à tartiner",
+            "Nutella pâte à tartiner",
+            "Nutella pâte à tartiner"
+          ],
+          "completeOnPage": 20
+        },
+        "Coca-Cola": {
+          "meanMs": 36.14797213333333,
+          "medianMs": 33.5569775,
+          "p95Ms": 45.559737,
+          "maxMs": 46.028216,
+          "firstNames": [
+            "Coca-Cola boisson",
+            "Coca-Cola boisson",
+            "Coca-Cola boisson"
+          ],
+          "completeOnPage": 20
+        },
+        "lait": {
+          "meanMs": 31.557182366666666,
+          "medianMs": 29.03574,
+          "p95Ms": 41.635745,
+          "maxMs": 42.94417,
+          "firstNames": [
+            "Lait demi-écrémé",
+            "Lait demi-écrémé",
+            "Lait demi-écrémé"
+          ],
+          "completeOnPage": 20
+        },
+        "riz": {
+          "meanMs": 29.2848428,
+          "medianMs": 29.1774665,
+          "p95Ms": 31.235622,
+          "maxMs": 31.552137,
+          "firstNames": [
+            "Riz basmati",
+            "Riz basmati",
+            "Riz basmati"
+          ],
+          "completeOnPage": 20
+        },
+        "pâtes": {
+          "meanMs": 30.7470806,
+          "medianMs": 30.49118,
+          "p95Ms": 33.064885,
+          "maxMs": 33.857092,
+          "firstNames": [
+            "Pâtes complètes",
+            "Pâtes complètes",
+            "Pâtes complètes"
+          ],
+          "completeOnPage": 20
+        },
+        "yaourt": {
+          "meanMs": 29.90735116666667,
+          "medianMs": 29.3860375,
+          "p95Ms": 32.54044,
+          "maxMs": 33.501794,
+          "firstNames": [
+            "Yaourt nature",
+            "Yaourt nature",
+            "Yaourt nature"
+          ],
+          "completeOnPage": 20
+        },
+        "pates": {
+          "meanMs": 30.154715433333333,
+          "medianMs": 29.677659499999997,
+          "p95Ms": 33.909389,
+          "maxMs": 36.086563,
+          "firstNames": [
+            "Pâtes complètes",
+            "Pâtes complètes",
+            "Pâtes complètes"
+          ],
+          "completeOnPage": 20
+        },
+        "Panzani": {
+          "meanMs": 31.039544499999998,
+          "medianMs": 30.727625,
+          "p95Ms": 34.028292,
+          "maxMs": 34.153155,
+          "firstNames": [
+            "Pâtes complètes",
+            "Pâtes complètes",
+            "Pâtes complètes"
+          ],
+          "completeOnPage": 20
+        },
+        "lait demi ecreme": {
+          "meanMs": 32.20912643333333,
+          "medianMs": 31.5645655,
+          "p95Ms": 38.702062,
+          "maxMs": 40.299378,
+          "firstNames": [
+            "Lait demi-écrémé",
+            "Lait demi-écrémé",
+            "Lait demi-écrémé"
+          ],
+          "completeOnPage": 20
+        }
+      },
+      "barcode": {
+        "meanMs": 0.07790953333333334,
+        "medianMs": 0.06558349999999999,
+        "p95Ms": 0.119444,
+        "maxMs": 0.138441
+      },
+      "paginationPage20": {
+        "meanMs": 31.8042198,
+        "medianMs": 31.3810855,
+        "p95Ms": 36.165772,
+        "maxMs": 37.506828
+      },
+      "iterations": 30,
+      "platform": "Linux-6.12.57+deb13-cloud-amd64-x86_64-with-glibc2.41",
+      "python": "3.13.5",
+      "peakRssKiB": 27288,
+      "cpuSeconds": 9.802231
+    },
+    "worker": {
+      "sourceKind": "fixture",
+      "products": 50000,
+      "catalogueFormat": 2,
+      "databaseBytes": 26562560,
+      "iterations": 30,
+      "coldStartupVerificationMs": 93.27214599999999,
+      "searches": {
+        "Nutella": {
+          "meanMs": 35.02564553333333,
+          "p95Ms": 40.95736299999999,
+          "maxMs": 46.95054700000014
+        },
+        "Coca-Cola": {
+          "meanMs": 34.75823316666663,
+          "p95Ms": 39.02983599999993,
+          "maxMs": 42.05282799999986
+        },
+        "lait": {
+          "meanMs": 32.08488983333327,
+          "p95Ms": 35.37984800000004,
+          "maxMs": 40.08741199999986
+        },
+        "riz": {
+          "meanMs": 35.358453966666715,
+          "p95Ms": 49.365530000000035,
+          "maxMs": 64.75317000000041
+        },
+        "pâtes": {
+          "meanMs": 35.36834896666663,
+          "p95Ms": 42.972012999999606,
+          "maxMs": 44.7525940000005
+        },
+        "yaourt": {
+          "meanMs": 36.42891900000007,
+          "p95Ms": 41.916794000000664,
+          "maxMs": 49.49445199999991
+        }
+      },
+      "barcode": {
+        "meanMs": 0.6202625999999933,
+        "p95Ms": 0.8140370000000985,
+        "maxMs": 1.37151300000005
+      },
+      "fourQueuedSearches": {
+        "seconds": 0.19198209399999996,
+        "meanMs": 117.28727225000011,
+        "p95Ms": 191.76846299999943,
+        "maxMs": 191.76846299999943
+      },
+      "nodePeakRssKiB": 57116,
+      "node": "v22.23.3"
+    },
+    "workerResources": {
+      "measurement": {
+        "exitCode": 0,
+        "seconds": 6.698699843138456,
+        "sampledTreePeakRssBytes": 84205568,
+        "sampleIntervalMs": 25,
+        "samples": 261,
+        "cpuSeconds": 6.700944999999999,
+        "cpuPercentOfOneCore": 100.03351630785254,
+        "maxChildRssKiB": 57116
+      }
+    },
+    "concurrentReadersRun": {
+      "fixture": true,
+      "products": 50000,
+      "databaseBytes": 26562560,
+      "openFullHashVerificationMs": 25.360729545354843,
+      "search": {
+        "Nutella": {
+          "meanMs": 30.7967757,
+          "medianMs": 30.0225455,
+          "p95Ms": 33.378187,
+          "maxMs": 37.379804,
+          "firstNames": [
+            "Nutella pâte à tartiner",
+            "Nutella pâte à tartiner",
+            "Nutella pâte à tartiner"
+          ],
+          "completeOnPage": 20
+        },
+        "Coca-Cola": {
+          "meanMs": 32.97498245,
+          "medianMs": 32.591606,
+          "p95Ms": 35.195377,
+          "maxMs": 37.056618,
+          "firstNames": [
+            "Coca-Cola boisson",
+            "Coca-Cola boisson",
+            "Coca-Cola boisson"
+          ],
+          "completeOnPage": 20
+        },
+        "lait": {
+          "meanMs": 30.282635700000004,
+          "medianMs": 30.628658,
+          "p95Ms": 33.018351,
+          "maxMs": 33.17129,
+          "firstNames": [
+            "Lait demi-écrémé",
+            "Lait demi-écrémé",
+            "Lait demi-écrémé"
+          ],
+          "completeOnPage": 20
+        },
+        "riz": {
+          "meanMs": 29.585843399999998,
+          "medianMs": 29.3142365,
+          "p95Ms": 30.680014,
+          "maxMs": 31.395247,
+          "firstNames": [
+            "Riz basmati",
+            "Riz basmati",
+            "Riz basmati"
+          ],
+          "completeOnPage": 20
+        },
+        "pâtes": {
+          "meanMs": 31.7673778,
+          "medianMs": 31.089407,
+          "p95Ms": 35.472776,
+          "maxMs": 39.499903,
+          "firstNames": [
+            "Pâtes complètes",
+            "Pâtes complètes",
+            "Pâtes complètes"
+          ],
+          "completeOnPage": 20
+        },
+        "yaourt": {
+          "meanMs": 32.100600050000004,
+          "medianMs": 31.292869500000002,
+          "p95Ms": 37.379173,
+          "maxMs": 39.575384,
+          "firstNames": [
+            "Yaourt nature",
+            "Yaourt nature",
+            "Yaourt nature"
+          ],
+          "completeOnPage": 20
+        },
+        "pates": {
+          "meanMs": 32.07814065,
+          "medianMs": 31.4939915,
+          "p95Ms": 36.080667,
+          "maxMs": 39.293246,
+          "firstNames": [
+            "Pâtes complètes",
+            "Pâtes complètes",
+            "Pâtes complètes"
+          ],
+          "completeOnPage": 20
+        },
+        "Panzani": {
+          "meanMs": 32.942769399999996,
+          "medianMs": 31.5290825,
+          "p95Ms": 36.197686,
+          "maxMs": 49.63582,
+          "firstNames": [
+            "Pâtes complètes",
+            "Pâtes complètes",
+            "Pâtes complètes"
+          ],
+          "completeOnPage": 20
+        },
+        "lait demi ecreme": {
+          "meanMs": 33.9997952,
+          "medianMs": 33.4446875,
+          "p95Ms": 38.446516,
+          "maxMs": 41.408214,
+          "firstNames": [
+            "Lait demi-écrémé",
+            "Lait demi-écrémé",
+            "Lait demi-écrémé"
+          ],
+          "completeOnPage": 20
+        }
+      },
+      "barcode": {
+        "meanMs": 0.08392205,
+        "medianMs": 0.0702625,
+        "p95Ms": 0.162354,
+        "maxMs": 0.198883
+      },
+      "paginationPage20": {
+        "meanMs": 33.03390525,
+        "medianMs": 32.964937,
+        "p95Ms": 36.659022,
+        "maxMs": 36.698617
+      },
+      "iterations": 20,
+      "platform": "Linux-6.12.57+deb13-cloud-amd64-x86_64-with-glibc2.41",
+      "python": "3.13.5",
+      "concurrentReaders": {
+        "readers": 4,
+        "queries": 80,
+        "secondsIncludingOpens": 1.050000786781311,
+        "queriesPerSecondIncludingOpens": 76.19041909981159,
+        "meanMs": 47.967173100000004,
+        "medianMs": 43.8314355,
+        "p95Ms": 74.456011,
+        "maxMs": 91.972537
+      },
+      "peakRssKiB": 46340,
+      "cpuSeconds": 10.122449999999999
+    }
+  },
+  "realLimitedCapture": {
+    "representative": false,
+    "capturedRows": 20,
+    "strictAccepted": 13,
+    "metadataRetained": 7,
+    "import": {
+      "barcodeIndexBytes": 4096,
+      "bytes": 45056,
+      "cpuSeconds": 0.058478999999999996,
+      "duplicates": 0,
+      "ftsBytes": 16384,
+      "ftsSeconds": 0.0003134533762931824,
+      "generation": "catalog-c4bb11a273764afc88ad540a79b93c24.sqlite",
+      "hashPublicationSeconds": 0.003684479743242264,
+      "ingestSeconds": 0.023671891540288925,
+      "pageAllocation": {
+        "metadata": 4096,
+        "products": 12288,
+        "products_fts_config": 4096,
+        "products_fts_data": 4096,
+        "products_fts_docsize": 4096,
+        "products_fts_idx": 4096,
+        "sqlite_autoindex_metadata_1": 4096,
+        "sqlite_autoindex_products_1": 4096,
+        "sqlite_schema": 4096
+      },
+      "peakRssKiB": 21692,
+      "products": 20,
+      "resourcesBefore": {
+        "availableMemoryBytes": 4817866752,
+        "freeDiskBytes": 54456713216
+      },
+      "seconds": 0.038798924535512924,
+      "verificationSeconds": 0.00350402295589447,
+      "totalSeconds": 0.09213258200000002,
+      "nodePeakRssKiB": 60444,
+      "nodeCpuSeconds": 0.044533,
+      "inputBytes": 10061,
+      "normalizedBytes": 7715,
+      "normalizeMs": 16.614664000000005,
+      "scanned": 20,
+      "rejected": 0,
+      "filtered": 0,
+      "reasons": {}
+    },
+    "resources": {
+      "measurement": {
+        "exitCode": 0,
+        "seconds": 0.20495445281267166,
+        "sampledTreePeakRssBytes": 83546112,
+        "sampleIntervalMs": 25,
+        "samples": 8,
+        "cpuSeconds": 0.204934,
+        "cpuPercentOfOneCore": 99.99002080101653,
+        "maxChildRssKiB": 60444
+      }
+    },
+    "worker": {
+      "sourceKind": "off-jsonl",
+      "products": 20,
+      "catalogueFormat": 2,
+      "databaseBytes": 45056,
+      "iterations": 30,
+      "coldStartupVerificationMs": 70.642091,
+      "searches": {
+        "Nutella": {
+          "meanMs": 1.1070155999999973,
+          "p95Ms": 1.688879,
+          "maxMs": 2.119556999999986,
+          "count": 0,
+          "firstNames": []
+        },
+        "Coca-Cola": {
+          "meanMs": 0.9142843000000027,
+          "p95Ms": 1.1655269999999973,
+          "maxMs": 1.4567639999999926,
+          "count": 0,
+          "firstNames": []
+        },
+        "lait": {
+          "meanMs": 1.0709811666666686,
+          "p95Ms": 2.194045999999986,
+          "maxMs": 2.2650490000000048,
+          "count": 0,
+          "firstNames": []
+        },
+        "riz": {
+          "meanMs": 0.8922279333333355,
+          "p95Ms": 1.1497269999999844,
+          "maxMs": 1.2166520000000105,
+          "count": 0,
+          "firstNames": []
+        },
+        "pâtes": {
+          "meanMs": 0.8403194333333375,
+          "p95Ms": 1.2594840000000147,
+          "maxMs": 1.282876000000016,
+          "count": 0,
+          "firstNames": []
+        },
+        "yaourt": {
+          "meanMs": 0.6695452999999948,
+          "p95Ms": 0.8845389999999611,
+          "maxMs": 0.8916839999999979,
+          "count": 0,
+          "firstNames": []
+        },
+        "pâte": {
+          "meanMs": 1.0498192333333236,
+          "p95Ms": 1.3861909999999966,
+          "maxMs": 2.0386459999999715,
+          "count": 1,
+          "firstNames": [
+            "Véritable pâte à tartiner noisettes chocolat noir"
+          ]
+        },
+        "Bovetti": {
+          "meanMs": 0.7487534999999961,
+          "p95Ms": 1.0002169999999637,
+          "maxMs": 1.1287680000000364,
+          "count": 1,
+          "firstNames": [
+            "Véritable pâte à tartiner noisettes chocolat noir"
+          ]
+        },
+        "dinde": {
+          "meanMs": 0.9223509333333292,
+          "p95Ms": 1.3847769999999855,
+          "maxMs": 1.5074579999999855,
+          "count": 1,
+          "firstNames": [
+            "Escalope de dinde"
+          ]
+        },
+        "herbal tea": {
+          "meanMs": 2.1145624000000036,
+          "p95Ms": 3.146614999999997,
+          "maxMs": 3.385071000000039,
+          "count": 8,
+          "firstNames": [
+            "Herbal Tea, Hibiscus",
+            "Artichoke Herbal Tea",
+            "Shave Grass Herbal Tea"
+          ]
+        }
+      },
+      "barcode": {
+        "meanMs": 0.3893077999999946,
+        "p95Ms": 0.46423099999998385,
+        "maxMs": 0.4817250000000399
+      },
+      "fourQueuedSearches": {
+        "seconds": 0.001997427000000016,
+        "meanMs": 1.2287277500000044,
+        "p95Ms": 1.8488290000000234,
+        "maxMs": 1.8488290000000234
+      },
+      "nodePeakRssKiB": 56868,
+      "node": "v22.23.3"
+    },
+    "workerResources": {
+      "measurement": {
+        "exitCode": 0,
+        "seconds": 0.48585186526179314,
+        "sampledTreePeakRssBytes": 78893056,
+        "sampleIntervalMs": 25,
+        "samples": 19,
+        "cpuSeconds": 0.477141,
+        "cpuPercentOfOneCore": 98.20709440786042,
+        "maxChildRssKiB": 56868
+      }
+    }
+  },
+  "tests": {
+    "prototypeNode": {
+      "command": "node --test --experimental-test-isolation=none scripts/nutrition-local-catalog/*.test.mjs",
+      "passed": 59,
+      "failed": 0,
+      "skipped": 0
+    },
+    "prototypePython": {
+      "command": "python3 -m unittest discover -s scripts/nutrition-local-catalog -p 'test_*.py' -v",
+      "passed": 55,
+      "failed": 0,
+      "skipped": 0
+    },
+    "frontendCatalog": {
+      "command": "npm test -- --maxWorkers=2 src/lib/nutrition/catalog src/views/nutrition/FoodCatalog.test.jsx",
+      "passed": 130,
+      "files": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    "frontendBuild": {
+      "command": "npm run build",
+      "success": true,
+      "warnings": [
+        "existing large chunks",
+        "existing ineffective dynamic imports"
+      ]
+    },
+    "notExecuted": [
+      "Docker image build/run (daemon permission denied)",
+      "additional live provider capture (sandbox socket EPERM)",
+      "full frontend/API suite (no application code changed in this pass)"
+    ]
+  }
+}

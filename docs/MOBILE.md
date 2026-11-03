@@ -376,3 +376,45 @@ membership, the distribution certificate and profile as protected file variables
   it: a foreground service (`specialUse`) keeps the countdown in the notification and holds a
   wake lock until the end, so the end of a rest sounds on time with the screen locked; the
   rest-over alarm is only its fallback.
+
+### Nutrition V1 — catalogue public dans un build Android de développement
+
+For the phone-only private HTTPS beta, use
+[PERSONAL_BETA_DOCKER.md](dev/PERSONAL_BETA_DOCKER.md) for the Compose deployment and
+[PERSONAL_BETA.md](dev/PERSONAL_BETA.md) for the single-account authentication
+`https://gym.solhren.fr` profile (guest disabled, native secure pairing), and
+[ANDROID_PRIVATE_BETA.md](dev/ANDROID_PRIVATE_BETA.md) for the older laboratory preparation: isolated service, proxy
+approval, real HTTPS origin and the guarded APK build command. The loopback
+procedure below remains a workstation laboratory test, not that beta deployment.
+
+The local SQLite catalogue runs on the openGym API, not inside the APK. A paired
+server takes priority. For the isolated reference-catalogue trial, build with the
+local-only flag as well as the guest endpoint (JDK 21 and Android SDK 35 required):
+
+```bash
+VITE_NUTRITION_LOCAL_V1=1 VITE_NUTRITION_CATALOG_ORIGIN=http://127.0.0.1:3301 npm run build:mobile
+cd android
+./gradlew --no-daemon --max-workers=2 assembleDebug
+# On the workstation with the SSH 3301 tunnel and the connected test phone:
+adb reverse tcp:3301 tcp:3301
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+The debug application remains `ch.duartesantos.opengym.test` / `OpenGymTest`, separate
+from release; do not uninstall or clear either app's existing data. The origin is
+public configuration and carries no account token. Do not distribute this loopback
+lab build: it requires the documented SSH tunnel and `adb reverse` on a test device.
+Existing logged foods remain in the
+private local Nutrition store for offline use; merely viewing a server catalogue
+product does not persist it on the phone. See
+[the current laboratory guide](dev/NUTRITION_FOOD_CATALOG.md), section
+“Stabilisation de nuit — 27 octobre 2026”, for launch, catalogue and Docker checks.
+A successful Vite/Capacitor build does not prove
+that Gradle produced an APK or that physical Android testing passed.
+
+## APK personnel via GitHub Actions
+
+Pour la bêta sur `https://gym.solhren.fr`, suivre
+[le guide Android personnel](dev/ANDROID_APK_GITHUB.md) : compilation manuelle dans
+le fork solhren/openGym, appairage avec le compte unique et signature stable pour
+les mises à jour sans désinstallation. Aucun catalogue ni secret dans le dépôt.

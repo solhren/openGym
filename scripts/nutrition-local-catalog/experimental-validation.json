@@ -1,0 +1,117 @@
+{
+  "workspace": "off-real-20-metadata",
+  "kind": "real-20-limited-not-representative",
+  "iterations": 30,
+  "searches": {
+    "Bovetti": {
+      "count": 1,
+      "meanMs": 3.1212635666666677,
+      "p95Ms": 3.12406
+    },
+    "pâte": {
+      "count": 1,
+      "meanMs": 1.7729829666666679,
+      "p95Ms": 2.2473659999999995
+    },
+    "pâte à tartiner": {
+      "count": 1,
+      "meanMs": 1.3431918333333357,
+      "p95Ms": 1.6466500000000224
+    },
+    "dinde": {
+      "count": 1,
+      "meanMs": 1.2208055666666648,
+      "p95Ms": 1.7382809999999722
+    },
+    "herbal tea": {
+      "count": 8,
+      "meanMs": 3.250550766666667,
+      "p95Ms": 4.059607000000028
+    },
+    "Nutella": {
+      "count": 0,
+      "meanMs": 1.0475444333333486,
+      "p95Ms": 1.5203709999999546
+    },
+    "lait": {
+      "count": 0,
+      "meanMs": 0.7738785333333282,
+      "p95Ms": 1.2607849999999985
+    }
+  },
+  "elapsedMs": 389.30897100000004,
+  "providerFallbacks": 0,
+  "providerRequests": 0,
+  "kcal": 617,
+  "source": {
+    "kind": "open-food-facts",
+    "externalId": "0000101209159",
+    "url": "https://world.openfoodfacts.org/product/0000101209159",
+    "license": {
+      "id": "ODbL-1.0",
+      "url": "https://opendatacommons.org/licenses/odbl/1-0/",
+      "attribution": "Open Food Facts contributors"
+    },
+    "contentLicense": "DbCL-1.0",
+    "catalogueWarnings": [
+      "export-qualifiers-unavailable",
+      "missing-values"
+    ]
+  },
+  "head": "4e093a36f831547d72c64231a39fa790606513f844db1fbdf63c5f7405720c4d",
+  "node": "v22.23.3",
+  "nodePeakRssKiB": 62248,
+  "resources": {
+    "measurement": {
+      "exitCode": 0,
+      "seconds": 0.4595024026930332,
+      "sampledTreePeakRssBytes": 85483520,
+      "sampleIntervalMs": 25,
+      "samples": 18,
+      "cpuSeconds": 0.508035,
+      "cpuPercentOfOneCore": 110.56198988787193,
+      "maxChildRssKiB": 62248
+    }
+  },
+  "sourceCaptureSha256": "7d340dbe507a5256c45efafc60f3cb8312910f748dd9bff6c9272a8cd14e5be5",
+  "tests": {
+    "prototypeNode": {
+      "passed": 60,
+      "failed": 0,
+      "skipped": 0
+    },
+    "prototypePython": {
+      "passed": 63,
+      "failed": 0,
+      "skipped": 0
+    },
+    "focusedAPI": {
+      "passed": 169,
+      "failed": 0,
+      "skipped": 0
+    },
+    "focusedFrontend": {
+      "passed": 133,
+      "failed": 0,
+      "skipped": 0
+    },
+    "fullFrontendRunBeforeFinalTestAdditions": {
+      "passed": 5773,
+      "failed": 7,
+      "skipped": 0,
+      "failedReason": "spawnSync Node EPERM in locales tests; direct locale checker passes"
+    },
+    "fullAPIFileGroups": {
+      "passed": 43,
+      "failed": 41,
+      "skipped": 0,
+      "classification": "Not validated. HTTP/listener sandbox limitations and provider subprocess assertions require VPS rerun."
+    },
+    "newHTTP": {
+      "passed": 0,
+      "failedAtEnvironmentSetup": 8,
+      "skipped": 0,
+      "reason": "listen EPERM"
+    }
+  }
+}

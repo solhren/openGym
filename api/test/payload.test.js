@@ -47,7 +47,9 @@ test('the same profile always gets the same handle, and two profiles never share
   assert.notEqual(a1, b);
 });
 
-test('review payload carries the plan, the window, effort and aggregates', () => {
+test('review payload carries the plan, the window, effort and aggregates', t => {
+  // Field coverage must not expire when the fixed fixture leaves the review window.
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-08-15T12:00:00Z') });
   const p = payload.build(sampleState(), { handle: handleFor('u1'), kind: 'review', note: 'shoulder pinches' });
   assert.equal(p.task, 'review');
   assert.equal(p.plan.routines.length, 1);

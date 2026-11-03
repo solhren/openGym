@@ -2958,6 +2958,100 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /api/nutrition/catalog/capabilities:
+    get:
+      tags: [nutrition]
+      summary: Discover public catalogue search mode without contacting OFF
+      security: []
+      description: |
+        Anonymous, origin-checked, no-store response. Legacy schemaVersion 1 advertises
+        textSearch local or explicit-remote. Explicit development wger-v1 uses schemaVersion 2,
+        textSearch local, provider wger, selection local-only and productIds true.
+        A client built for local-only V1 must fail closed on older/unavailable capabilities.
+        Neither text search nor product selection in wger-v1 contacts a food provider.
+      responses:
+        '200':
+          description: Legacy search-mode capability v1, or explicit local-only wger capability v2
+        '403':
+          description: Foreign origin refused
+        '429':
+          description: Public request budget exhausted
+  /api/nutrition/catalog/search:
+    get:
+      tags: [nutrition]
+      summary: Anonymous bounded food catalogue search
+      security: []
+      description: |
+        Experimental local mode uses the read-only SQLite catalogue; otherwise the
+        fixed OFF CGI endpoint is used. Optional local=1 fails closed unless local mode
+        is active (no text OFF fallback). Capability discovery is a separate public call.
+        Development wger-v1 returns opengym-local-food-catalog schemaVersion 1, with
+        wger UUID or off:canonical-barcode product identities, validated portable Foods and provenance. It uses literal
+        AND tokens (at most eight, 40 characters each), final-word prefixes, no fuzzy,
+        no provider requests and no staging dataset. Exact product-name matches remain
+        ahead of different products; usable references rank first within a match class.
+        The optional verified OFF complement is immutable and separately versioned.
+        Public local overload protection still applies.
+        20 results per page; no arbitrary URL, fields or credentials.
+        Outside wger-v1, the real application User-Agent is set by the server. Responses/cache contain public
+        provider records only. One global egress budget allows 10 searches per rolling
+        60 seconds, without per-request spacing. Cache TTL 5 minutes; cache and
+        in-flight dedup precede quota reservation. Bounded round-robin dispatch
+        shares pending work among active clients; registered account count is unused.
+        Optional X-openGym-Catalog-Client is a random tab tag, not authentication.
+        No automatic retry. Foreign browser origins are refused.
+        Error X-openGym-Catalog-Source identifies local-budget, local-overload,
+        provider-http, provider-cooldown, network, timeout or validation without
+        exposing queries/account information. OFF_CATALOG_TRACE=1 enables internal trace.
+      parameters:
+        - { name: X-openGym-Catalog-Client, in: header, schema: { type: string, pattern: '^[a-zA-Z0-9_-]{16,64}$' } }
+        - { name: local, in: query, schema: { type: string, enum: ['1'] }, description: Require local catalogue, never contact OFF for suggestions }
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 120 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 20, default: 1 } }
+        - { name: lc, in: query, schema: { type: string, pattern: '^[a-z]{2}$', default: fr } }
+        - { name: staging, in: query, schema: { type: string, enum: ['0', '1'], default: '0' } }
+      responses:
+        '200': { description: "Legacy bounded provider JSON; development wger-v1 returns a versioned local envelope with count, products, portable Food records and provenance" }
+        '400': { description: Invalid or unsupported parameters }
+        '403': { description: Foreign browser origin }
+        '429': { description: External exhaustion/backoff with Retry-After; local overload uses catalog-client-rate-limited without countdown }
+        '502': { description: Provider/network error or invalid/oversized response }
+        '503': { description: catalog-local-unavailable without artificial cooldown, or catalog-provider-unavailable; endpoint-scoped provider HTTP failure/cooldown, preserving barcode access; Retry-After honored or 60-second fallback }
+        '504': { description: Provider timeout }
+
+  /api/nutrition/catalog/product:
+    get:
+      tags: [nutrition]
+      summary: Anonymous bounded food product lookup
+      security: []
+      description: |
+        Fixed OFF v3 product endpoint. Barcode remains a string; public records only.
+        One global egress budget allows 15 product reads per rolling 60 seconds;
+        cache TTL 24 hours. No artificial interval between requests.
+        Same validation, cache ceiling, origin and error rules as catalogue search.
+        Development wger-v1 instead reads SQLite only, with exactly one of code or id.
+        Stable ID selection preserves the exact catalogue variant. Verified OFF barcode
+        aliases coalesce; a migrated wger ID includes lookupId and resolves to its OFF ID.
+        Unverified barcode ambiguity (including
+        a full bounded variants page) requires explicit choice by name. Misses, missing
+        runtime and corruption never fall back to OFF. Staging 1 is refused in this mode.
+      parameters:
+        - { name: X-openGym-Catalog-Client, in: header, schema: { type: string, pattern: '^[a-zA-Z0-9_-]{16,64}$' } }
+        - { name: code, in: query, description: Required in legacy mode; exactly one of code or id in development wger-v1, schema: { type: string, pattern: '^(?:[0-9]{8}|[0-9]{12,14})$' } }
+        - { name: id, in: query, description: Development wger-v1 only; excludes code; OFF IDs require the verified complement, schema: { type: string, pattern: '^(?:wger:[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}|off:(?:[0-9]{14}|exact:(?:[0-9]{8}|[0-9]{12,14})))$' } }
+        - { name: lc, in: query, schema: { type: string, pattern: '^[a-z]{2}$', default: fr } }
+        - { name: staging, in: query, schema: { type: string, enum: ['0', '1'], default: '0' } }
+      responses:
+        '200': { description: "Legacy bounded OFF envelope, or opengym-local-food-catalog schemaVersion 1 containing a local product and its immutable portable Food or an explicitly unusable identity" }
+        '400': { description: Invalid or unsupported parameters }
+        '403': { description: Foreign browser origin }
+        '404': { description: Provider product not found }
+        '409': { description: "Development local barcode ambiguity requiring explicit variant choice, or cancelled request" }
+        '429': { description: External exhaustion/backoff with Retry-After; local overload uses catalog-client-rate-limited without countdown }
+        '502': { description: Provider/network error or invalid/oversized response }
+        '503': { description: catalog-local-unavailable without artificial cooldown, or catalog-provider-unavailable; endpoint-scoped provider HTTP failure/cooldown with Retry-After }
+        '504': { description: Provider timeout }
+
   /api/nutrition/head:
     get:
       tags: [nutrition]

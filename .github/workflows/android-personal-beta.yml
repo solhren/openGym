@@ -1,0 +1,122 @@
+name: Android personal beta APK
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      ANDROID_BETA_DEBUG_KEYSTORE_BASE64:
+        description: Stable debug keystore, base64 encoded, for compatible APK updates
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-personal-beta-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    # Never build a personal APK from upstream, another branch, a PR or another actor.
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == 'solhren'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out the selected personal fork commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: solhren/openGym
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK 35
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+          log-accepted-android-sdk-licenses: false
+
+      - name: Install frontend dependencies from the lockfile
+        working-directory: frontend
+        run: npm ci
+
+      - name: Restore the stable debug signing key
+        env:
+          BETA_KEYSTORE: ${{ secrets.ANDROID_BETA_DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          python3 - <<'PY'
+          import base64, os
+          from pathlib import Path
+          raw = os.environ.get('BETA_KEYSTORE', '')
+          if not raw:
+              raise SystemExit('Configure ANDROID_BETA_DEBUG_KEYSTORE_BASE64 before building an installable personal APK')
+          if raw:
+              content = base64.b64decode(raw, validate=True)
+              if not 0 < len(content) <= 65536:
+                  raise SystemExit('Invalid debug signing file size')
+              folder = Path.home() / '.android'
+              folder.mkdir(mode=0o700, exist_ok=True)
+              target = folder / 'debug.keystore'
+              with target.open('wb') as stream:
+                  os.fchmod(stream.fileno(), 0o600)
+                  stream.write(content)
+          PY
+          keytool -list -keystore "$HOME/.android/debug.keystore" \
+            -storepass android -alias androiddebugkey > /dev/null
+
+      - name: Build the personal Android APK using the existing script
+        env:
+          APP_BUILD: beta-${{ github.run_id }}-${{ github.run_attempt }}
+        run: node scripts/private-beta/build-android.mjs https://gym.solhren.fr
+
+      - name: Verify the generated APK and public build metadata
+        id: apk
+        run: |
+          mapfile -t files < <(find scripts/nutrition-local-catalog/artifacts -maxdepth 2 \
+            -type f -path '*/private-beta-apk-*/opengym-beta-debug.apk')
+          test "${#files[@]}" -eq 1
+          apk="${files[0]}"
+          folder=$(dirname "$apk")
+          python3 - "$folder/build.json" <<'PY'
+          import json, sys
+          with open(sys.argv[1]) as stream:
+              meta = json.load(stream)
+          assert meta['origin'] == 'https://gym.solhren.fr'
+          assert meta['localOnly'] is True
+          assert meta['personalAccountRequired'] is True
+          assert meta['applicationId'] == 'ch.duartesantos.opengym.test'
+          assert meta['variant'] == 'debug'
+          PY
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$apk"
+          badging=$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$apk")
+          [[ "$badging" == *"package: name='ch.duartesantos.opengym.test'"* ]]
+          (cd "$folder" && sha256sum opengym-beta-debug.apk > opengym-beta-debug.apk.sha256)
+          echo "directory=$folder" >> "$GITHUB_OUTPUT"
+
+      - name: Upload only the installable APK and its public metadata
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: opengym-personal-debug-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ steps.apk.outputs.directory }}/opengym-beta-debug.apk
+            ${{ steps.apk.outputs.directory }}/opengym-beta-debug.apk.sha256
+            ${{ steps.apk.outputs.directory }}/build.json
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Remove the runner signing key
+        if: always()
+        run: rm -f "$HOME/.android/debug.keystore"

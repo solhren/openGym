@@ -2,10 +2,11 @@ import { check, canonicalJson, jsonClone } from './persistence-contract.js'
 import { createNutritionCommands, newNutritionId } from './ui-service.js'
 import { createNutritionSync } from './sync.js'
 import { createNutritionBackup } from './backup.js'
+import { createFoodCatalog } from './catalog/client.js'
 
 /** One account-bound lifetime, independent of route mounting. Only successful durable
  * publication changes the view revision. Late work cannot notify a replacement session. */
-export function createNutritionUISession({ store, session, getSession, transport, online, newId = newNutritionId }) {
+export function createNutritionUISession({ store, session, getSession, transport, online, catalogTransport, catalogLimiter, catalogCapabilitiesTransport, catalogLocalTransport, catalogLocalOnly, newId = newNutritionId }) {
   session = jsonClone(session)
   let closed = false, tail = Promise.resolve(), syncAttempt = 0, timer = null, synchronizing = null
   const listeners = new Set()
@@ -13,6 +14,7 @@ export function createNutritionUISession({ store, session, getSession, transport
   const guard = () => check(!closed && canonicalJson(session) === canonicalJson(getSession()), 'session', 'ui_session_changed')
   const emit = patch => { if (!closed) { state = { ...state, ...patch }; listeners.forEach(fn => fn()) } }
   const sync = session.serverOrigin === null ? null : createNutritionSync({ store, getSession, transport, online, newId })
+  const catalog = createFoodCatalog({ guard, transport: catalogTransport, limiter: catalogLimiter, capabilitiesTransport: catalogCapabilitiesTransport, serverOrigin:session.serverOrigin, localTransport:catalogLocalTransport, localOnlyV1:catalogLocalOnly })
   const commands = createNutritionCommands({ store, guard, newId })
   const backup = createNutritionBackup({ store, getSession, sync })
   const inspect = async () => {
@@ -41,6 +43,7 @@ export function createNutritionUISession({ store, session, getSession, transport
   const read = async fn => { guard(); const result = await fn(); guard(); return result }
   const api = {
     store,
+    catalog,
     assertCurrent: guard,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn) },
     getSnapshot: () => state,
@@ -85,7 +88,7 @@ export function createNutritionUISession({ store, session, getSession, transport
       return [...seen].map(([hash, value]) => ({ hash, ...value }))
     },
     async refresh() { await inspect(); guard(); emit({ revision: state.revision + 1 }); return api.synchronize() },
-    close() { if (!closed) { closed = true; clearTimeout(timer); syncAttempt++; sync?.stop(); listeners.clear(); store.close() } },
+    close() { if (!closed) { closed = true; catalog.close(); clearTimeout(timer); syncAttempt++; sync?.stop(); listeners.clear(); store.close() } },
   }
   return api
 }

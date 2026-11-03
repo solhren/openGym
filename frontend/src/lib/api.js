@@ -3,6 +3,7 @@ import { t } from './i18n-core.js'
 import { MOBILE } from './mobile.js'
 import { appBase } from './app-base.js'
 import { nativeFetch } from './capacitor-fetch.js'
+import {PERSONAL_BETA,PERSONAL_ORIGIN} from './personal-beta.js'
 
 export const IS_APPLE = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent)
 export const IS_ANDROID = /Android/.test(navigator.userAgent)
@@ -23,7 +24,7 @@ export const webauthnOK = () => typeof window.PublicKeyCredential !== 'undefined
 // same-origin cookies, so remoteBase/remoteToken stay empty and api() behaves exactly as before.
 let remoteBase = ''
 let remoteToken = null
-export function setRemoteAuth(base, token) { remoteBase = base || ''; remoteToken = token || null }
+export function setRemoteAuth(base, token) { if(PERSONAL_BETA&&base&&base!==PERSONAL_ORIGIN)throw new Error('Wrong personal beta server');remoteBase = base || ''; remoteToken = token || null }
 // A Cloudflare Access service token (lib/cf-access.js): sent only to the origin it was entered
 // for, never on a same-origin request, where the browser's own Access session cookie already
 // does the job, and never to a server that merely happens to be paired or typed in.
@@ -33,6 +34,14 @@ export function setAccessHeaders(h, origin) { accessHeaders = Object.assign({}, 
 const originOf = base => { try { return new URL(base).origin } catch { return '' } }
 const accessFor = base => (base && accessOrigin && originOf(base) === accessOrigin ? accessHeaders : {})
 const remoteHeaders = () => Object.assign({}, accessFor(remoteBase), remoteToken ? { Authorization: 'Bearer ' + remoteToken } : {})
+
+// Same session as training, bounded/abortable catalogue response is parsed by
+// the catalogue client. Never return the bearer token to a view or follow redirects.
+export function authenticatedCatalogFetch(path,{signal}={}){
+  if(typeof path!=='string'||path.length>2048||!/^\/api\/nutrition\/catalog\/(?:capabilities|search|product)(?:\?[^#]*)?$/.test(path))throw failure('Invalid catalogue path','invalid-query',400)
+  if(MOBILE&&(!remoteBase||!remoteToken))throw failure(t('This phone is not connected to a server.'),'not-paired',0)
+  return fetch((MOBILE?remoteBase:appBase().replace(/\/$/,''))+path,{signal,redirect:'error',credentials:MOBILE?'omit':'same-origin',headers:{Accept:'application/json',...(MOBILE?remoteHeaders():{})}})
+}
 
 export { appBase }
 

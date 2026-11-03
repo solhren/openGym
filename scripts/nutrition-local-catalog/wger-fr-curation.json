@@ -1,0 +1,137 @@
+{
+  "baseSha256": "1ec86569b6ca5e5c9dfb132eba42a308ae7495c61905ba9636d9f8972dcb5cca",
+  "aliases": [
+    {
+      "label": "Banane crue",
+      "terms": "banane",
+      "uid": "wger:c3987476-51eb-4afb-afa2-36d92b2fc8e1",
+      "expectedName": "Bananas, raw"
+    },
+    {
+      "label": "Œuf entier cru frais",
+      "terms": "œuf œufs oeuf oeufs",
+      "uid": "wger:9694972b-c2c4-4cb2-b666-d0c6df00675f",
+      "expectedName": "Egg, whole, raw, fresh"
+    },
+    {
+      "label": "Lait entier enrichi en vitamine D — pour 100 g",
+      "terms": "lait",
+      "uid": "wger:6fd49379-2a1f-4f6d-b647-176bb669b6c5",
+      "expectedName": "Vitamin D Whole Milk"
+    },
+    {
+      "label": "Riz blanc à grain moyen cru non enrichi",
+      "terms": "riz",
+      "uid": "wger:313767d3-1b45-4500-97dc-123850dd6880",
+      "expectedName": "Rice, white, medium-grain, raw, unenriched"
+    },
+    {
+      "label": "Pâtes sèches non enrichies",
+      "terms": "pâtes",
+      "uid": "wger:84ca8c12-4038-4364-9a6d-93f819a6fb53",
+      "expectedName": "Pasta, Dry, Unenriched"
+    },
+    {
+      "label": "Yaourt nature au lait entier",
+      "terms": "yaourt",
+      "uid": "wger:ac9b9414-345b-428a-bcf7-5b56ef621e83",
+      "expectedName": "Yogurt, Plain, Whole Milk"
+    },
+    {
+      "label": "Blanc de poulet cru sans peau et sans os",
+      "terms": "poulet",
+      "uid": "wger:0de299b7-0ced-4a14-a5b3-78887012ed52",
+      "expectedName": "Chicken, Broiler Or Fryers, Breast, Skinless, Boneless, Meat Only, Raw"
+    },
+    {
+      "uid": "wger:f7c976fc-4090-463b-bd7b-1fbdab1bd5b6",
+      "label": "Pomme crue avec la peau",
+      "terms": "pomme pommes",
+      "expectedName": "Apples, raw, with skin"
+    },
+    {
+      "uid": "wger:498eb613-cf4e-4256-97f9-d7d9be2e60f3",
+      "label": "Cheddar",
+      "terms": "fromage cheddar",
+      "expectedName": "Cheese, cheddar"
+    },
+    {
+      "uid": "wger:4e021d76-63d4-45be-a823-78fccb7db863",
+      "label": "Beurre doux sans sel",
+      "terms": "beurre doux",
+      "expectedName": "Butter, without salt"
+    },
+    {
+      "uid": "wger:45e2dc8f-5ad4-4cad-94cf-5cdb7b13e941",
+      "label": "Brocoli cru",
+      "terms": "légumes brocoli",
+      "expectedName": "Broccoli, raw"
+    },
+    {
+      "uid": "wger:0e7ab69b-1080-4b25-8107-239c1bc3b295",
+      "label": "Carotte crue",
+      "terms": "légumes carotte carottes",
+      "expectedName": "Carrots, raw"
+    },
+    {
+      "uid": "wger:9812a9f0-74a2-4c64-acc8-a73141d4568f",
+      "label": "Tomate rouge mûre crue",
+      "terms": "légumes tomate tomates",
+      "expectedName": "Tomatoes, red, ripe, raw, year round average"
+    },
+    {
+      "uid": "wger:95948133-e781-4897-a30e-90689e77cbb5",
+      "label": "Pâtes complètes sèches",
+      "terms": "pâtes complètes",
+      "expectedName": "Pasta, Whole-Wheat, Dry (Includes Foods For Usda'S Food Distribution Program)"
+    },
+    {
+      "uid": "wger:a0b8faea-b2bf-426f-8129-d15f4bbe4a4c",
+      "label": "Pain complet de blé",
+      "terms": "pain complet",
+      "expectedName": "Bread, whole-wheat, commercially prepared"
+    },
+    {
+      "uid": "wger:fee03b04-826e-492b-ada9-207298013996",
+      "label": "Pomme de terre crue avec la peau",
+      "terms": "pomme terre pommes",
+      "expectedName": "Potatoes, Flesh And Skin, Raw"
+    },
+    {
+      "uid": "wger:a24aade1-f6c4-4969-8a39-1981c2d2a5da",
+      "label": "Saumon Atlantique sauvage cru",
+      "terms": "saumon poisson",
+      "expectedName": "Fish, salmon, Atlantic, wild, raw"
+    },
+    {
+      "uid": "wger:ef9b507b-7bc4-47fc-9693-0da4b4e3f488",
+      "label": "Huile d’olive — pour 100 g",
+      "terms": "huile olive",
+      "expectedName": "Oil, olive, salad or cooking"
+    },
+    {
+      "uid": "wger:a2d05ef0-6e81-4fd6-9a0b-481ead13b880",
+      "label": "Pain blanc fabriqué industriellement",
+      "terms": "pain blanc",
+      "expectedName": "Bread, White, Commercially Prepared"
+    },
+    {
+      "uid": "wger:6159d0a3-c295-4d69-8373-29a7458c86e8",
+      "label": "Épinards crus",
+      "terms": "épinards légumes",
+      "expectedName": "Spinach, raw"
+    },
+    {
+      "uid": "wger:794b28eb-e52d-4b3a-9df1-0ecdd65f1cc5",
+      "label": "Petits pois verts crus",
+      "terms": "petits pois légumes",
+      "expectedName": "Peas, green, raw"
+    },
+    {
+      "uid": "wger:6f0592cf-2f7a-439a-ae69-0b14364bfa3b",
+      "label": "Coca-Cola — bouteille 1,75 litre, fiche USDA pour 100 g",
+      "terms": "coca cola",
+      "expectedName": "Coca-Cola Bottle, 1.75 Liters"
+    }
+  ]
+}

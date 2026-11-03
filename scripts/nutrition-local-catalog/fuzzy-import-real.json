@@ -1,0 +1,42 @@
+{
+  "barcodeIndexBytes": 4096,
+  "bytes": 69632,
+  "cpuSeconds": 0.09694900000000001,
+  "duplicates": 0,
+  "ftsBytes": 16384,
+  "ftsSeconds": 0.029030773788690567,
+  "generation": "catalog-cbf2e4c2c4f94e78bf6a498e81040efa.sqlite",
+  "hashPublicationSeconds": 0.003959305584430695,
+  "ingestSeconds": 0.018870048224925995,
+  "pageAllocation": {
+    "metadata": 4096,
+    "products": 12288,
+    "products_fts_config": 4096,
+    "products_fts_data": 4096,
+    "products_fts_docsize": 4096,
+    "products_fts_idx": 4096,
+    "search_grams": 20480,
+    "search_terms": 4096,
+    "sqlite_autoindex_metadata_1": 4096,
+    "sqlite_autoindex_products_1": 4096,
+    "sqlite_schema": 4096
+  },
+  "peakRssKiB": 21912,
+  "products": 20,
+  "resourcesBefore": {
+    "availableMemoryBytes": 4107554816,
+    "freeDiskBytes": 54424100864
+  },
+  "seconds": 0.06840166822075844,
+  "verificationSeconds": 0.0073363035917282104,
+  "totalSeconds": 0.153209113,
+  "nodePeakRssKiB": 60828,
+  "nodeCpuSeconds": 0.0549,
+  "inputBytes": 10061,
+  "normalizedBytes": 7715,
+  "normalizeMs": 15.660975999999991,
+  "scanned": 20,
+  "rejected": 0,
+  "filtered": 0,
+  "reasons": {}
+}

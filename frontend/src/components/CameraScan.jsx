@@ -10,7 +10,7 @@ import { Button } from '../components/ui.jsx'
 // Errors are shown in place rather than thrown: a denied permission or a browser without
 // getUserMedia leaves the sheet up with a message, and the add-card form underneath still offers
 // photo import and typing.
-export default function CameraScan({ onFound, onCancel }) {
+export default function CameraScan({ onFound, onCancel, decode = decodeSource, hint = 'Point the camera at the QR code' }) {
   const videoRef = useRef(null)
   const [error, setError] = useState(null)
 
@@ -26,6 +26,7 @@ export default function CameraScan({ onFound, onCancel }) {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
       } catch (e) {
+        if (done) return
         setError(e && (e.name === 'NotAllowedError' || e.name === 'SecurityError') ? 'denied' : 'unavailable')
         return
       }
@@ -38,15 +39,15 @@ export default function CameraScan({ onFound, onCancel }) {
         if (done) return
         if (v.readyState >= 2) {
           let code = null
-          try { code = await decodeSource(v) } catch (e) { /* keep trying */ }
+          try { code = await decode(v) } catch (e) { /* keep trying */ }
           if (code && !done) { stop(); onFound(code); return }
         }
-        timer = setTimeout(tick, 150)
+        if (!done) timer = setTimeout(tick, 150)
       }
       tick()
     })()
     return stop
-  }, [onFound])
+  }, [onFound, decode])
 
   return <>
     <h3>{t('Scan')}</h3>
@@ -62,7 +63,7 @@ export default function CameraScan({ onFound, onCancel }) {
             <video ref={videoRef} playsInline muted autoPlay />
             <div className="cam-frame" aria-hidden="true" />
           </div>
-          <div className="muted small" style={{ textAlign: 'center', margin: '12px 0 16px' }}>{t('Point the camera at the QR code')}</div>
+          <div className="muted small" style={{ textAlign: 'center', margin: '12px 0 16px' }}>{t(hint)}</div>
         </>}
     <Button variant="tinted" onClick={onCancel}>{t('Cancel')}</Button>
   </>

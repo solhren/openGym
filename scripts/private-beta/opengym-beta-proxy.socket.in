@@ -1,0 +1,15 @@
+# REVIEW ONLY. A Unix socket, never a published TCP port.
+[Unit]
+Description=Private socket bridge for openGym personal beta
+
+[Socket]
+ListenStream=/run/opengym-beta/api.sock
+SocketUser=codex
+SocketGroup=codex
+SocketMode=0660
+DirectoryMode=0755
+Accept=no
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

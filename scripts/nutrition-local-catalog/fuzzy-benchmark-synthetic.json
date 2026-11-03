@@ -1,0 +1,207 @@
+{
+  "source": {
+    "filtered": 0,
+    "inputSha256": "5ccce2b3d0c141fdde45c7d349bf7b558f25a9f2b225815fa5b339a9100cc9e8",
+    "kind": "fixture",
+    "rejected": 0,
+    "scanned": 50000,
+    "version": "synthetic-v1"
+  },
+  "fixture": true,
+  "schemaVersion": 3,
+  "products": 50000,
+  "databaseBytes": 26562560,
+  "openFullHashMs": 27.42375060915947,
+  "iterations": 30,
+  "queries": {
+    "Nutella": {
+      "meanMs": 31.632910544673603,
+      "p95Ms": 35.16843914985657,
+      "errors": {},
+      "count": 8334,
+      "matchMode": "literal",
+      "firstNames": [
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner"
+      ]
+    },
+    "Coca-Cola": {
+      "meanMs": 33.985081439216934,
+      "p95Ms": 38.079824298620224,
+      "errors": {},
+      "count": 8334,
+      "matchMode": "literal",
+      "firstNames": [
+        "Coca-Cola boisson",
+        "Coca-Cola boisson",
+        "Coca-Cola boisson"
+      ]
+    },
+    "lait": {
+      "meanMs": 31.286695972085,
+      "p95Ms": 36.894187331199646,
+      "errors": {},
+      "count": 8333,
+      "matchMode": "literal",
+      "firstNames": [
+        "Lait demi-écrémé",
+        "Lait demi-écrémé",
+        "Lait demi-écrémé"
+      ]
+    },
+    "riz": {
+      "meanMs": 31.39711134135723,
+      "p95Ms": 34.11542251706123,
+      "errors": {},
+      "count": 8333,
+      "matchMode": "literal",
+      "firstNames": [
+        "Riz basmati",
+        "Riz basmati",
+        "Riz basmati"
+      ]
+    },
+    "pâtes": {
+      "meanMs": 31.716785207390785,
+      "p95Ms": 35.45016795396805,
+      "errors": {},
+      "count": 8333,
+      "matchMode": "literal",
+      "firstNames": [
+        "Pâtes complètes",
+        "Pâtes complètes",
+        "Pâtes complètes"
+      ]
+    },
+    "yaourt": {
+      "meanMs": 33.55928473174572,
+      "p95Ms": 37.15939447283745,
+      "errors": {},
+      "count": 8333,
+      "matchMode": "literal",
+      "firstNames": [
+        "Yaourt nature",
+        "Yaourt nature",
+        "Yaourt nature"
+      ]
+    },
+    "nutela": {
+      "meanMs": 52.34962229927381,
+      "p95Ms": 62.4227412045002,
+      "errors": {},
+      "count": 8334,
+      "matchMode": "fuzzy",
+      "firstNames": [
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner"
+      ]
+    },
+    "cocacola": {
+      "meanMs": 59.045554076631866,
+      "p95Ms": 69.60582360625267,
+      "errors": {},
+      "count": 8334,
+      "matchMode": "fuzzy",
+      "firstNames": [
+        "Coca-Cola boisson",
+        "Coca-Cola boisson",
+        "Coca-Cola boisson"
+      ]
+    },
+    "pate tartiner": {
+      "meanMs": 36.440788581967354,
+      "p95Ms": 45.19858583807945,
+      "errors": {},
+      "count": 8334,
+      "matchMode": "literal",
+      "firstNames": [
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner"
+      ]
+    },
+    "lait amande": {
+      "meanMs": 0.3253493458032608,
+      "p95Ms": 0.4096813499927521,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "yaort": {
+      "meanMs": 51.978149389227234,
+      "p95Ms": 61.46213412284851,
+      "errors": {},
+      "count": 8333,
+      "matchMode": "fuzzy",
+      "firstNames": [
+        "Yaourt nature",
+        "Yaourt nature",
+        "Yaourt nature"
+      ]
+    },
+    "chocolat noir": {
+      "meanMs": 0.37440893550713855,
+      "p95Ms": 0.4757121205329895,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "noir chocolat": {
+      "meanMs": 0.3537236402432124,
+      "p95Ms": 0.4565790295600891,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "Bovetti": {
+      "meanMs": 0.29998496174812317,
+      "p95Ms": 0.3530643880367279,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "boveti": {
+      "meanMs": 0.2837693939606349,
+      "p95Ms": 0.33540651202201843,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "pate tartinre": {
+      "meanMs": 63.369887322187424,
+      "p95Ms": 73.56428354978561,
+      "errors": {},
+      "count": 8334,
+      "matchMode": "fuzzy",
+      "firstNames": [
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner"
+      ]
+    }
+  },
+  "indexBytes": {
+    "products_fts_config": 4096,
+    "products_fts_data": 4812800,
+    "products_fts_docsize": 589824,
+    "products_fts_idx": 12288,
+    "search_grams": 1527808,
+    "search_terms": 360448
+  },
+  "barcode": {
+    "meanMs": 0.062351549665133156,
+    "p95Ms": 0.0908784568309784
+  },
+  "python": "3.13.5",
+  "sqlite": "3.46.1",
+  "platform": "Linux-6.12.57+deb13-cloud-amd64-x86_64-with-glibc2.41",
+  "peakRssKiB": 25968,
+  "cpuSeconds": 13.86853
+}

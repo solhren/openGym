@@ -10,6 +10,7 @@ import { Button } from '../components/ui.jsx'
 import { askAddDeviceData } from '../sheets.jsx'
 import { normalizeServerUrl } from '../lib/remote.js'
 import { loadCfAccess, saveCfAccess } from '../lib/cf-access.js'
+import {PERSONAL_BETA,PERSONAL_ORIGIN} from '../lib/personal-beta.js'
 
 // A plain http:// server works (#428), but whatever the app sends, the pairing code and then its
 // token, crosses the network readable. Said once under the field, not in the way: on a home
@@ -80,7 +81,7 @@ export function CfAccessSheet({ close, server = '' }) {
 // the sheet says that what the phone kept is merged, not replaced.
 export function ConnectSheet({ close, initialUrl = '', again = false }) {
   const { connectToServer } = useStore()
-  const [url, setUrl] = useState(initialUrl)
+  const [url, setUrl] = useState(PERSONAL_BETA?PERSONAL_ORIGIN:initialUrl)
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   // Why the last try failed, under the fields: a toast is gone in two seconds, too soon to read
@@ -104,7 +105,7 @@ export function ConnectSheet({ close, initialUrl = '', again = false }) {
         ? t('Open Settings → Account → “Pair the mobile app” on your openGym site in a browser and enter the new code shown there. What this phone kept is merged into your account.')
         : t('Open Settings → Account → “Pair the mobile app” on the openGym site you’re already signed into, then enter its address and the code shown there.')}
     </div>
-    <input ref={ref} className="input" placeholder={t('Server address (e.g. gym.example.com)')} value={url}
+    <input ref={ref} className="input" placeholder={t('Server address (e.g. gym.example.com)')} value={url} readOnly={PERSONAL_BETA}
       onChange={e => setUrl(e.target.value)} autoCapitalize="none" autoCorrect="off" inputMode="url" />
     {plainHttp(url) && <div className="dim small" role="note" style={{ marginTop: 8, lineHeight: 1.45 }}>
       {t('Plain http:// isn’t encrypted. Fine on your home network, but use https:// if your server is reachable from the internet.')}
@@ -131,11 +132,11 @@ export default function MobileOnboarding() {
     <div className="narrow" style={wrap}>
       {head}
       <div className="muted" style={{ marginBottom: 34 }}>{t('How do you want to use openGym?')}</div>
-      <Button variant="primary" icon="lock" onClick={() => chooseLocalMode()}>{t('Use on this device')}</Button>
+      {!PERSONAL_BETA&&<Button variant="primary" icon="lock" onClick={() => chooseLocalMode()}>{t('Use on this device')}</Button>}
       <div style={{ height: 10 }} />
       <Button icon="cloud" onClick={() => useUI.getState().openSheet(close => <ConnectSheet close={close} />)}>{t('Connect to my server')}</Button>
       <div className="dim small" style={{ marginTop: 26, lineHeight: 1.5 }}>
-        {t('Local keeps everything on this phone. Connecting syncs to your own openGym server instead. You can switch later in Settings.')}
+        {PERSONAL_BETA?PERSONAL_ORIGIN:t('Local keeps everything on this phone. Connecting syncs to your own openGym server instead. You can switch later in Settings.')}
       </div>
       <div style={{ height: 18 }} />
       <Button icon="gear" onClick={() => openCfAccess()}>{t('Connection settings')}</Button>

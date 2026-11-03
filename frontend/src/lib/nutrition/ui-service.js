@@ -9,7 +9,7 @@ export const newNutritionId = () => {
   check(typeof globalThis.crypto?.getRandomValues === 'function', 'identity', 'secure_random_required')
   return [...crypto.getRandomValues(new Uint8Array(16))].map(n => n.toString(16).padStart(2, '0')).join('')
 }
-const validators = { customFoods: validateFood, recipes: validateRecipe, foodEntries: validateFoodEntry, nutritionGoals: validateNutritionGoal }
+const validators = { customFoods: validateFood, savedFoods: validateFood, recipes: validateRecipe, foodEntries: validateFoodEntry, nutritionGoals: validateNutritionGoal }
 const same = (a, b) => canonicalJson(a) === canonicalJson(b)
 
 /** Locale form strings are parsed without silently sanitizing negatives or malformed input.

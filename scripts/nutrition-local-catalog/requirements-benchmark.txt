@@ -1,0 +1,2 @@
+# Maintenance-only Parquet reader. Never installed in the API/frontend image.
+pyarrow==26.0.0

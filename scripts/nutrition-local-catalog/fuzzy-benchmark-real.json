@@ -1,0 +1,177 @@
+{
+  "source": {
+    "filtered": 0,
+    "inputSha256": "9df02fe780e3167136a59b0e06f0fee4082786ddf8f1a6b0d706e5d9a8f9f06c",
+    "kind": "off-jsonl",
+    "rejected": 0,
+    "scanned": 20,
+    "version": "hf-capture-7d340dbe"
+  },
+  "fixture": false,
+  "schemaVersion": 3,
+  "products": 20,
+  "databaseBytes": 69632,
+  "openFullHashMs": 3.4826062619686127,
+  "iterations": 30,
+  "queries": {
+    "Nutella": {
+      "meanMs": 0.29475999375184375,
+      "p95Ms": 0.48613548278808594,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "Coca-Cola": {
+      "meanMs": 0.2859520415465037,
+      "p95Ms": 0.3481432795524597,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "lait": {
+      "meanMs": 0.2631824463605881,
+      "p95Ms": 0.3188773989677429,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "riz": {
+      "meanMs": 0.2194331338008245,
+      "p95Ms": 0.2667084336280823,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "pâtes": {
+      "meanMs": 0.5550270279248556,
+      "p95Ms": 0.6168223917484283,
+      "errors": {},
+      "count": 1,
+      "matchMode": "fuzzy",
+      "firstNames": [
+        "Véritable pâte à tartiner noisettes chocolat noir"
+      ]
+    },
+    "yaourt": {
+      "meanMs": 0.2844851464033127,
+      "p95Ms": 0.3570280969142914,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "nutela": {
+      "meanMs": 0.2972191820542018,
+      "p95Ms": 0.36315247416496277,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "cocacola": {
+      "meanMs": 0.3635925551255544,
+      "p95Ms": 0.44039636850357056,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "pate tartiner": {
+      "meanMs": 0.35406102736790973,
+      "p95Ms": 0.40430948138237,
+      "errors": {},
+      "count": 1,
+      "matchMode": "literal",
+      "firstNames": [
+        "Véritable pâte à tartiner noisettes chocolat noir"
+      ]
+    },
+    "lait amande": {
+      "meanMs": 0.3761325031518936,
+      "p95Ms": 0.45363232493400574,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "yaort": {
+      "meanMs": 0.2979128311077754,
+      "p95Ms": 0.36616250872612,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "chocolat noir": {
+      "meanMs": 0.36910312871138257,
+      "p95Ms": 0.4473291337490082,
+      "errors": {},
+      "count": 1,
+      "matchMode": "literal",
+      "firstNames": [
+        "Véritable pâte à tartiner noisettes chocolat noir"
+      ]
+    },
+    "noir chocolat": {
+      "meanMs": 0.3632086018721263,
+      "p95Ms": 0.40876492857933044,
+      "errors": {},
+      "count": 1,
+      "matchMode": "literal",
+      "firstNames": [
+        "Véritable pâte à tartiner noisettes chocolat noir"
+      ]
+    },
+    "Bovetti": {
+      "meanMs": 0.43578483164310455,
+      "p95Ms": 0.5021095275878906,
+      "errors": {},
+      "count": 1,
+      "matchMode": "literal",
+      "firstNames": [
+        "Véritable pâte à tartiner noisettes chocolat noir"
+      ]
+    },
+    "boveti": {
+      "meanMs": 0.6246848652760187,
+      "p95Ms": 0.7426775991916656,
+      "errors": {},
+      "count": 1,
+      "matchMode": "fuzzy",
+      "firstNames": [
+        "Véritable pâte à tartiner noisettes chocolat noir"
+      ]
+    },
+    "pate tartinre": {
+      "meanMs": 0.748061016201973,
+      "p95Ms": 0.8426085114479065,
+      "errors": {},
+      "count": 1,
+      "matchMode": "fuzzy",
+      "firstNames": [
+        "Véritable pâte à tartiner noisettes chocolat noir"
+      ]
+    }
+  },
+  "indexBytes": {
+    "products_fts_config": 4096,
+    "products_fts_data": 4096,
+    "products_fts_docsize": 4096,
+    "products_fts_idx": 4096,
+    "search_grams": 20480,
+    "search_terms": 4096
+  },
+  "barcode": {
+    "meanMs": 0.059295321504275,
+    "p95Ms": 0.07193535566329956
+  },
+  "python": "3.13.5",
+  "sqlite": "3.46.1",
+  "platform": "Linux-6.12.57+deb13-cloud-amd64-x86_64-with-glibc2.41",
+  "peakRssKiB": 21536,
+  "cpuSeconds": 0.23000299999999999
+}

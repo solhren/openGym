@@ -8,6 +8,32 @@ data/
 
 # Local config
 .env
+.env.*
+!.env.example
+
+# Private signing material, local SDK paths, databases and downloadable outputs.
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+local.properties
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-wal
+*.db-shm
+*.parquet
+*.jsonl.gz
+*.csv.gz
+*.tsv.gz
+*.apk
+*.aab
+__pycache__/
+*.py[cod]
 
 # Build output / deps
 frontend/dist/

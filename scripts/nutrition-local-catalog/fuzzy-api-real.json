@@ -1,0 +1,64 @@
+{
+  "workspace": "off-real-20-fuzzy-v3",
+  "kind": "real-20-limited-not-representative",
+  "iterations": 30,
+  "searches": {
+    "Bovetti": {
+      "count": 1,
+      "meanMs": 2.806515266666666,
+      "p95Ms": 2.5077019999999948
+    },
+    "pâte": {
+      "count": 1,
+      "meanMs": 1.1744564333333338,
+      "p95Ms": 1.846004999999991
+    },
+    "pâte à tartiner": {
+      "count": 1,
+      "meanMs": 1.0772277999999953,
+      "p95Ms": 1.430628000000013
+    },
+    "dinde": {
+      "count": 1,
+      "meanMs": 1.2133471666666689,
+      "p95Ms": 1.7482219999999984
+    },
+    "herbal tea": {
+      "count": 8,
+      "meanMs": 3.4585511333333283,
+      "p95Ms": 4.948500999999965
+    },
+    "Nutella": {
+      "count": 0,
+      "meanMs": 1.0978236999999902,
+      "p95Ms": 1.7807829999999853
+    },
+    "lait": {
+      "count": 0,
+      "meanMs": 0.9616259333333289,
+      "p95Ms": 1.3399969999999826
+    }
+  },
+  "elapsedMs": 370.773344,
+  "providerFallbacks": 0,
+  "providerRequests": 0,
+  "kcal": 617,
+  "source": {
+    "kind": "open-food-facts",
+    "externalId": "0000101209159",
+    "url": "https://world.openfoodfacts.org/product/0000101209159",
+    "license": {
+      "id": "ODbL-1.0",
+      "url": "https://opendatacommons.org/licenses/odbl/1-0/",
+      "attribution": "Open Food Facts contributors"
+    },
+    "contentLicense": "DbCL-1.0",
+    "catalogueWarnings": [
+      "export-qualifiers-unavailable",
+      "missing-values"
+    ]
+  },
+  "head": "22eef32f10e40a43322252d05b69c0f3d0646887885af650ebcdef6b4eead15d",
+  "node": "v22.23.3",
+  "nodePeakRssKiB": 61044
+}

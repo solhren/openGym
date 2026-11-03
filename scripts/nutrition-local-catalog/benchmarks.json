@@ -1,0 +1,406 @@
+{
+  "kind": "synthetic-only",
+  "recordedAt": "2026-10-12T01:13:39.320300+00:00",
+  "gitHead": "6610d192",
+  "node": "22.23.3",
+  "python": "3.13.5",
+  "sqlitePython": "3.46.1",
+  "platform": "Linux-6.12.57+deb13-cloud-amd64-x86_64-with-glibc2.41",
+  "cpus": 4,
+  "method": "30 warm-cache iterations per query, nearest-rank p95; four threads with separate pinned connections, 120 total concurrent reads; process-tree RSS sampled at 25 ms includes shared pages",
+  "officialProductsTested": 0,
+  "runs": [
+    {
+      "products": 10000,
+      "import": {
+        "barcodeIndexBytes": 184320,
+        "bytes": 4206592,
+        "cpuSeconds": 3.1216340000000002,
+        "duplicates": 0,
+        "ftsBytes": 1069056,
+        "ftsSeconds": 0.08360341936349869,
+        "generation": "catalog-89a253eef2c544f59208d70b8a1fb273.sqlite",
+        "hashPublicationSeconds": 0.007021617144346237,
+        "ingestSeconds": 4.822103377431631,
+        "pageAllocation": {
+          "metadata": 4096,
+          "products": 2940928,
+          "products_fts_config": 4096,
+          "products_fts_data": 946176,
+          "products_fts_docsize": 114688,
+          "products_fts_idx": 4096,
+          "sqlite_autoindex_metadata_1": 4096,
+          "sqlite_autoindex_products_1": 184320,
+          "sqlite_schema": 4096
+        },
+        "peakRssKiB": 27172,
+        "products": 10000,
+        "resourcesBefore": {
+          "availableMemoryBytes": 4123897856,
+          "freeDiskBytes": 54514454528
+        },
+        "seconds": 5.498217552900314,
+        "verificationSeconds": 0.5738756954669952,
+        "totalSeconds": 5.5826760239999995,
+        "nodePeakRssKiB": 72508,
+        "nodeCpuSeconds": 5.143528,
+        "inputBytes": 4657689,
+        "normalizedBytes": 3895023,
+        "normalizeMs": 4357.436328000022,
+        "scanned": 10000,
+        "rejected": 0,
+        "filtered": 0,
+        "reasons": {}
+      },
+      "resources": {
+        "exitCode": 0,
+        "seconds": 5.706995006650686,
+        "sampledTreePeakRssBytes": 102563840,
+        "sampleIntervalMs": 25,
+        "samples": 223,
+        "cpuSeconds": 8.389365999999999,
+        "cpuPercentOfOneCore": 147.00146031709144,
+        "maxChildRssKiB": 72508
+      },
+      "search": {
+        "fixture": true,
+        "products": 10000,
+        "databaseBytes": 4206592,
+        "openFullHashVerificationMs": 6.897162646055222,
+        "search": {
+          "Nutella": {
+            "meanMs": 4.784105133333333,
+            "medianMs": 4.649737,
+            "p95Ms": 5.429811,
+            "maxMs": 5.863455,
+            "firstNames": [
+              "Nutella pâte à tartiner",
+              "Nutella pâte à tartiner",
+              "Nutella pâte à tartiner"
+            ],
+            "completeOnPage": 20
+          },
+          "Coca-Cola": {
+            "meanMs": 5.715193333333334,
+            "medianMs": 5.4873835,
+            "p95Ms": 7.479719,
+            "maxMs": 8.060878,
+            "firstNames": [
+              "Coca-Cola boisson",
+              "Coca-Cola boisson",
+              "Coca-Cola boisson"
+            ],
+            "completeOnPage": 20
+          },
+          "lait": {
+            "meanMs": 4.837811866666667,
+            "medianMs": 4.6974015,
+            "p95Ms": 5.491977,
+            "maxMs": 5.788293,
+            "firstNames": [
+              "Lait demi-écrémé",
+              "Lait demi-écrémé",
+              "Lait demi-écrémé"
+            ],
+            "completeOnPage": 20
+          },
+          "riz": {
+            "meanMs": 5.088764533333333,
+            "medianMs": 4.858032,
+            "p95Ms": 6.331753,
+            "maxMs": 7.326941,
+            "firstNames": [
+              "Riz basmati",
+              "Riz basmati",
+              "Riz basmati"
+            ],
+            "completeOnPage": 20
+          },
+          "pâtes": {
+            "meanMs": 4.9607578,
+            "medianMs": 4.83268,
+            "p95Ms": 5.867773,
+            "maxMs": 6.225946,
+            "firstNames": [
+              "Pâtes complètes",
+              "Pâtes complètes",
+              "Pâtes complètes"
+            ],
+            "completeOnPage": 20
+          },
+          "yaourt": {
+            "meanMs": 4.937837733333334,
+            "medianMs": 4.9030425,
+            "p95Ms": 5.417929,
+            "maxMs": 5.580915,
+            "firstNames": [
+              "Yaourt nature",
+              "Yaourt nature",
+              "Yaourt nature"
+            ],
+            "completeOnPage": 20
+          },
+          "pates": {
+            "meanMs": 5.3241811000000006,
+            "medianMs": 5.2557645,
+            "p95Ms": 6.363964,
+            "maxMs": 6.565594,
+            "firstNames": [
+              "Pâtes complètes",
+              "Pâtes complètes",
+              "Pâtes complètes"
+            ],
+            "completeOnPage": 20
+          },
+          "Panzani": {
+            "meanMs": 5.1141096,
+            "medianMs": 5.076974,
+            "p95Ms": 5.760441,
+            "maxMs": 6.153179,
+            "firstNames": [
+              "Pâtes complètes",
+              "Pâtes complètes",
+              "Pâtes complètes"
+            ],
+            "completeOnPage": 20
+          },
+          "lait demi ecreme": {
+            "meanMs": 6.083472933333334,
+            "medianMs": 5.965607,
+            "p95Ms": 7.282238,
+            "maxMs": 7.305312,
+            "firstNames": [
+              "Lait demi-écrémé",
+              "Lait demi-écrémé",
+              "Lait demi-écrémé"
+            ],
+            "completeOnPage": 20
+          }
+        },
+        "barcode": {
+          "meanMs": 0.0641594,
+          "medianMs": 0.059636999999999996,
+          "p95Ms": 0.075161,
+          "maxMs": 0.162084
+        },
+        "paginationPage20": {
+          "meanMs": 5.661119566666667,
+          "medianMs": 5.5997094999999995,
+          "p95Ms": 6.306496,
+          "maxMs": 6.427675
+        },
+        "iterations": 30,
+        "platform": "Linux-6.12.57+deb13-cloud-amd64-x86_64-with-glibc2.41",
+        "python": "3.13.5",
+        "concurrentReaders": {
+          "readers": 4,
+          "queries": 120,
+          "secondsIncludingOpens": 0.5957977660000324,
+          "queriesPerSecondIncludingOpens": 201.41062428890254,
+          "meanMs": 18.780396016666668,
+          "medianMs": 17.0185165,
+          "p95Ms": 25.507234,
+          "maxMs": 64.358112
+        },
+        "peakRssKiB": 41812,
+        "cpuSeconds": 3.0333759999999996
+      }
+    },
+    {
+      "products": 50000,
+      "import": {
+        "barcodeIndexBytes": 942080,
+        "bytes": 23023616,
+        "cpuSeconds": 16.02116,
+        "duplicates": 0,
+        "ftsBytes": 5419008,
+        "ftsSeconds": 0.40212396159768105,
+        "generation": "catalog-12e1cebf54134684a54aa82c2a4b4eab.sqlite",
+        "hashPublicationSeconds": 0.041639234870672226,
+        "ingestSeconds": 25.165075302124023,
+        "pageAllocation": {
+          "metadata": 4096,
+          "products": 14671872,
+          "products_fts_config": 4096,
+          "products_fts_data": 4812800,
+          "products_fts_docsize": 589824,
+          "products_fts_idx": 12288,
+          "sqlite_autoindex_metadata_1": 4096,
+          "sqlite_autoindex_products_1": 942080,
+          "sqlite_schema": 4096
+        },
+        "peakRssKiB": 32028,
+        "products": 50000,
+        "resourcesBefore": {
+          "availableMemoryBytes": 4123009024,
+          "freeDiskBytes": 54510243840
+        },
+        "seconds": 28.507606361061335,
+        "verificationSeconds": 2.857984021306038,
+        "totalSeconds": 28.599266167,
+        "nodePeakRssKiB": 101488,
+        "nodeCpuSeconds": 24.836307,
+        "inputBytes": 23315027,
+        "normalizedBytes": 19501695,
+        "normalizeMs": 22672.11061399986,
+        "scanned": 50000,
+        "rejected": 0,
+        "filtered": 0,
+        "reasons": {}
+      },
+      "resources": {
+        "exitCode": 0,
+        "seconds": 28.710849046707153,
+        "sampledTreePeakRssBytes": 137310208,
+        "sampleIntervalMs": 25,
+        "samples": 1122,
+        "cpuSeconds": 40.972269000000004,
+        "cpuPercentOfOneCore": 142.70657385765858,
+        "maxChildRssKiB": 101488
+      },
+      "search": {
+        "fixture": true,
+        "products": 50000,
+        "databaseBytes": 23023616,
+        "openFullHashVerificationMs": 21.07124775648117,
+        "search": {
+          "Nutella": {
+            "meanMs": 23.683314900000003,
+            "medianMs": 23.436322500000003,
+            "p95Ms": 26.179836,
+            "maxMs": 29.571682,
+            "firstNames": [
+              "Nutella pâte à tartiner",
+              "Nutella pâte à tartiner",
+              "Nutella pâte à tartiner"
+            ],
+            "completeOnPage": 20
+          },
+          "Coca-Cola": {
+            "meanMs": 26.100667533333333,
+            "medianMs": 25.9410035,
+            "p95Ms": 28.486316,
+            "maxMs": 30.316821,
+            "firstNames": [
+              "Coca-Cola boisson",
+              "Coca-Cola boisson",
+              "Coca-Cola boisson"
+            ],
+            "completeOnPage": 20
+          },
+          "lait": {
+            "meanMs": 23.885946333333333,
+            "medianMs": 23.604773,
+            "p95Ms": 27.19378,
+            "maxMs": 28.060446,
+            "firstNames": [
+              "Lait demi-écrémé",
+              "Lait demi-écrémé",
+              "Lait demi-écrémé"
+            ],
+            "completeOnPage": 20
+          },
+          "riz": {
+            "meanMs": 23.574634166666666,
+            "medianMs": 23.638932500000003,
+            "p95Ms": 25.319191,
+            "maxMs": 28.484523,
+            "firstNames": [
+              "Riz basmati",
+              "Riz basmati",
+              "Riz basmati"
+            ],
+            "completeOnPage": 20
+          },
+          "pâtes": {
+            "meanMs": 25.1328588,
+            "medianMs": 24.5427795,
+            "p95Ms": 30.986939,
+            "maxMs": 33.037268,
+            "firstNames": [
+              "Pâtes complètes",
+              "Pâtes complètes",
+              "Pâtes complètes"
+            ],
+            "completeOnPage": 20
+          },
+          "yaourt": {
+            "meanMs": 23.536922,
+            "medianMs": 23.476252,
+            "p95Ms": 24.909532,
+            "maxMs": 25.121881,
+            "firstNames": [
+              "Yaourt nature",
+              "Yaourt nature",
+              "Yaourt nature"
+            ],
+            "completeOnPage": 20
+          },
+          "pates": {
+            "meanMs": 24.493369366666666,
+            "medianMs": 24.104176000000002,
+            "p95Ms": 26.521177,
+            "maxMs": 26.659556,
+            "firstNames": [
+              "Pâtes complètes",
+              "Pâtes complètes",
+              "Pâtes complètes"
+            ],
+            "completeOnPage": 20
+          },
+          "Panzani": {
+            "meanMs": 23.64465703333333,
+            "medianMs": 23.4414065,
+            "p95Ms": 25.244811,
+            "maxMs": 27.638754,
+            "firstNames": [
+              "Pâtes complètes",
+              "Pâtes complètes",
+              "Pâtes complètes"
+            ],
+            "completeOnPage": 20
+          },
+          "lait demi ecreme": {
+            "meanMs": 27.943545733333334,
+            "medianMs": 27.405752,
+            "p95Ms": 31.069824,
+            "maxMs": 33.605343,
+            "firstNames": [
+              "Lait demi-écrémé",
+              "Lait demi-écrémé",
+              "Lait demi-écrémé"
+            ],
+            "completeOnPage": 20
+          }
+        },
+        "barcode": {
+          "meanMs": 0.06262213333333334,
+          "medianMs": 0.058424500000000004,
+          "p95Ms": 0.069901,
+          "maxMs": 0.151524
+        },
+        "paginationPage20": {
+          "meanMs": 24.075609333333333,
+          "medianMs": 23.662636499999998,
+          "p95Ms": 28.278346,
+          "maxMs": 30.176858
+        },
+        "iterations": 30,
+        "platform": "Linux-6.12.57+deb13-cloud-amd64-x86_64-with-glibc2.41",
+        "python": "3.13.5",
+        "concurrentReaders": {
+          "readers": 4,
+          "queries": 120,
+          "secondsIncludingOpens": 1.3347883559763432,
+          "queriesPerSecondIncludingOpens": 89.9018930324912,
+          "meanMs": 41.94414155833333,
+          "medianMs": 39.950666999999996,
+          "p95Ms": 55.447498,
+          "maxMs": 78.347189
+        },
+        "peakRssKiB": 46060,
+        "cpuSeconds": 11.898596000000001
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+# Build only from the staged, filtered source context; never the VPS home tree.
+ARG NODE_IMAGE
+FROM ${NODE_IMAGE}
+WORKDIR /app/api
+RUN node -e 'if(parseInt(process.versions.node)!==22)process.exit(1)' \
+ && apk add --no-cache python3 flock tar \
+ && python3 -c "import sqlite3; c=sqlite3.connect(':memory:'); c.execute('CREATE VIRTUAL TABLE f USING fts5(name)')"
+COPY api/package.json api/package-lock.json ./
+RUN npm ci --omit=dev --omit=optional --ignore-scripts
+COPY api/ ./
+COPY frontend/src/lib/nutrition/ /app/frontend/src/lib/nutrition/
+COPY scripts/nutrition-local-catalog/ /app/scripts/nutrition-local-catalog/
+COPY scripts/private-beta/run.mjs scripts/private-beta/entry.mjs scripts/private-beta/init-state.mjs /app/scripts/private-beta/
+COPY scripts/private-beta/docker/health.mjs scripts/private-beta/docker/smoke.mjs scripts/private-beta/docker/backup.mjs /app/scripts/private-beta/docker/
+COPY LICENSE NOTICE.md /app/
+RUN printf '%s\n' '{"type":"module"}' > /app/package.json \
+ && mkdir -p /var/lib/opengym-beta /app/scripts/nutrition-local-catalog/artifacts \
+ && chown 1000:1000 /var/lib/opengym-beta && chmod 0700 /var/lib/opengym-beta
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+ENV NODE_ENV=production PYTHONDONTWRITEBYTECODE=1
+USER 1000:1000
+CMD ["node", "/app/scripts/private-beta/run.mjs"]

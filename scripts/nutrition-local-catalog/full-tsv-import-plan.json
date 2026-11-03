@@ -1,0 +1,50 @@
+{
+  "status": "proposed-not-active",
+  "downloadAuthorized": false,
+  "sourceBytesReportedByOwner": {
+    "tsvGzip": 1275171186,
+    "jsonlGzip": 13132516914
+  },
+  "currentLimits": {
+    "scannedRows": 100000,
+    "sourceBytes": 268435456,
+    "databaseBytes": 536870912
+  },
+  "proposedProfile": {
+    "compressedBytes": 2147483648,
+    "expandedBytes": 25769803776,
+    "scannedRows": 8000000,
+    "databaseBytes": 8589934592,
+    "workspaceBytes": 30064771072,
+    "temporaryBytes": 2147483648,
+    "sqliteCacheBytes": 8388608,
+    "nodeOldSpaceMiB": 128,
+    "pythonAddressSpaceBytes": 268435456,
+    "reserveDiskBytes": 21474836480,
+    "minimumAvailableMemoryBytes": 2147483648
+  },
+  "gates": [
+    "Actual TSV header and bounded official sample verified",
+    "No inference of 100g/100ml from _100g/package size",
+    "Representative SQLite/vocabulary/index/journal measurements",
+    "Conflict policy for duplicate barcodes and obsolete records",
+    "Coordinated importer/reader/API count and size budgets",
+    "Large-generation cold SHA verification without repeated worker timeout",
+    "Safe pinned resumable download, full gzip CRC and source accounting",
+    "Explicit operator approval before complete download/import"
+  ],
+  "changesRequired": [
+    "build.mjs: separate compressed/expanded caps and scanned row budget; TSV rows cannot be dropped structurally",
+    "catalog.py: compatible explicit profile validated throughout seal/manifest/build/read/rollback; bounded index checkpointing",
+    "worker-client.mjs: validated generation readiness before serving; do not bypass file hash",
+    "catalog-local.js: count limit must match approved reader profile",
+    "download: fixed OFF/S3 objects, version/ETag pinning, range/resume validation, no retry loop",
+    "cleanup: explicit approved old generations only, protect current/previous and readers"
+  ],
+  "notImplemented": [
+    "full-scale profile activation",
+    "full download/resume",
+    "larger generation readiness protocol",
+    "ambiguous TSV nutrition hydration in application"
+  ]
+}

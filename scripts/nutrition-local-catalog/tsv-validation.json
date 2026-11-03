@@ -1,0 +1,45 @@
+{
+  "branch": "feature/nutrition",
+  "head": "6610d192",
+  "fullDownload": false,
+  "officialTsvSampleObtained": false,
+  "blocker": "DNS in Codex; SSH sample commands documented",
+  "sourceSizesProvidedByOwner": {
+    "jsonlGzipBytes": 13132516914,
+    "tsvGzipBytes": 1275171186
+  },
+  "tests": {
+    "python": {
+      "passed": 96,
+      "failed": 0,
+      "skipped": 0
+    },
+    "nodePrototype": {
+      "passed": 68,
+      "failed": 0,
+      "skipped": 0
+    },
+    "frontendTargeted": {
+      "passed": 154,
+      "failed": 0,
+      "skipped": 0,
+      "files": 8
+    },
+    "apiTargeted": {
+      "passed": 90,
+      "failed": 0,
+      "skipped": 0
+    },
+    "buildWeb": "passed",
+    "locales": {
+      "languages": 18,
+      "keysEach": 2464
+    },
+    "diffCheck": "passed"
+  },
+  "activeLargeScaleLimitsRaised": false,
+  "applicationRoutesModified": false,
+  "userDataModified": false,
+  "productionModified": false,
+  "sizingNotMeasuredOnActualTsv": true
+}

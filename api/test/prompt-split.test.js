@@ -75,7 +75,8 @@ test('the create schema caps the two arrays the validator caps, so a repeating m
   assert.equal(SCHEMAS.create.properties.routines.items.properties.ex.maxItems, 20);
 });
 
-test('older sessions in a review window are compacted, the recent ones keep full sets', () => {
+test('older sessions in a review window are compacted, the recent ones keep full sets', t => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-08-15T12:00:00Z') });
   const many = Array.from({ length: FULL_DETAIL_SESSIONS + 4 }, (_, i) => workout('2026-08-' + String(i + 1).padStart(2, '0')));
   const p = build(S(many), { handle: 'h1', kind: 'review' });
   const w = p.window.workouts;

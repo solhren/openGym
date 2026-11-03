@@ -1,0 +1,20 @@
+{
+  "freeDiskBytes": 54421028864,
+  "memory": {
+    "MemTotal": 8134750208,
+    "MemAvailable": 3144044544,
+    "SwapTotal": 0
+  },
+  "cpuCount": 4,
+  "loadAverage": [
+    4.755859375,
+    3.52099609375,
+    2.22265625
+  ],
+  "reserveBytes": 21474836480,
+  "minAvailableMemoryBytes": 2147483648,
+  "prototypeMaxProducts": 100000,
+  "prototypeMaxDatabaseBytes": 536870912,
+  "processVisibility": "Namespace may hide other services; inspect those on SSH, without modifying them.",
+  "fullImportAuthorized": false
+}

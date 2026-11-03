@@ -5,8 +5,9 @@ import { MEALS } from '../../lib/nutrition/contracts.js'
 import { nutrientsForQuantity, macroEnergy, sumFoodEntries } from '../../lib/nutrition/calculate.js'
 import { createRecipeSnapshot } from '../../lib/nutrition/recipe.js'
 import { daySummary, newNutritionId, nutritionSearchText, editedQuantity } from '../../lib/nutrition/ui-service.js'
-import { Editor, Field, Select, QuantityFields, NutrientValues, formQuantity, quantityValue, fmt, meals, labels, quantityText, DeleteAction, useRead, ErrorNotice, GoalStatus } from './common.jsx'
+import { Editor, Field, Select, QuantityFields, NutrientValues, formQuantity, quantityValue, fmt, meals, labels, quantityText, DeleteAction, useRead, ErrorNotice, GoalStatus, FoodSource } from './common.jsx'
 import { shiftDay } from './History.jsx'
+import FoodCatalog from './FoodCatalog.jsx'
 
 export function IntakeIndicators({ summary }) {
   const distribution = macroEnergy(summary.totals)
@@ -29,14 +30,20 @@ export function EntryEditor({ source, snapshot, date, meal, service, status, clo
   const [id] = useState(() => source?.id ?? newNutritionId()), food = source?.snapshot ?? snapshot
   const initial = formQuantity(source?.quantity ?? food.defaultQuantity ?? { amount: food.kind === 'recipe' ? 1 : food.reference.amount, unit: food.kind === 'recipe' ? 'serving' : food.reference.unit })
   const [amount, setAmount] = useState(initial.amount), [option, setOption] = useState(initial.option), [targetMeal, setMeal] = useState(source?.meal ?? meal)
+  const saveEntry = entry => {
+    const catalogFood = food.source?.kind === 'open-food-facts' || food.source?.publicCatalogImport?.provider === 'wger'
+    if (source || !catalogFood) return service.save('foodEntries', entry, source ?? null)
+    // Identical saved revisions are no-ops; durable food + intake are one publication.
+    return service.batch([{ collection: 'savedFoods', id: food.id, value: food, base: null }, { collection: 'foodEntries', id: entry.id, value: entry, base: null }])
+  }
   const [note, setNote] = useState(source?.note ?? '')
   let values = null
   try { values = nutrientsForQuantity(food, quantityValue(amount, option)) } catch { /* draft */ }
-  return <Editor title={source ? 'Edit food entry' : 'Add food to journal'} close={close} busy={status.busy} onSave={() => service.save('foodEntries', {
+  return <Editor title={source ? 'Edit food entry' : 'Add food to journal'} close={close} busy={status.busy} onSave={() => saveEntry({
     ...(source ?? {}), schemaVersion: 1, id, d: source?.d ?? date, meal: targetMeal, snapshot: food,
     quantity: editedQuantity(source?.quantity, amount, option), note,
-  }, source ?? null)}>
-    <h3>{food.name}</h3><QuantityFields snapshot={food} amount={amount} setAmount={setAmount} option={option} setOption={setOption} />
+  })}>
+    <h3>{food.name}</h3><FoodSource food={food} /><QuantityFields snapshot={food} amount={amount} setAmount={setAmount} option={option} setOption={setOption} />
     <Select label="Meal" value={targetMeal} onChange={setMeal} options={MEALS.map(value => ({ value, label: t(meals[value]) }))} />
     <Field label="Note"><TextField value={note} onChange={e => setNote(e.target.value)} maxLength={1000} /></Field>
     {values && <NutrientValues values={values} />}
@@ -45,7 +52,7 @@ export function EntryEditor({ source, snapshot, date, meal, service, status, clo
 
 export default function Journal({ date, data, service, status, onCreateFood, initialMeal = 'breakfast' }) {
   const locale = dateLocale()
-  const [addMeal, setAddMeal] = useState(null), [selected, setSelected] = useState(null), [editing, setEditing] = useState(null), [query, setQuery] = useState('')
+  const [addMeal, setAddMeal] = useState(null), [selected, setSelected] = useState(null), [editing, setEditing] = useState(null), [query, setQuery] = useState(''), [catalog, setCatalog] = useState(false)
   const recent = useRead(addMeal ? service : null, status.revision, { date }, () => service.period({ start: date >= '0001-02-01' ? shiftDay(date, -30) : '0001-01-01', end: date }))
   const foods = data.library.flatMap(p => [...(p.records.customFoods ?? []), ...(p.records.savedFoods ?? [])])
   const recipes = data.library.flatMap(p => p.records.recipes ?? []), goals = data.library.flatMap(p => p.records.nutritionGoals ?? [])
@@ -63,11 +70,14 @@ export default function Journal({ date, data, service, status, onCreateFood, ini
     <Button variant="primary" disabled={status.busy} onClick={() => { setAddMeal(initialMeal); setQuery('') }}>{t('Add food')}</Button>
     {addMeal && <section className="card" aria-label={t('Choose food')}><h2>{t('Choose food')}</h2>
       <Select label="Meal" value={addMeal} onChange={setAddMeal} options={MEALS.map(value => ({ value, label: t(meals[value]) }))} />
+      <div className="nutrition-actions"><Button aria-pressed={!catalog} onClick={() => setCatalog(false)}>{t('Local foods and recipes')}</Button><Button aria-pressed={catalog} onClick={() => setCatalog(true)}>{t(service.catalog.localOnly ? 'Food catalogue' : 'Open Food Facts')}</Button></div>
+      {catalog ? <FoodCatalog service={service} onChoose={setSelected} /> : <>
       <SearchField autoFocus aria-label={t('Search foods and recipes')} placeholder={t('Search foods and recipes')} value={query} onChange={e => setQuery(e.target.value)} onClear={() => setQuery('')} />
       <ErrorNotice error={recent.error} />
       {!candidates.length && <p>{t('No matching foods. Create a personal food to begin.')}</p>}
-      <div className="nutrition-results">{candidates.slice(0, 100).map(([key, food]) => <button className="nutrition-result" key={key} onClick={() => setSelected(food)}><strong>{food.name}</strong><span>{food.brand}</span><span>{fmt(food.nutrients.kcal)} kcal / {fmt(food.reference.amount)} {food.reference.unit === 'serving' ? t('Servings') : food.reference.unit}</span></button>)}</div>
+      <div className="nutrition-results">{candidates.slice(0, 100).map(([key, food]) => <button className="nutrition-result" key={key} onClick={() => setSelected(food)}><strong>{food.name}</strong><span>{food.brand}{food.source?.kind === 'open-food-facts' ? ' · Open Food Facts' : ''}</span><span>{fmt(food.nutrients.kcal)} kcal / {fmt(food.reference.amount)} {food.reference.unit === 'serving' ? t('Servings') : food.reference.unit}</span></button>)}</div>
       {candidates.length > 100 && <p>{t('Refine your search to see more results.')}</p>}
+      </>}
       <div className="nutrition-actions"><Button onClick={onCreateFood}>{t('Create food')}</Button><Button onClick={() => setAddMeal(null)}>{t('Cancel')}</Button></div>
     </section>}
     {MEALS.map(meal => { const entries = data.entries.filter(e => e.meal === meal), totals = sumFoodEntries(entries).totals
@@ -75,7 +85,7 @@ export default function Journal({ date, data, service, status, onCreateFood, ini
         {entries.length > 0 ? <><NutrientValues values={totals} /><ul className="nutrition-list">{entries.map(e => <li key={e.id}>
           <div className="nutrition-row"><div><strong>{e.snapshot.name}</strong><p className="muted small">{quantityText(e.snapshot, e.quantity)}{e.note ? ` · ${e.note}` : ''}</p></div>
             <Button size="sm" disabled={status.busy} onClick={() => setEditing(e)} aria-label={t('Edit {0}', e.snapshot.name)}>{t('Edit')}</Button></div>
-          <NutrientValues values={nutrientsForQuantity(e.snapshot, e.quantity)} />
+          <NutrientValues values={nutrientsForQuantity(e.snapshot, e.quantity)} /><FoodSource food={e.snapshot} />
           <DeleteAction name={e.snapshot.name} busy={status.busy} remove={() => service.remove('foodEntries', e)} />
         </li>)}</ul></> : <p className="muted">{t('No food logged in this meal')}</p>}
       </section>

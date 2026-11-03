@@ -5,7 +5,7 @@ import { NUTRIENTS } from '../../lib/nutrition/contracts.js'
 import { nutritionNumber, newNutritionId, editedQuantity } from '../../lib/nutrition/ui-service.js'
 import { createRecipeSnapshot, recipeNutrients } from '../../lib/nutrition/recipe.js'
 import { nutrientsForQuantity } from '../../lib/nutrition/calculate.js'
-import { Editor, Field, Decimal, Select, NutrientFields, QuantityFields, NutrientValues, formQuantity } from './common.jsx'
+import { Editor, Field, Decimal, Select, NutrientFields, QuantityFields, NutrientValues, FoodSource, formQuantity } from './common.jsx'
 
 const blankValues = values => Object.fromEntries(NUTRIENTS.map(k => [k, values?.[k] == null ? '' : String(values[k])]))
 const numericValues = values => Object.fromEntries(NUTRIENTS.map(k => [k, nutritionNumber(values[k], true)]))
@@ -41,7 +41,7 @@ export function FoodEditor({ source, service, status, close }) {
 }
 
 function Ingredient({ item, setItem, remove }) {
-  return <div className="nutrition-ingredient"><h3>{item.value.food.name}</h3>
+  return <div className="nutrition-ingredient"><h3>{item.value.food.name}</h3><FoodSource food={item.value.food} />
     <QuantityFields snapshot={item.value.food} amount={item.amount} option={item.option} setAmount={amount => setItem({ ...item, amount })} setOption={option => setItem({ ...item, option })} />
     <Button type="button" onClick={remove} aria-label={t('Remove {0}', item.value.food.name)}>{t('Remove ingredient')}</Button></div>
 }

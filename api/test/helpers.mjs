@@ -80,3 +80,15 @@ export function sampleState(over = {}) {
     ...over
   };
 }
+
+/** Queue/route tests need history inside the real rolling review window. Keep
+ * sampleState's historical dates unchanged for payload tests with pinned clocks.
+ * An explicit clock makes this fixture reproducible at future/year boundaries.
+ */
+export function recentSampleState(over = {}, now = Date.now()) {
+  const state = sampleState(over);
+  const day = daysAgo => new Date(now - daysAgo * 86400000).toISOString().slice(0, 10);
+  if (!Object.hasOwn(over, 'workouts')) state.workouts = state.workouts.map(w => ({ ...w, d: day(1) }));
+  if (!Object.hasOwn(over, 'bodyweight')) state.bodyweight = [{ d: day(20), w: 78 }, { d: day(1), w: 78.5 }];
+  return state;
+}

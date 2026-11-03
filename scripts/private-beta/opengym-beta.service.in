@@ -1,0 +1,52 @@
+# REVIEW TEMPLATE ONLY: install/enable requires explicit approval.
+[Unit]
+Description=openGym private Android beta (isolated)
+After=network.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=exec
+User=codex
+Group=codex
+WorkingDirectory=/opt/opengym-beta/api
+EnvironmentFile=/etc/opengym-beta.conf
+# env exists outside the namespace too, so pre-install verification succeeds;
+# Node itself is the immutable bind mount created by systemd at service start.
+ExecStart=/usr/bin/env /opt/opengym-node22/bin/node /opt/opengym-beta/scripts/private-beta/run.mjs
+ExecStartPost=/usr/bin/env /opt/opengym-node22/bin/node /opt/opengym-beta/scripts/private-beta/ready.mjs
+Restart=on-failure
+RestartSec=15
+TimeoutStartSec=120
+TimeoutStopSec=25
+KillMode=control-group
+StateDirectory=opengym-beta
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=tmpfs
+BindReadOnlyPaths=/home/codex/openGym:/opt/opengym-beta
+BindReadOnlyPaths=/home/codex/.local/opt/node22:/opt/opengym-node22
+ReadWritePaths=/var/lib/opengym-beta
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+CapabilityBoundingSet=
+MemoryHigh=512M
+MemoryMax=768M
+CPUQuota=150%
+TasksMax=48
+StandardOutput=journal
+StandardError=journal
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=40
+
+[Install]
+WantedBy=multi-user.target

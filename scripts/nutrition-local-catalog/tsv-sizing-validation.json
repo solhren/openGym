@@ -1,0 +1,29 @@
+{
+  "freeDiskBytes": 54419177472,
+  "memory": {
+    "MemTotal": 8134750208,
+    "MemAvailable": 4100685824,
+    "SwapTotal": 0
+  },
+  "cpuCount": 4,
+  "loadAverage": [
+    0.8046875,
+    0.4951171875,
+    0.66162109375
+  ],
+  "reserveBytes": 21474836480,
+  "minAvailableMemoryBytes": 2147483648,
+  "prototypeMaxProducts": 100000,
+  "prototypeMaxDatabaseBytes": 536870912,
+  "processVisibility": "Namespace may hide other services; inspect those on SSH, without modifying them.",
+  "fullImportAuthorized": false,
+  "sizing": {
+    "estimatedGenerationBytes": 8000000000,
+    "requiredAdditionalBytesConservative": 28496396658,
+    "reserveBytes": 21474836480,
+    "remainingBytes": 25922780814,
+    "arithmeticFits": true,
+    "fullImportAuthorized": false,
+    "requiresRepresentativeMeasurement": true
+  }
+}

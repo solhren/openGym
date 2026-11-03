@@ -1,0 +1,65 @@
+{
+  "branch": "feature/nutrition",
+  "head": "6610d192",
+  "completeCatalogueInstalled": false,
+  "realProducts": 20,
+  "representative": false,
+  "testResults": {
+    "frontendTargeted": {
+      "pass": 154,
+      "fail": 0,
+      "skipped": 0
+    },
+    "python": {
+      "pass": 81,
+      "fail": 0,
+      "skipped": 0
+    },
+    "nodePrototype": {
+      "pass": 60,
+      "fail": 0,
+      "skipped": 0
+    },
+    "apiTargeted": {
+      "pass": 175,
+      "fail": 0,
+      "skipped": 0
+    },
+    "frontendComplete": {
+      "pass": 5796,
+      "fail": 7,
+      "skipped": 0,
+      "files": 438,
+      "failure": "locale test spawnSync Node EPERM"
+    },
+    "apiCompleteFileGroups": {
+      "pass": 43,
+      "fail": 42,
+      "skipped": 0,
+      "note": "file-group counts, not individual case counts; details need SSH"
+    },
+    "httpActual": {
+      "pass": 0,
+      "fail": 9,
+      "skipped": 0,
+      "failure": "listen EPERM setup"
+    },
+    "coachDiagnostic": {
+      "pass": 5,
+      "fail": 4,
+      "skipped": 0,
+      "note": "isolated child Node exits 0 without expected stdout"
+    },
+    "locales": {
+      "languages": 18,
+      "keys": 2464
+    },
+    "webBuild": "passed",
+    "webMobileBuild": "passed",
+    "docker": "not executed: daemon permission denied",
+    "gitDiffCheck": "passed"
+  },
+  "noCommit": true,
+  "noPush": true,
+  "noDeployment": true
+}

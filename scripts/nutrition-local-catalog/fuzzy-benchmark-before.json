@@ -1,0 +1,189 @@
+{
+  "source": {
+    "filtered": 0,
+    "inputSha256": "5ccce2b3d0c141fdde45c7d349bf7b558f25a9f2b225815fa5b339a9100cc9e8",
+    "kind": "fixture",
+    "rejected": 0,
+    "scanned": 50000,
+    "version": "synthetic-ranking-v2"
+  },
+  "fixture": true,
+  "schemaVersion": 2,
+  "products": 50000,
+  "databaseBytes": 26562560,
+  "openFullHashMs": 34.1455340385437,
+  "iterations": 30,
+  "queries": {
+    "Nutella": {
+      "meanMs": 31.99222522477309,
+      "p95Ms": 33.848706632852554,
+      "errors": {},
+      "count": 8334,
+      "matchMode": "literal",
+      "firstNames": [
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner"
+      ]
+    },
+    "Coca-Cola": {
+      "meanMs": 35.0266611824433,
+      "p95Ms": 39.21456262469292,
+      "errors": {},
+      "count": 8334,
+      "matchMode": "literal",
+      "firstNames": [
+        "Coca-Cola boisson",
+        "Coca-Cola boisson",
+        "Coca-Cola boisson"
+      ]
+    },
+    "lait": {
+      "meanMs": 32.68113347391287,
+      "p95Ms": 35.59897467494011,
+      "errors": {},
+      "count": 8333,
+      "matchMode": "literal",
+      "firstNames": [
+        "Lait demi-écrémé",
+        "Lait demi-écrémé",
+        "Lait demi-écrémé"
+      ]
+    },
+    "riz": {
+      "meanMs": 32.461788753668465,
+      "p95Ms": 34.85477343201637,
+      "errors": {},
+      "count": 8333,
+      "matchMode": "literal",
+      "firstNames": [
+        "Riz basmati",
+        "Riz basmati",
+        "Riz basmati"
+      ]
+    },
+    "pâtes": {
+      "meanMs": 33.054808527231216,
+      "p95Ms": 41.57043248414993,
+      "errors": {},
+      "count": 8333,
+      "matchMode": "literal",
+      "firstNames": [
+        "Pâtes complètes",
+        "Pâtes complètes",
+        "Pâtes complètes"
+      ]
+    },
+    "yaourt": {
+      "meanMs": 32.22190154095491,
+      "p95Ms": 33.754199743270874,
+      "errors": {},
+      "count": 8333,
+      "matchMode": "literal",
+      "firstNames": [
+        "Yaourt nature",
+        "Yaourt nature",
+        "Yaourt nature"
+      ]
+    },
+    "nutela": {
+      "meanMs": 0.23440147439638773,
+      "p95Ms": 0.30581653118133545,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "cocacola": {
+      "meanMs": 0.245589017868042,
+      "p95Ms": 0.29455870389938354,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "pate tartiner": {
+      "meanMs": 35.601924235622086,
+      "p95Ms": 38.01368549466133,
+      "errors": {},
+      "count": 8334,
+      "matchMode": "literal",
+      "firstNames": [
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner",
+        "Nutella pâte à tartiner"
+      ]
+    },
+    "lait amande": {
+      "meanMs": 0.2546140303214391,
+      "p95Ms": 0.29524415731430054,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "yaort": {
+      "meanMs": 0.231185182929039,
+      "p95Ms": 0.28745830059051514,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "chocolat noir": {
+      "meanMs": 0.21411279837290445,
+      "p95Ms": 0.25952234864234924,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "noir chocolat": {
+      "meanMs": 0.23833177983760834,
+      "p95Ms": 0.28913840651512146,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "Bovetti": {
+      "meanMs": 0.23210706810156503,
+      "p95Ms": 0.2936646342277527,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "boveti": {
+      "meanMs": 0.21773713330427805,
+      "p95Ms": 0.2675093710422516,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    },
+    "pate tartinre": {
+      "meanMs": 0.24740919470787048,
+      "p95Ms": 0.30259788036346436,
+      "errors": {},
+      "count": 0,
+      "matchMode": "literal",
+      "firstNames": []
+    }
+  },
+  "indexBytes": {
+    "products_fts_config": 4096,
+    "products_fts_data": 4812800,
+    "products_fts_docsize": 589824,
+    "products_fts_idx": 12288
+  },
+  "barcode": {
+    "meanMs": 0.06556734442710876,
+    "p95Ms": 0.09107217192649841
+  },
+  "python": "3.13.5",
+  "sqlite": "3.46.1",
+  "platform": "Linux-6.12.57+deb13-cloud-amd64-x86_64-with-glibc2.41",
+  "peakRssKiB": 25904,
+  "cpuSeconds": 7.171098
+}

@@ -1,0 +1,19 @@
+[Unit]
+Description=Unix-to-loopback bridge for openGym personal beta
+Requires=opengym-beta.service
+After=opengym-beta.service
+
+[Service]
+Type=notify
+User=codex
+Group=codex
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd --connections-max=32 127.0.0.1:3307
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+CapabilityBoundingSet=
+IPAddressDeny=any
+IPAddressAllow=localhost
+MemoryMax=32M
+TasksMax=8

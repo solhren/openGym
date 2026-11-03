@@ -1,0 +1,793 @@
+{
+  "originalSha256": "7d340dbe507a5256c45efafc60f3cb8312910f748dd9bff6c9272a8cd14e5be5",
+  "source": "https://huggingface.co/datasets/openfoodfacts/product-database",
+  "attribution": "Open Food Facts contributors",
+  "license": "ODbL-1.0",
+  "contentLicense": "DbCL-1.0",
+  "representativeBenchmark": false,
+  "inputBytes": 251815,
+  "sourceRows": 20,
+  "sourceTotalReported": 4792125,
+  "accepted": 20,
+  "rejected": [],
+  "recoveredNutrition": [
+    {
+      "rowIndex": 1,
+      "code": "0000105000011",
+      "reason": "invalid-nutrients"
+    },
+    {
+      "rowIndex": 3,
+      "code": "0000105000059",
+      "reason": "invalid-nutrients"
+    },
+    {
+      "rowIndex": 5,
+      "code": "0000105000196",
+      "reason": "hf-nutrition-quality-error"
+    },
+    {
+      "rowIndex": 8,
+      "code": "0000105000356",
+      "reason": "hf-nutrition-quality-error"
+    },
+    {
+      "rowIndex": 11,
+      "code": "0000105200923",
+      "reason": "hf-nutrition-quality-error"
+    },
+    {
+      "rowIndex": 12,
+      "code": "0000105200961",
+      "reason": "invalid-nutrients"
+    },
+    {
+      "rowIndex": 14,
+      "code": "0000111301201",
+      "reason": "hf-nutrition-quality-error"
+    }
+  ],
+  "completeFourNutrients": 9,
+  "partial": 0,
+  "unusable": 11,
+  "frenchNames": 4,
+  "importedUnits": [
+    "g",
+    null
+  ],
+  "allBarcodesChecked": 20,
+  "searches": {
+    "Nutella": {
+      "count": 0,
+      "codes": [],
+      "names": []
+    },
+    "Coca-Cola": {
+      "count": 0,
+      "codes": [],
+      "names": []
+    },
+    "lait": {
+      "count": 0,
+      "codes": [],
+      "names": []
+    },
+    "riz": {
+      "count": 0,
+      "codes": [],
+      "names": []
+    },
+    "pâtes": {
+      "count": 0,
+      "codes": [],
+      "names": []
+    },
+    "yaourt": {
+      "count": 0,
+      "codes": [],
+      "names": []
+    },
+    "pâte": {
+      "count": 1,
+      "codes": [
+        "0000101209159"
+      ],
+      "names": [
+        "Véritable pâte à tartiner noisettes chocolat noir"
+      ]
+    },
+    "pate": {
+      "count": 1,
+      "codes": [
+        "0000101209159"
+      ],
+      "names": [
+        "Véritable pâte à tartiner noisettes chocolat noir"
+      ]
+    },
+    "tartiner": {
+      "count": 1,
+      "codes": [
+        "0000101209159"
+      ],
+      "names": [
+        "Véritable pâte à tartiner noisettes chocolat noir"
+      ]
+    },
+    "Bovetti": {
+      "count": 1,
+      "codes": [
+        "0000101209159"
+      ],
+      "names": [
+        "Véritable pâte à tartiner noisettes chocolat noir"
+      ]
+    },
+    "dinde": {
+      "count": 1,
+      "codes": [
+        "0000130008136"
+      ],
+      "names": [
+        "Escalope de dinde"
+      ]
+    },
+    "framboise": {
+      "count": 1,
+      "codes": [
+        "0000140323687"
+      ],
+      "names": [
+        "Madeleine Framboise"
+      ]
+    },
+    "croissant": {
+      "count": 1,
+      "codes": [
+        "0000141013129"
+      ],
+      "names": [
+        "Croissants margarine"
+      ]
+    },
+    "herbal tea": {
+      "count": 8,
+      "codes": [
+        "0000105000073",
+        "0000105000363",
+        "0000105000318",
+        "0000105000042",
+        "0000105000417",
+        "0000105000011",
+        "0000105200923",
+        "0000105000356"
+      ],
+      "names": [
+        "Herbal Tea, Hibiscus",
+        "Artichoke Herbal Tea",
+        "Shave Grass Herbal Tea",
+        "Lagg's, herbal tea, peppermint",
+        "Lagg's, dieter's herbal tea",
+        "Chamomile Herbal Tea",
+        "Lagg's, kidneytea, herbal tea",
+        "Lagg's, herbal tea, chamomile * mint"
+      ]
+    }
+  },
+  "records": [
+    {
+      "rowIndex": 0,
+      "capturedCode": "0000101209159",
+      "brand": "Bovetti",
+      "code": "0000101209159",
+      "countries": [
+        "en:france"
+      ],
+      "modifiedAt": 1781851567,
+      "name": "Véritable pâte à tartiner noisettes chocolat noir",
+      "nameFr": "Véritable pâte à tartiner noisettes chocolat noir",
+      "nutrients": {
+        "carbs": 36,
+        "fat": 48,
+        "kcal": 617,
+        "protein": 8
+      },
+      "portions": [],
+      "reference": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000101209159"
+    },
+    {
+      "rowIndex": 1,
+      "capturedCode": "0000105000011",
+      "brand": "Lagg's",
+      "code": "0000105000011",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1740179797,
+      "name": "Chamomile Herbal Tea",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": null,
+        "fat": null,
+        "kcal": null,
+        "protein": null
+      },
+      "portions": [],
+      "reference": null,
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values",
+        "nutrition-rejected",
+        "reference-required"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000105000011"
+    },
+    {
+      "rowIndex": 2,
+      "capturedCode": "0000105000042",
+      "brand": "Lagg's",
+      "code": "0000105000042",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1587573118,
+      "name": "Lagg's, herbal tea, peppermint",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": 1.4700000286102295,
+        "fat": 0,
+        "kcal": 0,
+        "protein": 0
+      },
+      "portions": [
+        {
+          "amount": 45,
+          "id": "off-serving",
+          "label": "1.61 ONZ (45 g)",
+          "unit": "g"
+        }
+      ],
+      "reference": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000105000042"
+    },
+    {
+      "rowIndex": 3,
+      "capturedCode": "0000105000059",
+      "brand": "Lagg's",
+      "code": "0000105000059",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1748039127,
+      "name": "Linden Flowers Tea",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": null,
+        "fat": null,
+        "kcal": null,
+        "protein": null
+      },
+      "portions": [],
+      "reference": null,
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values",
+        "nutrition-rejected",
+        "reference-required"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000105000059"
+    },
+    {
+      "rowIndex": 4,
+      "capturedCode": "0000105000073",
+      "brand": "Lagg's",
+      "code": "0000105000073",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1789289634,
+      "name": "Herbal Tea, Hibiscus",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": null,
+        "fat": null,
+        "kcal": null,
+        "protein": null
+      },
+      "portions": [],
+      "reference": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values",
+        "serving-only"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000105000073"
+    },
+    {
+      "rowIndex": 5,
+      "capturedCode": "0000105000196",
+      "brand": "Lagg's",
+      "code": "0000105000196",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1740179798,
+      "name": "Apple & Cinnamon Tea",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": null,
+        "fat": null,
+        "kcal": null,
+        "protein": null
+      },
+      "portions": [],
+      "reference": null,
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values",
+        "nutrition-rejected",
+        "reference-required",
+        "source-quality-warning"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000105000196"
+    },
+    {
+      "rowIndex": 6,
+      "capturedCode": "0000105000219",
+      "brand": "Lagg's",
+      "code": "0000105000219",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1740179798,
+      "name": "Green Tea",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": 8.890000343322754,
+        "fat": 0,
+        "kcal": 35.5,
+        "protein": 0
+      },
+      "portions": [
+        {
+          "amount": 30.05047,
+          "id": "off-serving",
+          "label": "30.05047g",
+          "unit": "g"
+        }
+      ],
+      "reference": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000105000219"
+    },
+    {
+      "rowIndex": 7,
+      "capturedCode": "0000105000318",
+      "brand": "Lagg's",
+      "code": "0000105000318",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1740179798,
+      "name": "Shave Grass Herbal Tea",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": 11.100000381469727,
+        "fat": 0,
+        "kcal": 44.29999923706055,
+        "protein": 0
+      },
+      "portions": [
+        {
+          "amount": 30.05047,
+          "id": "off-serving",
+          "label": "30.05047g",
+          "unit": "g"
+        }
+      ],
+      "reference": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000105000318"
+    },
+    {
+      "rowIndex": 8,
+      "capturedCode": "0000105000356",
+      "brand": "Lagg's",
+      "code": "0000105000356",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1587573118,
+      "name": "Lagg's, herbal tea, chamomile * mint",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": null,
+        "fat": null,
+        "kcal": null,
+        "protein": null
+      },
+      "portions": [],
+      "reference": null,
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values",
+        "nutrition-rejected",
+        "reference-required",
+        "source-quality-warning"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000105000356"
+    },
+    {
+      "rowIndex": 9,
+      "capturedCode": "0000105000363",
+      "brand": "Lagg's",
+      "code": "0000105000363",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1740179799,
+      "name": "Artichoke Herbal Tea",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": 11.100000381469727,
+        "fat": 0,
+        "kcal": 44.29999923706055,
+        "protein": 0
+      },
+      "portions": [
+        {
+          "amount": 30.05047,
+          "id": "off-serving",
+          "label": "30.05047g",
+          "unit": "g"
+        }
+      ],
+      "reference": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000105000363"
+    },
+    {
+      "rowIndex": 10,
+      "capturedCode": "0000105000417",
+      "brand": "Lagg's",
+      "code": "0000105000417",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1587573118,
+      "name": "Lagg's, dieter's herbal tea",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": 0,
+        "fat": 0,
+        "kcal": 0,
+        "protein": 0
+      },
+      "portions": [
+        {
+          "amount": 45,
+          "id": "off-serving",
+          "label": "1.61 ONZ (45 g)",
+          "unit": "g"
+        }
+      ],
+      "reference": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000105000417"
+    },
+    {
+      "rowIndex": 11,
+      "capturedCode": "0000105200923",
+      "brand": "Lagg's",
+      "code": "0000105200923",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1587573118,
+      "name": "Lagg's, kidneytea, herbal tea",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": null,
+        "fat": null,
+        "kcal": null,
+        "protein": null
+      },
+      "portions": [],
+      "reference": null,
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values",
+        "nutrition-rejected",
+        "reference-required",
+        "source-quality-warning"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000105200923"
+    },
+    {
+      "rowIndex": 12,
+      "capturedCode": "0000105200961",
+      "brand": "Lagg's",
+      "code": "0000105200961",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1740179799,
+      "name": "Bronchtea",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": null,
+        "fat": null,
+        "kcal": null,
+        "protein": null
+      },
+      "portions": [],
+      "reference": null,
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values",
+        "nutrition-rejected",
+        "reference-required"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000105200961"
+    },
+    {
+      "rowIndex": 13,
+      "capturedCode": "0000111048403",
+      "brand": "Canola Harvest",
+      "code": "0000111048403",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1587658035,
+      "name": "100% Pure Canola Oil",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": 0,
+        "fat": 100,
+        "kcal": 857,
+        "protein": 0
+      },
+      "portions": [
+        {
+          "amount": 14,
+          "id": "off-serving",
+          "label": "1 Tbsp (14 g)",
+          "unit": "g"
+        }
+      ],
+      "reference": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000111048403"
+    },
+    {
+      "rowIndex": 14,
+      "capturedCode": "0000111301201",
+      "brand": "Canola Harvest",
+      "code": "0000111301201",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1740179890,
+      "name": "Canola Harvest® Original Vegetable Oil Spread Tub",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": null,
+        "fat": null,
+        "kcal": null,
+        "protein": null
+      },
+      "portions": [],
+      "reference": null,
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values",
+        "nutrition-rejected",
+        "reference-required",
+        "source-quality-warning"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000111301201"
+    },
+    {
+      "rowIndex": 15,
+      "capturedCode": "0000111301263",
+      "brand": "Canola Harvest",
+      "code": "0000111301263",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1587572392,
+      "name": "Canola harvest, buttery spread, with flaxseed oil",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": 0,
+        "fat": 57.13999938964844,
+        "kcal": 571,
+        "protein": 0
+      },
+      "portions": [
+        {
+          "amount": 14,
+          "id": "off-serving",
+          "label": "1 Tbsp (14 g)",
+          "unit": "g"
+        }
+      ],
+      "reference": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "warnings": [
+        "export-qualifiers-unavailable"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000111301263"
+    },
+    {
+      "rowIndex": 16,
+      "capturedCode": "0000127534587",
+      "brand": "Today's Temptations",
+      "code": "0000127534587",
+      "countries": [
+        "en:united-states"
+      ],
+      "modifiedAt": 1740179800,
+      "name": "Lithuanian Rye Bread",
+      "nameFr": "",
+      "nutrients": {
+        "carbs": 83.0999984741211,
+        "fat": 4.610000133514404,
+        "kcal": 332,
+        "protein": 9.229999542236328
+      },
+      "portions": [
+        {
+          "amount": 56.99999999999999,
+          "id": "off-serving",
+          "label": "56.99999999999999g",
+          "unit": "g"
+        }
+      ],
+      "reference": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "source-quality-warning"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000127534587"
+    },
+    {
+      "rowIndex": 17,
+      "capturedCode": "0000130008136",
+      "brand": "",
+      "code": "0000130008136",
+      "countries": [
+        "en:france"
+      ],
+      "modifiedAt": 1546634708,
+      "name": "Escalope de dinde",
+      "nameFr": "Escalope de dinde",
+      "nutrients": {
+        "carbs": null,
+        "fat": null,
+        "kcal": null,
+        "protein": null
+      },
+      "portions": [],
+      "reference": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000130008136"
+    },
+    {
+      "rowIndex": 18,
+      "capturedCode": "0000140323687",
+      "brand": "",
+      "code": "0000140323687",
+      "countries": [
+        "en:france"
+      ],
+      "modifiedAt": 1682726347,
+      "name": "Madeleine Framboise",
+      "nameFr": "Madeleine Framboise",
+      "nutrients": {
+        "carbs": null,
+        "fat": null,
+        "kcal": null,
+        "protein": null
+      },
+      "portions": [],
+      "reference": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000140323687"
+    },
+    {
+      "rowIndex": 19,
+      "capturedCode": "0000141013129",
+      "brand": "",
+      "code": "0000141013129",
+      "countries": [
+        "en:france"
+      ],
+      "modifiedAt": 1748663596,
+      "name": "Croissants margarine",
+      "nameFr": "Croissants margarine",
+      "nutrients": {
+        "carbs": null,
+        "fat": null,
+        "kcal": null,
+        "protein": null
+      },
+      "portions": [],
+      "reference": {
+        "amount": 100,
+        "unit": "g"
+      },
+      "warnings": [
+        "export-qualifiers-unavailable",
+        "missing-values"
+      ],
+      "sourceUrl": "https://world.openfoodfacts.org/product/0000141013129"
+    }
+  ],
+  "auditSecondsIncludingProcessStarts": 2.01274112
+}

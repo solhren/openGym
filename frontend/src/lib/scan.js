@@ -31,18 +31,30 @@ function toCode(barcode) {
 // have to host); on iOS the plugin's native scanner. Returns the first barcode found, or null if
 // the user backed out without scanning. Throws if scanning isn't supported or permission is hard-
 // denied so the caller can explain why.
-export async function scanCode() {
+let activeScan = false
+export async function scanCode({ product = false } = {}) {
   if (!MOBILE) throw new Error('Scanning is only available in the app')
-  const { BarcodeScanner } = await import('@capacitor-mlkit/barcode-scanning')
+  if (activeScan) throw new Error('scan-in-progress')
+  activeScan = true
+  try {
+    const { BarcodeScanner } = await import('@capacitor-mlkit/barcode-scanning')
 
-  const { supported } = await BarcodeScanner.isSupported()
-  if (!supported) throw new Error('unsupported')
+    const { supported } = await BarcodeScanner.isSupported()
+    if (!supported) throw new Error('unsupported')
 
-  await ensureCameraPermission(BarcodeScanner)
-  await ensureScannerModule(BarcodeScanner)
+    await ensureCameraPermission(BarcodeScanner)
+    await ensureScannerModule(BarcodeScanner)
 
-  const { barcodes } = await BarcodeScanner.scan()
-  return barcodes && barcodes.length ? toCode(barcodes[0]) : null
+    try {
+      const { barcodes } = await BarcodeScanner.scan(product ? { formats: ['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E'] } : undefined)
+      return barcodes && barcodes.length ? toCode(barcodes[0]) : null
+    } catch (error) {
+      // Exact cancellation emitted by the installed Android plugin 7.5.0.
+      // Permission / scanner failures must never be mistaken for cancellation.
+      if (error?.message === 'scan canceled.') return null
+      throw error
+    }
+  } finally { activeScan = false }
 }
 
 // Decode a barcode out of an image the user picked. mlkit's readBarcodesFromImage wants a local

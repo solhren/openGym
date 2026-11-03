@@ -63,3 +63,14 @@ export async function secureRemove(key) {
 export const getApiKey = () => secureGet(KEY)
 export const setApiKey = value => secureSet(KEY, value)
 export const clearApiKey = () => secureRemove(KEY)
+
+// Authentication cannot claim persistence through the Coach's memory fallback.
+async function durablePlugin(){
+  const {Capacitor}=await import('@capacitor/core')
+  if(!Capacitor.isNativePlatform())throw new Error('Native secure storage required')
+  const {store}=await plugin();if(!store)throw new Error('Secure storage unavailable')
+  return {store}
+}
+export async function durableSecureGet(key){const {store}=await durablePlugin();return withTimeout(store.get(key))}
+export async function durableSecureSet(key,value){const {store}=await durablePlugin();await withTimeout(store.set(key,value));if(await withTimeout(store.get(key))!==value)throw new Error('Secure session persistence failed')}
+export async function durableSecureRemove(key){const {store}=await durablePlugin();await withTimeout(store.remove(key));if(await withTimeout(store.get(key))!=null)throw new Error('Secure session removal failed')}

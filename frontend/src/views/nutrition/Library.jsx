@@ -6,7 +6,7 @@ import { nutrientsForQuantity } from '../../lib/nutrition/calculate.js'
 import { nutritionSearchText } from '../../lib/nutrition/ui-service.js'
 import { FoodEditor, RecipeEditor } from './Editors.jsx'
 import { EntryEditor } from './Journal.jsx'
-import { DeleteAction, NutrientValues } from './common.jsx'
+import { DeleteAction, NutrientValues, FoodSource } from './common.jsx'
 
 export default function Library({ kind, data, date, service, status, create = false }) {
   const [query, setQuery] = useState(''), [editor, setEditor] = useState(create ? {} : null), [logging, setLogging] = useState(null)
@@ -22,12 +22,13 @@ export default function Library({ kind, data, date, service, status, create = fa
     {!rows.length && <div className="card empty">{t(recipe ? 'No recipes yet' : 'No personal foods yet')}</div>}
     {rows.slice(0, 100).map(row => { const snapshot = recipe ? createRecipeSnapshot(row) : row, q = { amount: recipe ? 1 : snapshot.reference.amount, unit: recipe ? 'serving' : snapshot.reference.unit }
       return <section className="card" key={row.id}><h3>{row.name}</h3>{row.brand && <p className="muted">{row.brand}</p>}
-        <p className="muted small">{recipe ? t('Per serving') : `${snapshot.reference.amount} ${snapshot.reference.unit}`}</p><NutrientValues values={nutrientsForQuantity(snapshot, q)} />
+        <p className="muted small">{recipe ? t('Per serving') : `${snapshot.reference.amount} ${snapshot.reference.unit}`}</p><NutrientValues values={nutrientsForQuantity(snapshot, q)} /><FoodSource food={snapshot} />
         {recipe && <p className="muted small">{row.ingredients.map(i => i.food.name).join(' · ')}</p>}
         <div className="nutrition-actions"><Button size="sm" disabled={status.busy} onClick={() => setLogging(snapshot)}>{t('Add to journal')}</Button>
           <Button size="sm" disabled={status.busy} onClick={() => setEditor(row)} aria-label={t('Edit {0}', row.name)}>{t('Edit')}</Button>
           <DeleteAction name={row.name} busy={status.busy} remove={() => service.remove(collection, row)} /></div>
       </section>
     })}{rows.length > 100 && <p>{t('Refine your search to see more results.')}</p>}
+    {!recipe && <section className="card"><h2>{t('Previously used products')}</h2>{foods.filter(f => (f.source?.kind === 'open-food-facts' || f.source?.publicCatalogImport?.provider === 'wger') && nutritionSearchText(`${f.name} ${f.brand ?? ''}`, dateLocale()).includes(nutritionSearchText(query.trim(), dateLocale()))).slice(0, 100).map(f => <div key={f.id} className="nutrition-ingredient"><h3>{f.name}</h3><p>{f.brand} · {f.reference.amount} {f.reference.unit}</p><NutrientValues values={f.nutrients} /><FoodSource food={f} /><Button disabled={status.busy} onClick={() => setLogging(f)}>{t('Add to journal')}</Button></div>)}</section>}
   </>
 }

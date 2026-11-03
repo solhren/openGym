@@ -160,7 +160,8 @@ test('every plan, log and id field is bounded too, for a create, a review and a 
   }
 });
 
-test('an id is cut, a policy outside the engine\'s five and a number that is not one read as absent', () => {
+test('an id is cut, a policy outside the engine\'s five and a number that is not one read as absent', t => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-08-15T12:00:00Z') });
   const S = sampleState();
   S.routines[0].id = 'r'.repeat(500);
   S.routines[0].prog = 'linear; and also...';
@@ -184,7 +185,9 @@ test('an id is cut, a policy outside the engine\'s five and a number that is not
   assert.equal(set.r, 10, 'the rest of the set still travels');
 });
 
-test('the plan and the log a real app writes pass through exactly as before', () => {
+test('the plan and the log a real app writes pass through exactly as before', t => {
+  // Exercise the fixed fixture's payload, not its eventual calendar expiry.
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-08-15T12:00:00Z') });
   const S = sampleState();
   S.routines[0].ex[0].sg = 'sg-0-1';
   S.routines[0].ex[1].sg = 'sg-0-1';

@@ -857,3 +857,174 @@ contains the earlier uncommitted UI implementation.
 | `frontend/src/lib/nutrition/backup.test-util.js`, `frontend/src/lib/nutrition/backup-volume.test-util.js` | Independent test connection helper; corpus derives namespace/generation from its disposable store for authenticated-scope measurements |
 | `frontend/scripts/nutrition-ui-benchmark.mjs`, `frontend/scripts/nutrition-write-profiler.mjs` | Reproducible stage/sampling/memory/physical-read diagnostics and optional direct-server sync |
 | `docs/dev/NUTRITION_UI.md`, `docs/dev/NUTRITION_LOCAL_STORAGE.md`, `docs/dev/NUTRITION_PERSISTENCE.md` | Decision rationale, guarantees, measurements, tests and residual limits |
+
+## Step 4: external food catalogue integration
+
+The existing journal picker now switches between Local foods and recipes and Open
+Food Facts, retaining the chosen day and meal. External search is explicit, followed
+by a product detail and the unchanged quantity/meal editor. Its calculations still
+come from `nutrientsForQuantity`. The new `savedFoods` UI command reuses `validateFood`
+and publishes product + intake in one existing durable batch; no portable contract,
+training sync or restore protection changed. Historical/provider attribution follows
+the stored snapshots. Personal foods and previously used catalogue products remain
+visibly separate in Library; both are available as recipe ingredients offline.
+
+The account-owned UI session owns an abortable, bounded provider client. Route
+unmount and session change reject late results. Search/clear never mutate Nutrition
+storage. The shared SearchField clear action now explicitly has `type="button"` to
+avoid accidental submission when used inside the new search form. The shared camera
+accepts a decoder/hint with QR defaults unchanged and stops rescheduling after unmount.
+
+See [NUTRITION_FOOD_CATALOG.md](NUTRITION_FOOD_CATALOG.md) for provider endpoints,
+normalization, quotas, licensing, tests, performance, manual/native validation and
+limitations. English fallback catalogue strings in other locales require translation
+review; French strings are provided. No global restore or external catalogue crawler
+was enabled.
+
+Provider attribution is also preserved for recipe ingredient sources. Imported generic
+provenance URLs are never trusted as navigable links: only fixed OFF product URLs are
+linked, while other metadata retains attribution text. Catalogue result rows show all
+four main nutrients and unknown values. Detailed validation and remaining provider /
+physical-device checks are recorded in the catalogue reference.
+
+
+### Firefox catalogue transport correction
+
+Firefox's real catalogue search returned HTTP 503 with no provider CORS allow-origin.
+CORS hid the response; it was not established as the cause of the 503. The incorrect
+User-Agent URL parameter was removed. Web searches now use the anonymous bounded
+openGym catalogue relay; native Capacitor HTTP keeps its real User-Agent header and
+fixed direct OFF destinations. Web guest catalogue search requires an available API
+relay; local journal, saved products and durable offline operations remain independent.
+No UI calculation, snapshot or publication contract changed. Real NutritionScreen
+regression tests exercise nutella through the actual client and relay factories,
+normalization, quantity editor and durable journal commands. See the catalogue
+reference for API limits, isolated Vite/API launch, HTTP/DNS restrictions and results.
+
+
+### Demand-based catalogue limits
+
+Fixed 10/6-second request spacing was removed from both relay and web client. Web
+search consumes the shared API egress budget only when OFF is actually called after
+cache/dedup. Native direct HTTP uses burstable rolling installation limits. Pending
+relay requests rotate between active anonymous browser streams; registered account
+count is not consulted. The UI shows a retry countdown only for exhausted external
+budget or provider-imposed backoff, honoring shorter Retry-After values. Local
+queue/anti-abuse pressure uses the existing untimed request-in-progress message.
+Random tab fairness tags are not credentials and never enter durable Nutrition data
+or provider requests. See the catalogue document for lifecycle and deployment limits.
+
+### Provider CGI outage and barcode preservation (2026-10-12)
+
+VPS direct OFF probes establish CGI search 503 while product v3 returns 200. The
+remote page cannot distinguish high demand from anonymous-search restrictions.
+503 now maps to provider-unavailable, with affected search mode named using existing
+translations. Search-only 503 cooldowns no longer disable barcode, including native
+metadata. The parent picker keeps Local foods and recipes; a real component regression
+records a food, encounters 503, reads its barcode and adds the saved food again.
+No alternative provider/authentication was enabled. The catalogue reference documents
+safe trace logging, cooldown replay/expiry and Search-a-licious migration conditions.
+The 60-second missing-header fallback is a protective unavailability delay, not
+evidence of an exhausted quota or an explicit provider Retry-After. Catalogue
+tests exercise this distinction, switching to barcode and reusing saved foods.
+Latest focused validation: 130 catalogue/component tests (included in the 722-test
+broad Nutrition run) and 101 API tests passed; nine real HTTP tests are blocked by
+sandbox listen EPERM. Web/mobile-web builds and locale checks passed. The catalogue
+reference lists the exact commands and pending VPS/Firefox/device checks.
+
+## Catalogue local : saisie dynamique et clavier (2026-10-12)
+
+`FoodCatalog` interroge le petit endpoint public `catalog/capabilities` au montage.
+Seul `schemaVersion:1,textSearch:local` active les suggestions ; ancien serveur,
+réseau indisponible ou réponse invalide conservent le parcours distant explicite.
+La requête est sans compte/cookie et sans appel OFF. Les recherches locales portent
+`local=1`, vérifié par le serveur : un rollback du mode expérimental pendant la
+saisie ne peut pas convertir les suggestions en recherches fournisseur.
+
+Temporisation initiale 300 ms, minimum deux caractères, aucune écriture persistante
+pendant la saisie. Ce délai est un compromis de départ, pas une règle WAI-ARIA ni
+une mesure d'usage humain ; le banc DOM mesure le commit React, pas le rendu Firefox.
+Chaque modification annule la requête précédente ; le jeton d'époque, le guard de
+session et l'AbortSignal empêchent une réponse tardive de remplacer la sélection.
+Le verrou du client est maintenant attaché à son contrôleur : le `finally` d'une
+ancienne requête annulée ne peut pas libérer la requête qui l'a remplacée.
+
+Pattern [APG Combobox](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) avec liste
+et sélection manuelle : rôle combobox/autocomplete list/controls/expanded,
+listbox et options, focus dans le champ via activedescendant. Flèches choisissent
+l'option active, Entrée ouvre la fiche (ne publie pas une consommation), Échap ferme,
+Tab sort sans accepter, Home/End et les touches d'édition restent natifs. La fiche
+reçoit le focus sur son titre ; retour aux résultats et effacement refocalisent le
+champ. La composition IME ne déclenche aucune recherche intermédiaire. Les résultats
+restent bornés à vingt par page et vingt pages, avec boutons de pagination.
+
+Les tests du vrai NutritionScreen/Journal/editor/service couvrent le parcours
+saisie → clavier → fiche → quantité → publication durable, effacement, IME,
+annulation/démontage, réponses inversées et mode distant inchangé. Aucun moteur métier
+n'est dupliqué. Les tests DOM ne prouvent pas la compatibilité avec NVDA/VoiceOver,
+le scroll tactile ni Firefox : essais manuels encore nécessaires.
+
+Mobile : une session appairée transmet uniquement son origine serveur au petit
+adaptateur `public-relay.js`, sans jeton, cookie ou données personnelles. Après
+capacité locale positive, il utilise les endpoints publics openGym, y compris le
+garde-fou `local=1`. Le bridge Capacitor ne sait pas interrompre sa socket : résultat
+tardif ignoré, timeout natif, deux sockets maximum ; une saisie très rapide sur un
+réseau lent peut rencontrer `request-in-progress`. Aucun fallback textuel OFF pour
+une suggestion locale. Une installation mobile autonome sans serveur garde le
+parcours OFF explicite et sa bibliothèque hors ligne. Le protocole est testé avec
+un bridge simulé ; aucun essai physique Android/iOS n'est revendiqué.
+
+Dernière revue : la pagination et le bouton Search refocalisent explicitement le
+champ local pour afficher leur liste ; une recherche temporisée après Tab reste
+fermée. Les contrôleurs et la caméra sont réinitialisés lors d'un remplacement du
+service. Le plafond de deux sockets mobiles est global à l'installation, pour
+qu'un changement répété de session ne multiplie pas les sockets abandonnées.
+`local=1&staging=1` est refusé : aucune délégation textuelle vers le staging OFF.
+
+## Gel V1 Web + Android : validation d’une sélection catalogue (12 octobre 2026)
+
+La combobox locale conserve le debounce 300 ms, la sélection manuelle clavier,
+les annulations et les epochs de session/requête. Une nouvelle frontière empêche
+l’index TSV de fournir directement un Food : à la sélection, `FoodCatalog` charge
+`service.catalog.product`, protégé par AbortSignal et contrôle de session, puis
+ouvre l’éditeur uniquement avec une référence validée. La date et le repas choisis
+restent conservés ; aucun stockage Nutrition n’est modifié pendant la recherche.
+Un résultat v3 tardif après saisie/navigation ne peut pas ouvrir une ancienne fiche.
+Les erreurs fournisseur n’activent pas le bouton « quantité » avec les anciennes
+valeurs de l’index. Le double ajout reste protégé par les commandes existantes.
+
+Les fixtures du parcours React réel vérifient index sans nutriments → consultation
+produit → quantité → écriture durable → total, et les échecs/retours tardifs. Les
+Tests Android du pont natif sont simulés : catalogue public configuré pour l’invité,
+priorité du serveur appairé, aucune authentification envoyée, même route backend.
+Ils ne remplacent pas des essais physiques. La date de validation du cache public
+est affichée ; une fiche périmée utilisée lors d’un incident est annoncée en cache.
+L’historique et les aliments déjà enregistrés utilisent toujours le stockage v1.
+
+Le backend expérimental consulte OFF v3.5 pour la structure normalisée explicitant
+100 g/100 ml. Le cache privé au serveur est un cache **public/reconstructible** et
+n’appartient à aucun compte. L’usage hors ligne du téléphone concerne les produits
+**enregistrés localement**, pas tous les produits seulement consultés sur le serveur.
+Ni quota local ni erreur de cache n’entraînent un faux délai fournisseur.
+
+Mesures à ce stade : 4 196 identités OFF réellement indexées (1 068 France), mais
+couverture insuffisante et aucune référence sûre dans le TSV. Le catalogue V1 doit
+être enrichi et vérifié avant activation. Voir `NUTRITION_LOCAL_CATALOG_PROTOTYPE.md`
+pour mesures, import ciblé, commandes SSH/Firefox/Android et Docker isolé. La source
+entière n’a pas été téléchargée, le DNS étant bloqué ici. Aucun APK compilé ni test
+Firefox/Android physique n’est annoncé. L’interface n’est pas déclarée V1 finalisée.
+
+
+## Nuit V1 — catalogue wger local et preuve de couverture (26 octobre 2026)
+
+Le mode expérimental `wger-v1` est maintenant raccordé au catalogue existant, sans activation de production. Son protocole de capacités v2 distingue les fiches locales wger des réponses OFF. `VITE_NUTRITION_LOCAL_V1=1` empêche tout repli alimentaire distant, y compris lorsque les capacités sont indisponibles ; Android invité utilise l’origine publique openGym configurée, jamais une API alimentaire. L’autocomplétion, le clavier et les époques d’annulation restent ceux de la combobox existante. La sélection relit un UUID SQLite et vérifie le Food, sa référence et sa provenance via `local-product.js`.
+
+Le test du vrai écran Nutrition a trouvé une omission : la condition de `EntryEditor` mémorisait seulement les aliments de source OFF. Elle reconnaît maintenant les imports publics wger et utilise le même `service.batch` durable pour aliment + entrée. Un scénario de composant vérifie ajout, quantité modifiée, fermeture/réouverture, suppression et réutilisation depuis la bibliothèque, sans transport fournisseur. Les opérations non acquittées restent présentes. Les snapshots ne sont jamais remplacés par les valeurs du catalogue.
+
+Les libellés français du complément sont des traductions proposées par openGym, avec le nom original visible. Le journal conserve actuellement le nom original du Food. Aucun ml n’est proposé pour un Food référencé en g sans densité. Les fiches wger ambiguës et les profils à quatre zéros sont consultables mais non ajoutables dans le lecteur V1. Les erreurs de codes-barres dupliqués nécessitent une sélection par nom. Les produits absents du catalogue local ne sont plus annoncés comme absents d’OFF.
+
+Les crédits suivent également les ingrédients et snapshots wger/USDA. Les métadonnées JSON additionnelles restent non fiables : leur rendu accepte uniquement des chaînes ; les liens de licence proviennent d’une table fixe, les autres URI sont du texte qui revient à la ligne. Les locales possèdent deux nouvelles clés (18 packs, 2 466 clés après contrôle) ; les traductions proposées ne sont pas une validation humaine de chaque langue. L’objet d’overrides pt-BR doit rester distinct de l’expression d’export fusionnée.
+
+Les 18 recherches curatées sont des régressions de libellés, pas une preuve de 90 % des parcours. Le [benchmark public indépendant](NUTRITION_CATALOG_BENCHMARK.md) distingue produits attendus, résultat quelconque, référence fiable et ajoutabilité. Les mesures sur 1 000 cas issus d’un préfixe OFF ne prouvent pas la couverture nationale. Le laboratoire reste à vérifier dans Firefox et sur appareil Android ; le pont natif et l’accessibilité en vrai navigateur ne sont pas réputés validés par happy-dom. Aucun identifiant Android ni contrat de synchronisation/sauvegarde n’a changé.
+
+La revue finale a ajouté deux protections de disponibilité/cohérence : une recherche peut reprendre la sonde locale après un premier échec de capacités, sans repli fournisseur ; chaque sélection V1 relit la fiche locale au lieu d’utiliser une fiche mémoire de 24 h après une publication/redémarrage. Le cache de recherche reste borné et les aliments déjà consommés restent utilisables hors ligne dans `savedFoods`. Les tests de reprise et de révision de descripteur font partie de la passe ciblée finale, séparée du décompte de la suite complète.
