@@ -340,7 +340,7 @@ n'est liée à cette opération.
 python3 -m unittest discover -s scripts/private-beta -p 'test_android_*.py' -q
 ```
 
-**23 tests locaux réussis** : sources étrangères/échouées/incomplètes, tentative
+**25 tests locaux réussis** : sources étrangères/échouées/incomplètes, tentative
 incorrecte ou expirée, corruption, références de checksum malveillantes, symlinks,
 fichiers privés, mauvais profil, ancienne version, remplacement d'une Release
 étrangère, digest serveur incorrect et certificat divergent. Tests sans réseau ni
@@ -360,3 +360,15 @@ correspondant refuse ce lien provisoire après publication et refuse une origine
 s'il correspond ; le commit de publication d'un brouillon est remis à la révision
 courante avant la création finale de son tag. Aucune suppression d'APK local,
 de catalogue ou de données utilisateur n'est nécessaire.
+
+
+La reprise du brouillon a également montré que GitHub peut remplacer son
+`tag_name` par `untagged-*` lors d'une modification de cible ; la recherche CLI par
+le nom définitif échoue alors avant publication. Le distributeur reconnaît aussi
+ce brouillon via son titre et son marqueur de provenance, refuse plusieurs
+candidats, puis publie **par identifiant REST de Release** avec tag, cible, notes
+et statut dans la même mise à jour. Il ne dépend plus d'une recherche CLI de tag
+pour publier. Deux tests supplémentaires couvrent la reconnaissance du brouillon
+renommé et le parcours complet initial/reprise, avec APIs/SDK simulés : une reprise
+ne crée pas de doublon et ne retéléverse pas l'APK déjà vérifié. Les véritables
+contrôles de signature et de digest restent obligatoires en CI.

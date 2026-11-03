@@ -1,5 +1,10 @@
 """Offline publication guards; no GitHub credentials, SDK or private signing keys."""
 import hashlib
+import copy
+import contextlib
+import io
+import shutil
+import subprocess
 import importlib.util
 import json
 import os
@@ -122,6 +127,71 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaises(ValueError): m.verify_uploaded({'draft': False, 'assets': [asset]}, 'a' * 64, 300)
         with self.assertRaises(ValueError): m.verify_uploaded({'draft': True, 'assets': [asset | {'browser_download_url': temporary.replace(m.REPO, 'other/repo')}]}, 'a' * 64, 300)
         with self.assertRaises(ValueError): m.verify_uploaded({'draft': True, 'assets': [asset | {'digest': None}]}, 'a' * 64, 300)
+
+    def test_recognized_renamed_draft_is_resumed_without_duplicate(self):
+        draft = self.release() | {'draft': True, 'tag_name': 'untagged-4529196a9a4d0dc097f4'}
+        self.assertEqual(m.select_release([draft]), draft)
+        self.assertIsNone(m.select_release([draft | {'body': 'unrelated'}]))
+        with self.assertRaises(ValueError): m.select_release([draft, draft | {'tag_name': m.TAG}])
+
+    def test_publication_and_resume_use_release_id_not_draft_tag_lookup(self):
+        digest = self.bundle(); fixture = self.folder; actual_run = subprocess.run
+        canonical = f'https://github.com/{m.REPO}/releases/download/{m.TAG}/{m.APK}'
+        def asset():
+            return {'name': m.APK, 'state': 'uploaded', 'size': (fixture / m.APK).stat().st_size,
+                    'digest': 'sha256:' + digest,
+                    'browser_download_url': f'https://github.com/{m.REPO}/releases/download/untagged-4529196a9a4d0dc097f4/{m.APK}'}
+        class FakeGitHub:
+            def __init__(fake, resumed):
+                fake.uploads = 0; fake.creates = 0; fake.published = False
+                fake.release = (self.release() | {'id': 7, 'draft': True, 'tag_name': 'untagged-4529196a9a4d0dc097f4',
+                    'target_commitish': 'c' * 40, 'assets': [asset()], 'html_url': canonical.rsplit('/', 1)[0]}) if resumed else None
+            def command(fake, *args, **kwargs):
+                if args[:2] == ('run', 'download'):
+                    dest = Path(args[args.index('--dir') + 1]); dest.mkdir(parents=True)
+                    for name in [m.APK, m.APK + '.sha256', 'build.json']: shutil.copyfile(fixture / name, dest / name)
+                elif args[:2] == ('release', 'upload'):
+                    fake.uploads += 1; fake.release['assets'] = [asset()]
+                else:
+                    raise AssertionError('Draft tag-based publication is forbidden: ' + str(args[:2]))
+                return ''
+            def api(fake, endpoint, *, body=None, method='GET', **kwargs):
+                if endpoint == 'actions/runs/100': return run_fixture()
+                if endpoint.endswith('/jobs?per_page=100'): return jobs_fixture()
+                if endpoint.endswith('/artifacts?per_page=100'):
+                    return {'total_count': 1, 'artifacts': [{'name': 'opengym-personal-debug-100-1', 'expired': False, 'size_in_bytes': 300}]}
+                if endpoint == 'releases?per_page=100': return [copy.deepcopy(fake.release)] if fake.release else []
+                if endpoint.startswith('git/ref/'): return None
+                if endpoint == 'releases' and method == 'POST':
+                    fake.creates += 1; fake.release = body | {'id': 7, 'assets': [], 'html_url': canonical.rsplit('/', 1)[0]}
+                    return copy.deepcopy(fake.release)
+                if endpoint == 'releases/7' and method == 'PATCH':
+                    self.assertIs(body['draft'], False); self.assertEqual(body['tag_name'], m.TAG)
+                    self.assertEqual(body['make_latest'], 'false'); fake.release.update(body)
+                    fake.release['assets'][0]['browser_download_url'] = canonical; fake.published = True
+                    return copy.deepcopy(fake.release)
+                if endpoint == 'releases/7': return copy.deepcopy(fake.release)
+                raise AssertionError('Unexpected API operation: ' + endpoint)
+        def tool_run(args, **kwargs):
+            if str(args[0]).endswith('/apksigner'):
+                kwargs['stdout'].write('Signer #1 certificate SHA-256 digest: ' + m.PIN + '\n')
+                return subprocess.CompletedProcess(args, 0)
+            return actual_run(args, capture_output=True, **kwargs)
+        for resumed in [False, True]:
+            with self.subTest(resumed=resumed), tempfile.TemporaryDirectory(prefix='opengym-publisher-test-') as runtime:
+                fake = FakeGitHub(resumed)
+                env = {'GITHUB_ACTIONS': 'true', 'GITHUB_REPOSITORY': m.REPO, 'GITHUB_ACTOR': 'solhren',
+                       'GITHUB_REF': 'refs/heads/feature/nutrition', 'GITHUB_EVENT_NAME': 'workflow_dispatch',
+                       'GITHUB_SHA': 'b' * 40, 'GH_TOKEN': 'synthetic-test-token', 'RUNNER_TEMP': runtime,
+                       'GITHUB_STEP_SUMMARY': str(Path(runtime) / 'summary.md'), 'ANDROID_HOME': runtime}
+                with patch.dict(os.environ, env, clear=True), patch.object(m, 'GitHub', return_value=fake), \
+                     patch.object(m.subprocess, 'run', side_effect=tool_run), \
+                     patch.object(m.subprocess, 'check_output', return_value="package: name='ch.duartesantos.opengym.test'"), \
+                     contextlib.redirect_stdout(io.StringIO()):
+                    m.main('100')
+                self.assertTrue(fake.published); self.assertEqual(fake.creates, 0 if resumed else 1)
+                self.assertEqual(fake.uploads, 0 if resumed else 1)
+                self.assertIn(canonical, (Path(runtime) / 'summary.md').read_text())
 
     def test_local_or_untrusted_context_cannot_publish(self):
         with patch.dict(os.environ, {}, clear=True), patch.object(m, 'GitHub', side_effect=AssertionError('must not reach GitHub')):

@@ -74,6 +74,16 @@ def validate_bundle(folder):
     return digest.hexdigest()
 
 
+def select_release(releases):
+    # GitHub may rename a draft's missing tag to untagged-* when its target changes.
+    found = [r for r in releases if r.get('tag_name') == TAG or
+             (r.get('draft') is True and r.get('name') == TITLE and
+              re.fullmatch(r'untagged-[0-9a-f]{8,64}', r.get('tag_name', '')) and
+              MARKER in (r.get('body') or ''))]
+    require(len(found) <= 1 and (len(releases) < 100 or bool(found)), 'Ambiguous or incomplete release listing')
+    return found[0] if found else None
+
+
 def previous_manifest(release):
     require(release.get('name') == TITLE and release.get('prerelease') is True and release.get('immutable') is not True, 'Refusing to modify an unrelated release')
     body = release.get('body') or ''
@@ -146,17 +156,11 @@ def main(run_id):
     badging = subprocess.check_output([str(tools / 'aapt'), 'dump', 'badging', str(apk)], text=True, timeout=120)
     require("package: name='ch.duartesantos.opengym.test'" in badging, 'Unexpected actual Android package')
     releases = gh.api('releases?per_page=100')
-    matches = [r for r in releases if r.get('tag_name') == TAG]
-    require(len(matches) <= 1 and (len(releases) < 100 or bool(matches)), 'Release listing limit')
-    release = matches[0] if matches else None
+    release = select_release(releases)
     metadata = {'run_id': int(run_id), 'attempt': run['run_attempt'], 'source_sha': run['head_sha'], 'publication_sha': publication_sha, 'sha256': digest, 'certificate_sha256': PIN}
     body = f"Bêta Android personnelle, authentification obligatoire sur https://gym.solhren.fr.\n\nTélécharger **{APK}**, puis installer sans désinstaller la version précédente. Aucun secret ni donnée personnelle embarqués ; scanner et utilisation réelle à vérifier sur téléphone.\n\nCompilation : https://github.com/{REPO}/actions/runs/{run_id}\n\nCommit source : `{run['head_sha']}`\n\nSHA-256 APK : `{digest}`\n\nCertificat stable SHA-256 : `{PIN}`\n\n{MARKER}{json.dumps(metadata, separators=(',', ':'))} -->\n"
-    notes = root / 'release-notes.md'
-    notes.write_text(body, encoding='utf-8')
     if release is not None:
         validate_order(previous_manifest(release), run)
-        if release.get('draft') is True and release.get('target_commitish') != publication_sha:
-            release = gh.api('releases/' + str(release['id']), method='PATCH', body={'target_commitish': publication_sha})
     reference = gh.api('git/ref/tags/' + TAG, optional=True)
     if reference is not None:
         require(reference['object']['type'] == 'commit', 'Unexpected beta tag type')
@@ -168,10 +172,12 @@ def main(run_id):
         release = gh.api('releases', method='POST', body={'tag_name': TAG, 'target_commitish': publication_sha, 'name': TITLE, 'body': body, 'draft': True, 'prerelease': True, 'make_latest': 'false'})
     assets = release.get('assets', [])
     if not (len(assets) == 1 and assets[0].get('digest') == 'sha256:' + digest and assets[0].get('size') == apk.stat().st_size):
-        gh.command('release', 'upload', TAG, str(apk), '--repo', REPO, '--clobber')
+        gh.command('release', 'upload', release['tag_name'], str(apk), '--repo', REPO, '--clobber')
     release = gh.api('releases/' + str(release['id']))
     url = verify_uploaded(release, digest, apk.stat().st_size)
-    gh.command('release', 'edit', TAG, '--repo', REPO, '--title', TITLE, '--notes-file', str(notes), '--draft=false', '--prerelease', '--latest=false')
+    # Address a draft by immutable release ID: CLI tag lookup can fail before
+    # GitHub creates the tag, even though its uploaded assets are already valid.
+    gh.api('releases/' + str(release['id']), method='PATCH', body={'tag_name': TAG, 'target_commitish': publication_sha, 'name': TITLE, 'body': body, 'draft': False, 'prerelease': True, 'make_latest': 'false'})
     final = gh.api('releases/' + str(release['id']))
     require(final.get('draft') is False and final.get('prerelease') is True, 'Release publication not confirmed')
     verify_uploaded(final, digest, apk.stat().st_size)
