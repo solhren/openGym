@@ -374,3 +374,31 @@ backend CAS protocol. No v1 format, limit, lock or retention rule changes.
 See NUTRITION_UI.md for measurements, regression coverage and remaining O(history)
 write/sync costs. Byte capture alone is internal and must never be treated as a
 verified domain or exposed to UI consumers without the subsequent recovery validator.
+
+### Android SDK 35 compilation correction — 3 November 2026
+
+The first real personal APK build exposed a Java compile failure in
+`forceDirectory`: `OsConstants.O_DIRECTORY` is not part of the public Android
+SDK. A native bundle synchronization or the filesystem simulator cannot detect
+this; the real `assembleDebug` compilation does.
+
+The helper now opens read-only/nonblocking and verifies the **opened descriptor**
+with `Os.fstat` / `OsConstants.S_ISDIR` before `Os.fsync`. Nonblocking prevents a
+path replaced with a FIFO from stalling the executor; a nondirectory is rejected.
+The `finally` still closes the descriptor on type, stat or sync failure. Parent
+sync after rename, file sync, locking, root CAS and structured storage errors are
+unchanged. These APIs are public since Android API 21, within the app's minimum
+API 23: [Os](https://developer.android.com/reference/android/system/Os),
+[OsConstants](https://developer.android.com/reference/android/system/OsConstants).
+No numeric Linux flag or hidden API/reflection workaround is introduced.
+
+Regression validation is the real SDK 35 APK compilation plus existing native
+bridge publication/interruption tests. A successful build does not prove fsync
+or interruption durability on every phone filesystem; physical tests remain
+necessary. The failing run is retained for diagnosis:
+https://github.com/solhren/openGym/actions/runs/41663586879.
+
+The targeted Vitest run on this correction passed **113 tests / 3 files**:
+`local-store-fs.test.js`, `local-store.test.js`, `local-reader.test.js`
+(`npm test -- --maxWorkers=2` with those paths). These remain bridge/filesystem
+simulations, not an Android device fsync test.

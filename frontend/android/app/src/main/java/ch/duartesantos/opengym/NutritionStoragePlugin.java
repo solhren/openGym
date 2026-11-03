@@ -68,8 +68,13 @@ public class NutritionStoragePlugin extends Plugin {
     }
 
     private static void forceDirectory(File directory) throws Exception {
-        FileDescriptor descriptor = Os.open(directory.getPath(), OsConstants.O_RDONLY | OsConstants.O_DIRECTORY, 0);
-        try { Os.fsync(descriptor); } finally { Os.close(descriptor); }
+        // O_DIRECTORY is not a public Android SDK constant. Validate the opened
+        // descriptor instead; NONBLOCK also prevents a replaced FIFO from hanging IO.
+        FileDescriptor descriptor = Os.open(directory.getPath(), OsConstants.O_RDONLY | OsConstants.O_NONBLOCK, 0);
+        try {
+            if (!OsConstants.S_ISDIR(Os.fstat(descriptor).st_mode)) throw new StorageFailure("IO_FAILED");
+            Os.fsync(descriptor);
+        } finally { Os.close(descriptor); }
     }
     private static void makeDirectory(File directory) throws Exception {
         if (!directory.isDirectory()) {
