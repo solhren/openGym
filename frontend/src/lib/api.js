@@ -4,6 +4,7 @@ import { MOBILE } from './mobile.js'
 import { appBase } from './app-base.js'
 import { nativeFetch } from './capacitor-fetch.js'
 import {PERSONAL_BETA,PERSONAL_ORIGIN} from './personal-beta.js'
+import {PUBLIC_ANDROID,publicServerOrigin} from './public-android.js'
 
 export const IS_APPLE = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent)
 export const IS_ANDROID = /Android/.test(navigator.userAgent)
@@ -24,7 +25,7 @@ export const webauthnOK = () => typeof window.PublicKeyCredential !== 'undefined
 // same-origin cookies, so remoteBase/remoteToken stay empty and api() behaves exactly as before.
 let remoteBase = ''
 let remoteToken = null
-export function setRemoteAuth(base, token) { if(PERSONAL_BETA&&base&&base!==PERSONAL_ORIGIN)throw new Error('Wrong personal beta server');remoteBase = base || ''; remoteToken = token || null }
+export function setRemoteAuth(base, token) { if(PERSONAL_BETA&&base&&base!==PERSONAL_ORIGIN)throw new Error('Wrong personal beta server');if(PUBLIC_ANDROID&&base&&publicServerOrigin(base)!==base)throw new Error('Invalid HTTPS server address');remoteBase = base || ''; remoteToken = token || null }
 // A Cloudflare Access service token (lib/cf-access.js): sent only to the origin it was entered
 // for, never on a same-origin request, where the browser's own Access session cookie already
 // does the job, and never to a server that merely happens to be paired or typed in.
@@ -108,7 +109,7 @@ async function request(url, init, ms) {
 // made a push look accepted by a server "from before revisions" — the change was marked synced
 // and dropped from the queue. It is an error, with the status it came with.
 async function exchange(url, init) {
-  const r = await fetch(url, init)
+  const r = await fetch(url, PUBLIC_ANDROID ? {...init, redirect:'error', credentials:'omit'} : init)
   let data
   let parsed = true
   try { data = await r.json() } catch { parsed = false }
@@ -336,6 +337,7 @@ export function looksLocal(hostname) {
 // Access token goes along when it was entered for that server: without it Access never lets
 // the code through, and to any other server it would be handed to a stranger.
 export async function pairRedeem(serverBase, code, { probeMs = PROBE_MS } = {}) {
+  if(PUBLIC_ANDROID&&publicServerOrigin(serverBase)!==serverBase)throw failure('Invalid HTTPS server address','invalid-server',0)
   let data
   try {
     data = await request(serverBase + '/api/pair/redeem', {

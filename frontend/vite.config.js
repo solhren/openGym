@@ -84,7 +84,8 @@ const flavor = {
   name: 'opengym-flavor',
   transformIndexHtml() {
     if (process.env.VITE_MOBILE !== '1') return
-    return [{ tag: 'meta', attrs: { name: 'opengym-flavor', content: 'mobile' }, injectTo: 'head' }]
+    return [{ tag: 'meta', attrs: { name: 'opengym-flavor', content: 'mobile' }, injectTo: 'head' },
+      ...(process.env.VITE_OPENGYM_PUBLIC_ANDROID === '1' ? [{tag:'meta',attrs:{name:'opengym-distribution',content:'selfhosted'},injectTo:'head'}] : [])]
   }
 }
 

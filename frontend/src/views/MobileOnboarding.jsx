@@ -106,12 +106,14 @@ export function ConnectSheet({ close, initialUrl = '', again = false }) {
         : t('Open Settings → Account → “Pair the mobile app” on the openGym site you’re already signed into, then enter its address and the code shown there.')}
     </div>
     <input ref={ref} className="input" placeholder={t('Server address (e.g. gym.example.com)')} value={url} readOnly={PERSONAL_BETA}
+      aria-label={t('Server address (e.g. gym.example.com)')}
       onChange={e => setUrl(e.target.value)} autoCapitalize="none" autoCorrect="off" inputMode="url" />
     {plainHttp(url) && <div className="dim small" role="note" style={{ marginTop: 8, lineHeight: 1.45 }}>
       {t('Plain http:// isn’t encrypted. Fine on your home network, but use https:// if your server is reachable from the internet.')}
     </div>}
     <div style={{ height: 10 }} />
     <input ref={codeRef} className="input" placeholder={t('Pairing code')} maxLength={8} value={code}
+      aria-label={t('Pairing code')}
       onChange={e => setCode(e.target.value.toUpperCase())} style={{ letterSpacing: '.14em', fontWeight: 600, textAlign: 'center' }} />
     {error && <div className="small" role="alert" style={{ color: 'var(--red)', marginTop: 10, lineHeight: 1.45, overflowWrap: 'anywhere' }}>{error}</div>}
     <div style={{ height: 12 }} />

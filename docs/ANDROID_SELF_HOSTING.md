@@ -1,137 +1,196 @@
-# Android with your own server
+# Android with your own openGym server
 
-The generic Capacitor app pairs with the HTTPS server you enter at runtime. It
-does not require the maintainer's domain, account, certificate or signing key.
-The same mobile bundle can serve different installations. The personal beta
-scripts and release channel in `docs/dev/` are a separate deployment profile;
-do not use them as the generic build procedure.
+The **self-hosted Android profile** is a separate distribution. It asks for your
+own HTTPS server at runtime; it embeds no server address, account, invitation or
+API token. It uses the existing Capacitor, secure-storage and ML Kit plugins.
+It is not the maintainer's personal APK, and does not update that installation.
 
-## Prepare the mobile bundle
+**Current validation:** JavaScript, React and build-configuration tests are
+available. No JDK, Android SDK or `adb` is installed in this development session;
+no self-hosted APK has been compiled, installed or tested on a phone. Do not
+advertise a downloadable generic APK until the packaging and phone checks below
+have passed. The personal scanner's earlier successful phone test does not
+validate this new profile.
 
-Use a separate checkout with Node 22 and installed frontend dependencies. Keep
-at least 20 GiB of free disk and 2 GiB of available RAM. From the repository root:
+## Connect, use and update
+
+1. Install a verified APK from the distributor whose package and signing identity
+   you intend to keep. The new debug package is
+   `fr.solhren.opengym.selfhosted.debug`, labelled **openGym Self-hosted**.
+2. Open your server in a browser, create or sign in to your account, then use
+   **Settings → Account → Pair the mobile app**. Enter the one-time code and your
+   HTTPS server address in **Connect to my server**. No passkey is created in the
+   WebView: its origin is different from your server's passkey relying party.
+3. Search the server's enabled food catalogues, select a product, verify its
+   reference and record a quantity. A Ciqual-only server has generic foods by
+   weight, no brand barcodes; its scanner action is deliberately unavailable.
+   Barcode coverage depends on an actually installed barcode-capable catalogue.
+4. Restart, then repeat offline with an already saved food. Local data remains
+   on this device and pending synchronization is not reported as server success.
+5. Install updates over the old APK, using the **same package and signing key**
+   and an increasing version code. Do not uninstall or clear storage to update.
+   This profile does not query or install the upstream project's APK updates;
+   obtain a verified update from your own distributor.
+
+Local-only device mode remains available, without a server food catalogue.
+Changing accounts or servers uses the existing **Disconnect** flow: retry pending
+uploads or retain/export the account's owed data as offered before pairing again.
+Do not use Android's Clear storage as a server switch. Nutrition keeps separate
+namespaces for the account and origin and preserves its pending operations and
+historical food snapshots. There is no automatic import from the personal beta's
+app sandbox: synchronize or export there before changing distributions.
+
+## Server and transport requirements
+
+Use a valid HTTPS certificate matching the hostname, with `ORIGIN` and `RP_ID`
+configured for that origin. Bare hostnames default to HTTPS. This public profile
+refuses HTTP, embedded credentials, path prefixes, queries, fragments and control
+characters in server addresses. Subpath hosting is not configured. Android's
+normal hostname/certificate verification remains enabled; intentionally installed
+user CAs are allowed alongside system CAs. The new Android network-security
+profile refuses cleartext; no certificate validation is disabled.
+
+Forward `/api/*` and `OPTIONS` to openGym without a login redirect or duplicate
+CORS headers. Authentication requests reject redirects. Pairing and catalogue
+requests use the selected origin; catalogue responses are rejected when their
+captured session has changed. The local-only catalogue setting never falls back
+to a food provider. An unavailable catalogue does not affect saved foods.
+
+See [self-hosting](SELF_HOSTING.md#phone-app-and-cors) for proxy configuration.
+Cloudflare Access headers, if explicitly configured, remain scoped to that server.
+Never put them into build flags. Personal and multi-user servers use the same
+pairing protocol; server access policies apply independently to every account.
+
+## Secure persistence and failure recovery
+
+`VITE_OPENGYM_PUBLIC_ANDROID=1` opts into this profile. It is incompatible with
+`VITE_OPENGYM_PERSONAL_BETA=1` and requires the mobile bundle.
+
+The existing secure-storage plugin encrypts the public session using Android
+Keystore-backed AES-GCM. The app verifies a stored value by reading it back
+**before** activating the credential in HTTP transport. A failed write cannot be
+reported as a successful pairing. It does not use the Coach's memory fallback.
+Renewal uses the same durable path. No second plaintext token or migration copy
+is created in `opengym-remote.json`; older distributions retain their own behavior.
+Concurrent pairing/disconnect/local-choice transitions are refused. A renewal
+from a previous origin, account or token cannot overwrite the current session.
+
+A missing session means first use. An unreadable or malformed secure session is
+an explicit `secure-session-unavailable` startup state with **Try again**, not
+an empty guest installation. The error path leaves workout mirrors, Nutrition
+partitions and pending operations unchanged. Unlock the device and retry; if the
+error persists, retain app data and collect the logs below. There is no automatic
+key reset, local-data deletion or forced re-pairing.
+
+Cloud Auto Backup is disabled for this profile. Explicit cloud/device-transfer
+rules also exclude the secure plugin's encrypted preferences and legacy pairing
+file: encrypted device credentials must not be transplanted to another Keystore.
+Some OEMs treat device transfer differently; test it on supported phones. Keep
+server backups and explicit workout/Nutrition exports. Do not promise OS backup
+as the recovery path. Rooted devices, debug extraction and a compromised app
+runtime remain outside the secure-storage guarantee.
+
+The changes do not alter the personal beta's package, signing environment, backup
+rules, trusted endpoints or existing legacy app's plaintext pairing format.
+
+## Build on an equipped workstation
+
+Use a reviewed clean checkout and preinstalled **Node 22, JDK 21, Android SDK
+platform 35 and build-tools 35.0.0**. Do not use the personal beta build script.
+See [Android's signing guide](https://developer.android.com/studio/publish/app-signing)
+and [MOBILE.md](MOBILE.md#prerequisites). This project targets SDK 35 and minSdk 23;
+this is a sideloaded debug build, not a claim of current Play Store eligibility.
+
+Keep at least 20 GiB free and 2 GiB RAM available **throughout** a build, with extra
+space for npm, Gradle caches, staged exercise media and output. The read-only
+preflight checks current reserves; it is not a prediction of peak build resources.
+No Android toolchain or signing key is downloaded/generated by the scripts.
 
 ```sh
 node scripts/android-public/prepare.mjs
-node --test --test-concurrency=1 scripts/android-public/prepare.test.mjs
+npm --prefix frontend ci
+node --test --test-concurrency=1 scripts/android-public/*.test.mjs
 ```
 
-The first command checks resources and public manifests and prints the build
-profile. It writes no files, contacts no server, reads no signing material and
-executes neither a build nor an installation. The profile keeps the web assets
-inside the Capacitor shell; no remote WebView URL is configured.
-
-Build the generic web assets explicitly with these public flags, including empty
-values that override any local Vite settings:
+Supply a **separate retained debug keystore** (`androiddebugkey`, store/key
+password `android`) kept outside the checkout. Do not use
+`ANDROID_BETA_DEBUG_KEYSTORE_BASE64` or `OPENGYM_ANDROID_DEBUG_KEYSTORE`. For a
+brand-new distribution only, create its first key using Android Studio/keytool
+and keep a private backup. If an APK is already installed, recover its original
+key instead of generating another one.
 
 ```sh
-cd frontend
-VITE_MOBILE=1 VITE_NUTRITION_LOCAL_V1=1 \
-VITE_OPENGYM_PERSONAL_BETA=0 VITE_NUTRITION_CATALOG_ORIGIN= \
-VITE_UMAMI_SRC= VITE_UMAMI_ID= APP_MEDIA_DIR= VITE_CLIP_EXT=mp4 \
-npm run build:mobile
+export ANDROID_HOME=/absolute/path/to/installed/android-sdk
+export OPENGYM_PUBLIC_ANDROID_KEYSTORE=/absolute/private/selfhosted-debug.keystore
+export OPENGYM_PUBLIC_ANDROID_VERSION_CODE=1  # increase for every distributed update
+node scripts/android-public/build.mjs
 ```
 
-This builds and synchronizes the web bundle into the existing Android/iOS
-projects; it does **not** build an APK. It stages exercise media already available
-in the checkout and fails if the required catalogue media are missing. Keep
-`dist/` isolated from ordinary web builds until native packaging is complete.
-`build:mobile` checks the mobile flavour and referenced assets in the copies.
-Local device mode remains available; this profile's food catalogue requires a
-paired server with the local catalogue enabled. Previously saved foods remain
-available offline.
+The builder uses the existing `npm run build:mobile` (including media staging and
+`cap sync`), then Gradle `assembleDebug` with one worker. It sets the explicit
+public flags, clears personal/backend/analytics overrides and requires the
+self-hosted flavour marker in the Android assets. It verifies `apksigner`, the
+certificate against the supplied key, the package and version using `aapt`, and
+writes an APK, checksum and public metadata under a fresh ignored
+`scripts/nutrition-local-catalog/artifacts/selfhosted-apk-*` directory.
+It does not publish them. Android signing verification is distinct from a SHA-256
+file checksum. This script has not been exercised with the native toolchain here.
 
-For Android packaging, use an already installed Android toolchain as described
-in [MOBILE.md](MOBILE.md#prerequisites): JDK 21, SDK platform 35, minSdk 23
-(Android 6), targetSdk 35. No toolchain download, APK build, key creation or
-signature change is performed by the preparation above. Keep SDK/Gradle updates
-separate and rerun the acceptance checks below after changing them.
+No generic GitHub workflow or public signing secret is provisioned by this work.
+The existing personal workflows remain separate. A future manual workflow must
+use a new distribution-specific retained secret, the builder above, minimum read
+permissions and explicit artifact verification; it must never borrow the personal
+beta's secret or automatically generate replacement keys.
 
-## Pair and check the network
-
-1. Serve your installation over HTTPS with a certificate trusted by the phone
-   and matching its hostname. Keep `ORIGIN` and `RP_ID` consistent with that
-   hostname. Use your own installation's account and registration settings.
-2. Sign in through the phone's browser, then open Settings → Account → **Pair
-   the mobile app**. Enter the five-minute, one-time code and your server address
-   in the app's **Connect to my server** screen. WebAuthn stays in the browser;
-   the native WebView has a different origin.
-3. The app uses its paired session for training and the local food catalogue.
-   Catalogue queries, product selection and capability checks carry the same
-   Bearer token and any Cloudflare Access headers scoped to that server. An
-   unavailable or refused local catalogue does not switch to an anonymous relay
-   or an external food provider in this profile.
-
-Let `/api/*` reach openGym unchanged, including `OPTIONS`, `Authorization` and
-the native-origin CORS response. Avoid a proxy login page or duplicate CORS
-headers. See [phone app and CORS](SELF_HOSTING.md#phone-app-and-cors) and the
-Cloudflare Access instructions in [MOBILE.md](MOBILE.md#a-server-behind-cloudflare-access).
-Do not put a service token into the build profile. Android also accepts
-user-installed certificate authorities and explicitly entered LAN HTTP servers;
-HTTPS is the recommended generic setup. HTTP sends pairing and session secrets
-without transport encryption.
-
-## Storage, permissions and updates
-
-Generic pairing currently keeps the session in `opengym-remote.json` in the
-app's private files, unlike the personal beta's secure-storage session. It is
-separate from synced data and JSON exports. Android app isolation protects that
-file, but root access, debug extraction and OS backup/transfer have a different
-trust boundary. The checked-in backup rules exclude large exercise media from
-cloud backup, **not** this pairing file. Revoke sessions from your server after a
-lost or transferred device; do not describe generic pairing as Keystore-backed.
-Migration of this existing format requires separate native-device validation.
-
-The training mirror and Nutrition storage retain local changes across offline
-starts; unsent changes and account scopes survive server rejection. A rejected
-session needs pairing again. Keep an exported backup before any signing or
-package migration. Do not uninstall or clear app storage to repair pairing.
-
-Camera permission is requested when scanning. Nutrition restricts scans to
-EAN/UPC and keeps barcode strings intact. Google's scanner module may need a
-first-use Play Services download; scanning can therefore need a network before
-its first successful use. Camera permission denial and cancellation must leave
-manual food entry available. Health Connect and notification permissions belong
-to their optional features; they are not prerequisites for pairing or Nutrition.
-
-Retain your own signing identity and package identifier for every update of your
-own distribution. An update must also have a compatible, increasing Android
-version code. The repository's debug build uses an `.test` application suffix;
-debug and release installs are separate applications. Do not replace, reuse or
-regenerate the personal beta's signing identity. A differently signed APK cannot
-update that installed application.
-
-The current in-app update checker points to `DuarteSantos8/openGym` upstream
-releases. It is **not** a generic channel for your independently signed builds
-or the personal beta. Distribute your verified updates manually through your
-own channel and retain the package/signing identity; do not rely on that button
-to update a fork. APK checksums detect corruption, while Android verifies update
-signer compatibility. This preparation does not claim an APK or signer check.
-
-## Acceptance before distributing your build
-
-Automated regression checks, without networking or a native toolchain:
+## Tests and acceptance
 
 ```sh
-cd frontend
-npm test -- --maxWorkers=1 src/lib/nutrition/catalog/client.mobile-paired.test.js \
-  src/lib/nutrition/catalog/mobile-catalog.test.js src/lib/personal-beta.test.js \
+npm --prefix frontend test -- --maxWorkers=1 \
+  src/lib/public-android.test.js src/App.public-session.test.jsx \
+  src/lib/personal-beta.test.js src/lib/remote.test.js src/lib/update.test.js \
+  src/lib/nutrition/catalog/client.mobile-paired.test.js \
+  src/lib/nutrition/catalog/mobile-catalog.test.js \
   src/lib/api.mobile.test.js src/lib/api.pair-http.test.js \
   src/lib/api.pair-probe.test.js src/lib/scan-native.test.js \
   src/store/useStore.mobile-remote.test.jsx
+node --test --test-concurrency=1 scripts/android-public/*.test.mjs
 ```
 
-On the actual APK and supported phone versions, verify a new installation paired
-to your own HTTPS host; restart with and without a network; create offline
-training and Nutrition changes, reconnect and confirm them from the browser;
-revoke the session and pair again without losing those changes. Check a food
-search/selection behind the same proxy as training, camera denial/cancellation,
-first scan, and an update signed with your retained key without uninstalling.
-Check optional notification/Health Connect permissions only when enabling those
-features. A successful host test or JavaScript suite cannot prove WebView,
-Keystore, OEM permission handling or APK update compatibility.
+These tests simulate Capacitor I/O; the startup regression exercises the actual
+App, Shell and store, without replacing them with a mock. The server and session
+transport are simulated. The API's separate HTTP tests cover real server auth.
+None of these prove native Keystore, Gradle resource merging, OEM backup behavior,
+physical camera operation or signer-compatible APK installation.
 
-The user has already reported a successful physical ML Kit scanner test on their
-personal phone. That is user-provided evidence for that device and build; it is
-not a claim that this generic build, another phone or an APK update was tested
-by this audit.
+Recorded validation for this change: **125 tests passed in 15 frontend files**;
+after the final startup-screen adjustment, **11 tests passed in its two affected
+files** (overlapping rerun, not 136 distinct tests). **7 Node script tests** passed.
+The mobile-flavour Vite build and its asset/marker checks passed, without native
+synchronization or packaging. The 18 locales retained 2,466 keys each. Existing
+Vite chunk-size and ineffective-dynamic-import warnings remain; no warning was
+silenced. No tests were skipped in these runs. Android/SDK tools were not installed.
+
+Before distribution, test first pairing, restart, revoked session and recovery;
+offline edits and synchronization; two accounts and two servers with the same
+account identifier; vault error without data loss; native camera denial, cancel,
+EAN-8/EAN-13/UPC scan and absent product; g/ml only with a verified reference;
+local food persistence; an update signed by the retained key without uninstalling.
+ML Kit's Google Play Services scanner model can need a first-use download; no
+camera image is uploaded to the food server. Devices without compatible Play
+Services need explicit testing and retain manual barcode entry.
+
+For a failing app, preserve data and collect targeted logs on your own workstation:
+
+```sh
+adb devices
+adb shell pidof -s fr.solhren.opengym.selfhosted.debug
+# Use the returned PID; open the app, reproduce once, then stop logcat with Ctrl-C.
+adb logcat --pid=RETURNED_PID -v threadtime
+```
+
+Review logs privately and redact URLs, accounts, tokens and personal food data
+before attaching them to an issue. Never collect or publish the secure preference
+file or signing keystore.
+
+Android references: [backup rules](https://developer.android.com/identity/data/autobackup),
+[network security](https://developer.android.com/privacy-and-security/security-config).

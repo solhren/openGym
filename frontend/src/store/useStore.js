@@ -21,6 +21,7 @@ import { appBase } from '../lib/app-base.js'
 import { linkTokenFromSearch, stripLinkFromUrl } from '../lib/device-link.js'
 import { loadRemote, chooseLocal, forgetRemote, connect, normalizeServerUrl, renewToken } from '../lib/remote.js'
 import { loadCfAccess } from '../lib/cf-access.js'
+import { PUBLIC_ANDROID } from '../lib/public-android.js'
 import { loadCoachDevice, saveCoachDevice, coachDeviceSettings } from '../lib/coach-device.js'
 import { RTL_LANGS } from '../lib/i18n-core.js'
 import { DEFAULT_TEMPLATE_ID } from '../lib/structuralBalanceTemplates.js'
@@ -1308,6 +1309,7 @@ export const useStore = create((set, get) => {
        always did, and a configured one is the only place any of it appears. */
     config: null,
     needsMobileOnboarding: false,   // mobile build only — set true by boot() on a genuine first launch
+    mobileSessionError: false,      // a failed secure read is not a new/guest installation
     // A one-time device-link code this page was opened with (?link=, #95), until it is redeemed.
     // Never persisted: the code is good for minutes and belongs to this one visit.
     linkCode: null,
@@ -1840,7 +1842,16 @@ export const useStore = create((set, get) => {
       // device was paired to a server ("connect to my server" mode, lib/remote.js), in which
       // case it behaves exactly like the signed-in web flow below, straight from here.
       if (MOBILE) {
-        const remote = await loadRemote()
+        let remote
+        try {
+          set({ mobileSessionError: false })
+          remote = await loadRemote()
+        } catch (error) {
+          if(!PUBLIC_ANDROID)throw error
+          setRemoteAuth('',null)
+          set({ready:false,mobileSessionError:true})
+          return // preserve every local account mirror and unsent operation
+        }
         // Before the first request: a server behind Cloudflare Access answers nothing without it.
         await loadCfAccess({ pairedBase: remote?.mode === 'remote' ? remote.base : '' })
         set({ coachLocal: coachDeviceSettings(await loadCoachDevice()) })

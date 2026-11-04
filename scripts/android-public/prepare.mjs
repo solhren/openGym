@@ -7,8 +7,9 @@ import { resolve } from 'node:path'
 
 const GiB = 1024 ** 3
 export const GENERIC_ENV = Object.freeze({
-  VITE_MOBILE: '1', VITE_NUTRITION_LOCAL_V1: '1',
+  VITE_MOBILE: '1', VITE_DEMO: '0', VITE_NUTRITION_LOCAL_V1: '1',
   VITE_OPENGYM_PERSONAL_BETA: '0', VITE_NUTRITION_CATALOG_ORIGIN: '',
+  VITE_OPENGYM_PUBLIC_ANDROID: '1',
   VITE_UMAMI_SRC: '', VITE_UMAMI_ID: '',
   APP_MEDIA_DIR: '', VITE_CLIP_EXT: 'mp4',
 })
@@ -25,9 +26,9 @@ export function prepareAndroid({ root, read = readFileSync, disk = statfsSync,
   return {
     profile: 'generic-paired-local-catalogue',
     build: { cwd: 'frontend', command: ['npm', 'run', 'build:mobile'], env: { ...GENERIC_ENV } },
-    appId: capacitor.appId,
+    appId: 'fr.solhren.opengym.selfhosted.debug',
     pairing: 'Enter your own HTTPS server in the app; no account or token is embedded and no server address is configured.',
-    signing: 'Choose and retain your own signing identity outside this preflight; existing Android package and signing settings are untouched.',
+    signing: 'Use a separate retained public-debug key and increasing version code. This profile cannot update the personal beta or upstream package.',
     apkBuilt: false,
   }
 }

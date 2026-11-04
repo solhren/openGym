@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useRef } from 'react'
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation, useNavigationType } from 'react-router-dom'
 import { useStore } from './store/useStore.js'
 import { useUI } from './store/useUI.js'
-import { bindUI } from './components/ui.jsx'
+import { bindUI, Button } from './components/ui.jsx'
 import { setWeightDecimals } from './lib/format.js'
 import { accentValue, applyAccent } from './lib/accent.js'
 import { setLang, useLang, baseLang, t } from './lib/i18n.js'
@@ -18,6 +18,7 @@ import { installChipDrag } from './lib/hchips.js'
 import { syncPushSubscription } from './lib/push.js'
 import { MOBILE } from './lib/mobile.js'
 import {PERSONAL_BETA,PERSONAL_ORIGIN} from './lib/personal-beta.js'
+import {PUBLIC_ANDROID} from './lib/public-android.js'
 import { exitWorkoutEdit, startFlow } from './sheets.jsx'
 import Icon from './components/Icon.jsx'
 import TabBar from './components/TabBar.jsx'
@@ -84,6 +85,7 @@ function Shell() {
   useEffect(() => { setAlarmBuzzer(MOBILE && S.vibrate !== false && S.vibrateOnSilent ? buzzAsAlarm : null) }, [S.vibrate, S.vibrateOnSilent])
   const isGuest = useStore(s => s.isGuest())
   const needsMobileOnboarding = useStore(s => s.needsMobileOnboarding)
+  const mobileSessionError = useStore(s => s.mobileSessionError)
   const needsPersonalPairing=MOBILE&&PERSONAL_BETA&&(!user||sync?.server!==PERSONAL_ORIGIN||sync?.auth)
   const langV = useLang()   // re-renders the whole shell when the language (pack) changes
   useEffect(() => { setNav(navigate) }, [navigate])
@@ -192,7 +194,12 @@ function Shell() {
   const noTabs = inWorkout || loc.pathname === '/coach' || needsMobileOnboarding || needsPersonalPairing
 
   const authed = user || isGuest
-  if (!ready && (!authed||PERSONAL_BETA)) return (
+  if(mobileSessionError)return <main id="app" className="narrow">
+    <h1>{t('Could not load')}</h1>
+    <p role="alert">{t('Something went wrong on this phone.')} <code>secure-session-unavailable</code></p>
+    <Button variant="primary" onClick={()=>useStore.getState().boot()}>{t('Try again')}</Button>
+  </main>
+  if (!ready && (!authed||PERSONAL_BETA||PUBLIC_ANDROID)) return (
     <div id="app">
       <div style={{ paddingTop: '44vh', display: 'flex', justifyContent: 'center', fontSize: 34, color: 'var(--label-3)' }}>
         <Icon name="dumbbell" />

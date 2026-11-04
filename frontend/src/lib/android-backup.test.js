@@ -10,13 +10,17 @@ const read = p => readFileSync(new URL('../../android/app/src/main/' + p, import
 const manifest = read('AndroidManifest.xml')
 const legacy = read('res/xml/backup_rules.xml')
 const modern = read('res/xml/data_extraction_rules.xml')
+const gradle = readFileSync(new URL('../../android/app/build.gradle', import.meta.url), 'utf8')
 const EXCLUDE = /<exclude\s+domain="file"\s+path="opengym-media\/"\s*\/>/
 
 describe('Android backup rules', () => {
-  it('the manifest names both rule files', () => {
-    expect(manifest).toMatch(/android:fullBackupContent="@xml\/backup_rules"/)
-    expect(manifest).toMatch(/android:dataExtractionRules="@xml\/data_extraction_rules"/)
-    expect(manifest).toMatch(/android:allowBackup="true"/)
+  it('the manifest uses explicit profile placeholders whose ordinary defaults retain both rule files', () => {
+    expect(manifest).toContain('android:fullBackupContent="${opengymBackupRules}"')
+    expect(manifest).toContain('android:dataExtractionRules="${opengymDataExtractionRules}"')
+    expect(manifest).toContain('android:allowBackup="${opengymAllowBackup}"')
+    expect(gradle).toContain("opengymBackupRules: publicAndroid ? '@xml/backup_rules_public' : '@xml/backup_rules'")
+    expect(gradle).toContain("opengymDataExtractionRules: publicAndroid ? '@xml/data_extraction_rules_public' : '@xml/data_extraction_rules'")
+    expect(gradle).toContain("opengymAllowBackup: publicAndroid ? 'false' : 'true'")
   })
 
   it('both leave the media folder out of the cloud backup, and only that', () => {

@@ -1,0 +1,84 @@
+// @vitest-environment happy-dom
+import {beforeEach,afterEach,test,expect,vi} from 'vitest'
+const secure=vi.hoisted(()=>({values:new Map(),get:vi.fn(),set:vi.fn(),remove:vi.fn()}))
+const files=vi.hoisted(()=>({loadRemoteFile:vi.fn(),saveRemoteFile:vi.fn()}))
+vi.mock('./mobile.js',()=>({MOBILE:true,...files}))
+vi.mock('@capacitor/core',()=>({Capacitor:{isNativePlatform:()=>true,getPlatform:()=> 'android'}}))
+vi.mock('@aparajita/capacitor-secure-storage',()=>({SecureStorage:secure}))
+const base='https://my-gym.example',other='https://another-gym.example'
+beforeEach(()=>{
+  vi.resetModules();vi.clearAllMocks();vi.stubEnv('VITE_MOBILE','1');vi.stubEnv('VITE_OPENGYM_PUBLIC_ANDROID','1');vi.stubEnv('VITE_OPENGYM_PERSONAL_BETA','0')
+  secure.values.clear();secure.get.mockImplementation(async k=>secure.values.get(k)??null);secure.set.mockImplementation(async(k,v)=>secure.values.set(k,v));secure.remove.mockImplementation(async k=>secure.values.delete(k))
+})
+afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs()})
+const paired=(id='user-a',token='synthetic-a')=>new Response(JSON.stringify({token,user:{id,name:'Fixture'}}))
+test('accepts canonical HTTPS hostnames and refuses credential/path/scheme ambiguity',async()=>{
+  const {normalizeServerUrl}=await import('./remote.js')
+  expect(normalizeServerUrl('  MY-GYM.example/  ')).toBe(base)
+  expect(normalizeServerUrl('https://my-gym.example:443/')).toBe(base)
+  expect(normalizeServerUrl('https://my-gym.example:8443')).toBe(base+':8443')
+  for(const value of ['http://my-gym.example','ftp://my-gym.example','https://user:pass@my-gym.example','https://my-gym.example/app','https://my-gym.example/#x','https://my-gym.example/?x=1','https://my-gym.example\\evil','https://my-gym.example\n',null,{},''])expect(normalizeServerUrl(value)).toBeNull()
+})
+test('invalid HTTPS pairing does not send a code or touch persistence',async()=>{
+  const fetch=vi.fn();vi.stubGlobal('fetch',fetch);const {connect}=await import('./remote.js'),{pairRedeem}=await import('./api.js')
+  await expect(connect('http://my-gym.example','12345678')).rejects.toThrow()
+  await expect(pairRedeem('https://my-gym.example/path','12345678')).rejects.toThrow()
+  expect(fetch).not.toHaveBeenCalled();expect(secure.set).not.toHaveBeenCalled()
+})
+test('pairs to an operator-selected host, verifies durable secure writes and restores on restart',async()=>{
+  const fetch=vi.fn(async()=>paired());vi.stubGlobal('fetch',fetch);let remote=await import('./remote.js')
+  expect(await remote.loadRemote()).toBeNull();await remote.connect(base,'12345678')
+  expect(fetch.mock.calls[0][0]).toBe(base+'/api/pair/redeem');expect(fetch.mock.calls[0][1]).toMatchObject({redirect:'error',credentials:'omit'})
+  expect(files.loadRemoteFile).not.toHaveBeenCalled();expect(files.saveRemoteFile).not.toHaveBeenCalled()
+  vi.resetModules();remote=await import('./remote.js');const session=await remote.loadRemote();expect(session).toMatchObject({base,token:'synthetic-a',user:{id:'user-a'}})
+  await remote.renewToken(session,'synthetic-renewed');expect((await remote.loadRemote()).token).toBe('synthetic-renewed')
+})
+test('a failed write cannot activate another account or replace current transport',async()=>{
+  const fetch=vi.fn(async()=>paired());vi.stubGlobal('fetch',fetch);const remote=await import('./remote.js'),api=await import('./api.js')
+  await remote.connect(base,'12345678');secure.set.mockRejectedValue(new Error('synthetic vault failure'));fetch.mockResolvedValue(paired('user-b','synthetic-b'))
+  await expect(remote.connect(other,'12345678')).rejects.toThrow('synthetic vault failure')
+  fetch.mockResolvedValue(new Response('{}'));await api.authenticatedCatalogFetch('/api/nutrition/catalog/capabilities',{expectedBase:base})
+  expect(fetch.mock.calls.at(-1)[0]).toBe(base+'/api/nutrition/catalog/capabilities');expect(fetch.mock.calls.at(-1)[1].headers.Authorization).toBe('Bearer synthetic-a')
+  expect((await remote.loadRemote()).user.id).toBe('user-a')
+})
+test('vault failure and malformed saved sessions are explicit errors, not guest mode',async()=>{
+  const remote=await import('./remote.js');secure.get.mockRejectedValue(new Error('locked vault'))
+  await expect(remote.loadRemote()).rejects.toThrow('locked vault')
+  for(const value of ['{',JSON.stringify({mode:'remote',base:'http://insecure.example',token:'synthetic',user:{id:'a'}}),'x'.repeat(16385)]){
+    secure.get.mockResolvedValue(value);await expect(remote.loadRemote()).rejects.toThrow()
+  }
+  expect(files.loadRemoteFile).not.toHaveBeenCalled()
+})
+test('local choice and explicit disconnect clear the active session without altering user files',async()=>{
+  const fetch=vi.fn(async()=>paired());vi.stubGlobal('fetch',fetch);const remote=await import('./remote.js'),api=await import('./api.js')
+  await remote.connect(base,'12345678');await remote.forgetRemote();expect(await remote.loadRemote()).toEqual({mode:'local'})
+  expect(()=>api.authenticatedCatalogFetch('/api/nutrition/catalog/capabilities')).toThrow()
+  await remote.chooseLocal();expect(await remote.loadRemote()).toEqual({mode:'local'});expect(files.saveRemoteFile).not.toHaveBeenCalled()
+})
+test('public distribution never queries or installs an upstream APK',async()=>{
+  const fetch=vi.fn();vi.stubGlobal('fetch',fetch);const updates=await import('./update.js')
+  expect(updates.AUTOMATIC_UPDATES).toBe(false);expect(await updates.checkForUpdate()).toMatchObject({manualOnly:true,hasUpdate:false})
+  await expect(updates.downloadAndInstall('https://other.example/file.apk','a'.repeat(64))).rejects.toThrow()
+  expect(fetch).not.toHaveBeenCalled()
+})
+test('concurrent pairing/local choices are rejected and a late renewal cannot restore an old server',async()=>{
+  let answer;const fetch=vi.fn(()=>new Promise(resolve=>{answer=resolve}));vi.stubGlobal('fetch',fetch)
+  const remote=await import('./remote.js');const first=remote.connect(base,'12345678')
+  await expect(remote.connect(other,'87654321')).rejects.toThrow('Session change already in progress')
+  await expect(remote.chooseLocal()).rejects.toThrow('Session change already in progress')
+  answer(paired());await first;const prior=await remote.loadRemote()
+  fetch.mockResolvedValue(paired('user-a','synthetic-other-server'));await remote.connect(other,'87654321')
+  await expect(remote.renewToken(prior,'late-renewal')).rejects.toThrow('Session changed before renewal')
+  expect((await remote.loadRemote()).base).toBe(other);expect(fetch).toHaveBeenCalledTimes(2)
+})
+test('catalogue headers arriving after a server switch cannot be returned as current data',async()=>{
+  const fetch=vi.fn(async()=>paired());vi.stubGlobal('fetch',fetch)
+  const remote=await import('./remote.js'),api=await import('./api.js');await remote.connect(base,'12345678')
+  let reply;fetch.mockImplementationOnce(()=>new Promise(resolve=>{reply=resolve}))
+  const oldRequest=api.authenticatedCatalogFetch('/api/nutrition/catalog/search?q=milk',{expectedBase:base})
+  fetch.mockResolvedValue(paired('user-a','synthetic-other-server'));await remote.connect(other,'87654321')
+  reply(new Response('{}'));await expect(oldRequest).rejects.toThrow('Catalogue session changed')
+})
+test('public and personal build flags cannot be combined',async()=>{
+  vi.stubEnv('VITE_OPENGYM_PERSONAL_BETA','1');await expect(import('./public-android.js')).rejects.toThrow('Invalid self-hosted Android build profile')
+})

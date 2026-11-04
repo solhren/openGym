@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Some Android 12+ devices still permit device transfer with allowBackup=false.
+     Never transfer credentials encrypted by this device's Keystore. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="WSSecureStorageSharedPreferences.xml" />
+        <exclude domain="file" path="opengym-remote.json" />
+        <exclude domain="file" path="opengym-media/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="WSSecureStorageSharedPreferences.xml" />
+        <exclude domain="file" path="opengym-remote.json" />
+    </device-transfer>
+</data-extraction-rules>

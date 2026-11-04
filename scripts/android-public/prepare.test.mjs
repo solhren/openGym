@@ -17,7 +17,8 @@ test('generic profile needs no personal domain, account, credentials or signing 
   assert.equal(result.build.env.VITE_NUTRITION_LOCAL_V1, '1')
   assert.deepEqual(result.build.command, ['npm', 'run', 'build:mobile'])
   assert.equal(result.apkBuilt, false)
-  assert.equal(result.appId, 'org.example.opengym')
+  assert.equal(result.appId, 'fr.solhren.opengym.selfhosted.debug')
+  assert.equal(result.build.env.VITE_OPENGYM_PUBLIC_ANDROID, '1')
 })
 test('reads only public project manifests, without executing or writing anything', () => {
   const reads = []

@@ -10,6 +10,9 @@
 // against its SHA-256 by the native Install plugin and handed to the system installer.
 
 import { MOBILE } from './mobile.js'
+import { PUBLIC_ANDROID } from './public-android.js'
+
+export const AUTOMATIC_UPDATES = !PUBLIC_ANDROID
 
 const REPO = 'DuarteSantos8/openGym'
 const LATEST_URL = `https://api.github.com/repos/${REPO}/releases/latest`
@@ -51,6 +54,7 @@ function compareSemver(a, b) {
 let cached = null
 export function resetUpdateCheck() { cached = null }
 export async function checkForUpdate() {
+  if(!AUTOMATIC_UPDATES)return {hasUpdate:false,manualOnly:true,apkUrl:null,hashUrl:null}
   if (!cached) cached = fetchLatest().catch(e => { cached = null; throw e })
   return cached
 }
@@ -108,6 +112,7 @@ export async function sha256(buffer) {
  * @param {function|null} onProgress - Called with (received, total) bytes during download, or null
  */
 export async function downloadAndInstall(url, expectedHash, onProgress = null) {
+  if(!AUTOMATIC_UPDATES)throw new Error('Use the verified APK from your distribution maintainer')
   if (!MOBILE) {
     window.open(RELEASES_PAGE, '_blank', 'noopener')
     return
