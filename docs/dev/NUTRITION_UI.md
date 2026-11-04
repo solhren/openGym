@@ -1379,3 +1379,28 @@ After a successful deletion removes the entire row, choosing a neighboring focus
 target still belongs to the parent list; this pass only restores the delete
 control when cancellation keeps the row. Physical Android, camera, assistive
 technology, authentication and production/server behavior were not tested.
+
+
+## Public catalogue starter and source selection
+
+The follow-up public installer can select Anses Ciqual 2025, with official
+French/English names and explicit 100 g references. The picker reads the actual
+capability provider, displays Ciqual attribution, and hides barcode controls for
+a Ciqual-only source. Existing wger/OFF scanner behavior is unchanged. Other UI
+locales remain available, with an official-name fallback rather than invented
+translations. Saved catalogue Foods, entry and recipe snapshots retain attribution
+and can be reused offline after the operator disables the source.
+
+The default strict-local browser transport now includes same-origin session
+cookies. Previously its anonymous probe would reject a healthy authenticated
+public catalogue. Legacy anonymous provider discovery and Android paired bearer
+transport keep their existing behavior. Tests cover the default transport and
+the real React journal, edit/delete/reopen and Nutrition backup/restore using
+synthetic bilingual records. Official data are validated separately through the
+application DTO, Food validator and calculation engine. No physical-device or
+Docker success is inferred from those tests.
+
+See [portable catalogue installation](PUBLIC_CATALOG_INSTALLATION.md) for source
+availability, the operator registry, verification and remaining public-launch
+limitations. The user persistence v1, backup and synchronization contracts are
+unchanged.

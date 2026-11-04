@@ -23,7 +23,12 @@ First check whether your instance has an actual catalogue configured. Personal f
 your phone/browser and the server's public-food catalogue are different components. A working
 journal does not mean a SQLite catalogue has been installed.
 
-In local `wger-v1` mode, an unavailable worker or missing generation must be fixed on the server;
+The opt-in public starter uses Ciqual generic foods with official English and French
+names. It has no brands or retail barcodes. List and manage sources with the
+[self-hosting catalogue commands](SELF_HOSTING.md#4-manage-catalogue-selections);
+OFF/wger are explicitly not installable through that new path yet.
+
+In the separate local `wger-v1` mode, an unavailable worker or missing generation must be fixed on the server;
 there is no automatic remote-provider fallback. Follow the current self-hosting guide and inspect
 redacted server diagnostics. Do not copy generation paths or digests from another installation.
 
@@ -48,6 +53,9 @@ self-hosted alone does not prove a build is using local-only food lookup.
 Camera permission, browser support, lighting and the native build all matter. Use HTTPS in a
 browser, allow camera access, and try entering the barcode manually. A successful scan only
 reads a code; it does not prove the catalogue contains a complete food record for it.
+
+Ciqual-only installations hide the scanner because that dataset has no retail
+barcodes. This does not disable the scanner for an existing wger/OFF deployment.
 
 A real scanner was tested in the personal Android beta. This is limited evidence for that
 setup, not certification for all Android phones, browser cameras or iOS. Include OS, app commit,

@@ -6,6 +6,10 @@ The review is not a release announcement. Work is integrated only on
 `review/public-readiness`, pending human validation; neither `main` nor
 `feature/nutrition` is updated automatically.
 
+The installation follow-up is documented in
+[PUBLIC_CATALOG_INSTALLATION.md](PUBLIC_CATALOG_INSTALLATION.md). The findings and
+counts below describe the original review through `83bfc292`, not later changes.
+
 ## Coordination and boundaries
 
 Six specialist missions are assigned in two waves because the environment allows

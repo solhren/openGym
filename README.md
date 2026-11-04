@@ -10,7 +10,9 @@ third-party data and media have separate terms.
 
 **Status: experimental beta on `feature/nutrition`.** The upstream `main` branch, upstream demo,
 container tags and APK releases do not establish what is included or tested in this fork.
-There is no general public release or public Nutrition catalogue download promised here.
+There is no general public release yet. The public installation work is on the
+local review branch pending validation and publication; a clone of the development
+branch alone may not yet include the new installer.
 
 [Get started](#quick-start) · [FAQ](docs/FAQ.md) · [Self-hosting](docs/SELF_HOSTING.md) ·
 [Contribute](CONTRIBUTING.md) · [Security](SECURITY.md)
@@ -27,9 +29,10 @@ There is no general public release or public Nutrition catalogue download promis
   do not silently rewrite old meals. Nutrition includes its own backup preview and restore flow.
 - **Use your own devices:** a web interface and installable PWA, with account-based synchronization
   when connected to your server. Capacitor mobile sources are included.
-- **Optionally search a local food catalogue:** the experimental `wger-v1` mode searches a
-  separately prepared SQLite catalogue on your server and supports barcode lookup. Camera access
-  depends on the browser or native build, permissions and device.
+- **Search locally:** the new opt-in starter installation acquires Anses Ciqual 2025
+  directly from its publisher and builds a small SQLite of generic foods with official
+  English/French names. It has no retail barcodes. The separate experimental wger/OFF
+  mode retains barcode support but is not a portable download offered by this installer.
 
 The AI coach and [MCP integration](mcp/README.md) are optional. Review their configuration and
 what data they expose before enabling them. Neither is required for workout or food logging.
@@ -57,13 +60,10 @@ Start with the [self-hosting guide](docs/SELF_HOSTING.md) for a source-built ins
 fork**. It covers prerequisites, configuration, HTTPS, persistence and verification. Do not
 assume an upstream prebuilt image contains the Nutrition changes.
 
-```sh
-git clone --branch feature/nutrition https://github.com/solhren/openGym.git
-cd openGym
-```
-
-Then follow the guide's deployment steps. Its minimal profile supports personal foods and recipes;
-a portable full-catalogue installation is not provided. For a development server with hot reload, use
+Obtain a reviewed checkout containing `scripts/self-hosting/catalogue.py` first;
+these local review changes have not been pushed as a public release. Then follow
+the guide's `--catalogues recommended` deployment steps. The custom source list
+explicitly distinguishes installable catalogues from experimental ones. For a development server with hot reload, use
 [Contributing](CONTRIBUTING.md#local-development).
 
 Once the app is running:
@@ -74,10 +74,11 @@ Once the app is running:
 4. Set goals only if you want them. Missing goals and missing nutrient values are not zeroes.
 5. Export a Nutrition backup and keep it somewhere outside the browser or phone.
 
-**Food logging does not require a multi-gigabyte catalogue.** No nutrition database is shipped in
-Git, and ordinary setup does not automatically download or build one. The local catalogue is an
-additional operator-managed service/data preparation step. Without it, use personal foods and
-recipes. See the [FAQ](docs/FAQ.md#why-is-food-search-empty-or-unavailable).
+**Food logging does not require a multi-gigabyte catalogue.** The recommended
+Ciqual acquisition is an explicit approximately 3.13 MB download, producing a
+roughly 14 MB SQLite. No nutrition database is shipped in Git or fetched at API
+startup. You can also choose personal foods only or later disable a catalogue
+without deleting saved foods or journal snapshots. See the [FAQ](docs/FAQ.md#why-is-food-search-empty-or-unavailable).
 
 Passkeys on another device require HTTPS with a correctly configured hostname and origin.
 Choose the public hostname before creating accounts. Server operators can read stored data;
@@ -97,8 +98,12 @@ supermarkets, relevance of search results, or nutritional accuracy. See the
 
 Current limitations include:
 
-- Local catalogue setup is experimental; importing, updating and redistributing a composed
-  catalogue still need operator work and a separate license review.
+- The portable starter supports 3,484 generic Ciqual foods with official English/French
+  names: 3,006 complete, 473 with unknown values, and 5 not addable. It is a French
+  composition table, not worldwide brand coverage. OFF/wger remain unavailable in
+  this public installer; existing personal-beta catalogues are separate.
+- Real Docker execution of the new installer remains unverified in this environment;
+  source-level, HTTP, catalogue and configuration tests do not replace it.
 - Local search has no typo correction. Some products are absent, ambiguous or lack enough
   trustworthy quantity/nutrition information to add safely.
 - Nutrition supports Nutrition-only restore. Applying a combined workout-and-Nutrition restore

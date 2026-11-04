@@ -37,7 +37,10 @@ score, or a count of products that every installation receives. Keep the
   An upstream image/tag is not a tested image of this Nutrition branch.
 - Resolve the license/permission review for any data or media distributed with a release.
   Preserve upstream AGPL attribution and NOTICE.md. The right to distribute a composed food
-  catalogue has not been validated. No catalogue download or automatic large import is offered.
+  catalogue has not been validated. The optional Ciqual starter fetches about 3.13 MB directly from Anses under
+  Licence Ouverte 2.0, with attribution. This is separate from the mixed wger/OFF
+  catalogue and does not settle its redistribution review. No automatic bulk OFF
+  or wger import is offered.
 - Choose an actual support and feedback workflow before inviting public testers. Do not send
   users to disabled Issues/Discussions or promise upstream maintainers will support the fork.
 - Identify the exact source commit, artifact origin and platform evidence for anything offered
@@ -51,7 +54,7 @@ or a completed public launch.
 
 | Area | Limit |
 | --- | --- |
-| Catalogue setup | Separate, experimental preparation and resource planning; no database in Git |
+| Catalogue setup | Optional small Ciqual bootstrap; OFF/wger portable imports unavailable; no database in Git |
 | Search | No typo correction; missing/ambiguous records and incomplete nutrition references |
 | Coverage | One frozen sample; no general French retail coverage or human relevance claim |
 | Backup | Nutrition-only restore supported; combined dataset application blocked |
@@ -87,7 +90,9 @@ Suggested body:
 > There's also an experimental server-side SQLite catalogue using wger records and a validated
 > Open Food Facts complement. In that mode, searches and barcode lookups use your server with
 > no external food-provider fallback during use. You can log personal foods without importing
-> a catalogue; the repository doesn't include a database or automatically download one.
+> a catalogue. A new explicit starter bootstrap acquires generic Ciqual foods with official
+> English/French names directly from Anses; it has no retail barcodes. This installer
+> still needs a clean Docker execution before I can recommend it to public testers.
 >
 > This is still a beta. My personal Web/Android beta works and I tested barcode scanning on a
 > phone. The changes in this review and the generic build still need device validation; I
