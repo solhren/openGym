@@ -1,7 +1,9 @@
 # FAQ and troubleshooting
 
-These answers describe the Nutrition beta in **solhren/openGym**, on `feature/nutrition`.
-For deployment commands and configuration, start with [Self-hosting](SELF_HOSTING.md).
+These answers distinguish the personal Nutrition beta on `feature/nutrition` from
+the public installation candidate on `review/public-readiness`. The review work
+is not automatically published or a certified deployment. Start with the
+[quick start](QUICK_START.md) and [administrator guide](SELF_HOSTING.md).
 
 ## Is this the original openGym?
 
@@ -10,12 +12,45 @@ and local food-catalogue work. Upstream deserves credit for the original trainin
 release assets, roadmap and support channels belong to that project; they do not demonstrate
 this fork's Nutrition functionality. Some inherited documentation still describes upstream.
 
+## Should I choose personal or multi-user mode?
+
+Choose **personal** for one owner. Registration closes after that owner uses the
+private first-account invitation. Choose **multi-user** for separate accounts;
+invitation-only signup is the default. Public signup requires explicit installer
+flags and remains closed until the first administrator has registered privately.
+Both profiles disable guest and password login, and keep account data private.
+Neither means a public meal or workout feed. An account ceiling limits stored
+accounts, not a measured number of simultaneous users.
+
+The administrator manages access and invitations. In these explicit modes, the
+administration API does not expose other users' workout or Nutrition histories.
+The host/backup operator can still read server files: there is no end-to-end
+encryption. These restrictions do not rewrite the historical deployment's
+administration API. See [account policies](dev/PUBLIC_ACCOUNT_MODES.md).
+
+## What if I lose all my passkeys?
+
+Enroll another passkey while you can still prove ownership. A paired session can
+continue to access data but is not, by itself, proof for adding a new passkey.
+The passkey-only profile has no anonymous reset or administrator passkey bypass.
+A server backup contains public credential records, not an authenticator private
+key; restoring it cannot recreate a lost key and can roll back session revocations.
+Use an existing enrolled authenticator and coordinate any restore through a trusted
+operator channel. Do not publish backup files or credentials in a support request.
+
+If an operator separately enables the legacy password option, administrator reset
+codes can give access to a nonadministrator account. That is a sensitive recovery
+power, not encryption or proof that an administrator cannot impersonate a user.
+The public installer leaves it disabled. Account deletion closes access but does
+not purge retained Nutrition versions or operator backups.
+
 ## Can I start without importing a food catalogue?
 
 Yes. Create personal foods from package labels, save recipes and add them to your journal.
-No nutrition database is included in Git or automatically downloaded by ordinary setup. The
-experimental local search mode needs a separately prepared server-side SQLite generation.
-The number of imported rows is not a promise that every row is safe to add.
+No nutrition database is included in Git or downloaded at API startup. The explicit
+`--catalogues recommended` option acquires the small Ciqual starter from its
+publisher. Omit that option for personal foods only. The number of imported rows
+is not a promise that every row has complete nutrition.
 
 ## Why is food search empty or unavailable?
 
@@ -32,9 +67,10 @@ In the separate local `wger-v1` mode, an unavailable worker or missing generatio
 there is no automatic remote-provider fallback. Follow the current self-hosting guide and inspect
 redacted server diagnostics. Do not copy generation paths or digests from another installation.
 
-If search works but a particular food is missing, try a simpler product or brand name, then its
-barcode. Local search has no typo correction and some records are deliberately unavailable
-because their unit reference, nutrients, provenance or license mapping cannot be established.
+If Ciqual search works but a generic food is missing, try a simpler French or English
+food name. In an existing barcode-capable wger/OFF deployment, a brand name or exact
+barcode can also help. Local search has no typo correction and some records are
+deliberately unavailable because their unit reference, nutrients, provenance or license mapping cannot be established.
 You can create a personal food from the label instead. Do not substitute a similarly named
 product without comparing its quantity basis and values.
 
@@ -86,8 +122,9 @@ Keep source and license details when importing or sharing records.
 
 ## Where is my data, and what should I back up?
 
-Guest data belongs to the local browser or app installation. Signed-in data can synchronize
-with your own server; server operators can read server-side records. This is not end-to-end
+The public personal/multi-user web profiles have no guest entrance. Guest data in
+legacy or local-device profiles belongs to that browser or app installation.
+Signed-in data can synchronize with your own server; server operators can read server-side records. This is not end-to-end
 encryption. Browser storage can be cleared and devices can be lost.
 
 Use Nutrition's own export, preview and restore flow. Workout-only backups do not include a
@@ -96,7 +133,9 @@ Nutrition restore is intentionally blocked. Nutrition-only restore is supported.
 exports also warn that binary workout media are not included; preserve the existing media
 backup separately if needed. See [backup format and limits](dev/NUTRITION_BACKUP_RESTORE.md).
 Keep exports private and outside the device; verify a restore on a disposable test profile
-before depending on a backup plan.
+before depending on a backup plan. Administrators must also back up the complete
+server data directory using the [instance backup procedure](SELF_HOSTING.md#5-back-up-and-test-a-restore);
+a Nutrition archive does not preserve server accounts, session secrets or workout files.
 
 ## Nutrition is stuck loading or shows a storage error. What next?
 

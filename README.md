@@ -8,13 +8,14 @@ contributors built the original application. This fork adds an experimental Nutr
 and local food-catalogue integration. The application code retains its GNU AGPL license;
 third-party data and media have separate terms.
 
-**Status: experimental beta on `feature/nutrition`.** The upstream `main` branch, upstream demo,
-container tags and APK releases do not establish what is included or tested in this fork.
-There is no general public release yet. The public installation work is on the
-local review branch pending validation and publication; a clone of the development
-branch alone may not yet include the new installer.
+**Status: public installation candidate under review on `review/public-readiness`.**
+The existing personal beta is on `feature/nutrition`; the new installer and account
+policies are local review work, not a published release. Obtain the reviewed source
+before following its setup commands. Upstream `main`, demos, container tags and APKs
+do not establish what is included or tested in this fork. Docker startup and a
+generic Android APK still require validation before a public beta is recommended.
 
-[Get started](#quick-start) · [FAQ](docs/FAQ.md) · [Self-hosting](docs/SELF_HOSTING.md) ·
+[Get started](docs/QUICK_START.md) · [FAQ](docs/FAQ.md) · [Self-hosting](docs/SELF_HOSTING.md) ·
 [Contribute](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 ## What you can do
@@ -27,6 +28,9 @@ branch alone may not yet include the new installer.
   calories, protein, carbohydrates and fat against goals you choose.
 - **Preserve meal history:** entries keep food or recipe snapshots so later edits to a saved food
   do not silently rewrite old meals. Nutrition includes its own backup preview and restore flow.
+- **Choose account access:** personal mode admits one owner; multi-user mode uses
+  invitations by default, with an explicit public-signup option and account limit.
+  Workouts and meals remain private to their account. The host operator is trusted.
 - **Use your own devices:** a web interface and installable PWA, with account-based synchronization
   when connected to your server. Capacitor mobile sources are included.
 - **Search locally:** the new opt-in starter installation acquires Anses Ciqual 2025
@@ -56,21 +60,30 @@ account or user history and do not demonstrate live catalogue coverage or camera
 
 ## Quick start
 
-Start with the [self-hosting guide](docs/SELF_HOSTING.md) for a source-built instance of **this
-fork**. It covers prerequisites, configuration, HTTPS, persistence and verification. Do not
-assume an upstream prebuilt image contains the Nutrition changes.
+Follow the [beginner quick start](docs/QUICK_START.md), then keep the
+[administrator guide](docs/SELF_HOSTING.md) for HTTPS, backups, updates and rollback.
+Both use Docker Compose built from a reviewed checkout of **this fork**. The
+installer requires no maintainer domain, private catalogue or signing key.
 
-Obtain a reviewed checkout containing `scripts/self-hosting/catalogue.py` first;
-these local review changes have not been pushed as a public release. Then follow
-the guide's `--catalogues recommended` deployment steps. The custom source list
-explicitly distinguishes installable catalogues from experimental ones. For a development server with hot reload, use
-[Contributing](CONTRIBUTING.md#local-development).
+Choose personal or multi-user mode separately from your food sources. Personal is
+the default; both profiles require authentication, disable guest/password login
+and protect the first administrator with a private bootstrap invitation. Invited
+multi-user registration is the default; public signup requires an explicit choice.
+Read [account policies and recovery limits](docs/dev/PUBLIC_ACCOUNT_MODES.md).
+
+The review branch has not been published automatically. Do not substitute an
+upstream image or assume the development branch already has these tools. For hot
+reload without deployment, use [Contributing](CONTRIBUTING.md#local-development).
 
 Once the app is running:
 
-1. Open your instance and create a profile, or use local guest mode if the operator allows it.
+1. Open the configured hostname and create the first passkey profile using the
+   private invitation from your instance directory. Add a second passkey while
+   access works; the server cannot recreate an authenticator private key.
 2. Create a simple workout routine and log a set to check the training workflow.
-3. Open **Nutrition**, create a personal food from a label, and add a quantity to today's journal.
+3. Open **Nutrition**, search for `rice` or `riz` if Ciqual is selected, inspect its
+   100 g reference and add a quantity. Personal foods from labels work without a
+   public catalogue.
 4. Set goals only if you want them. Missing goals and missing nutrient values are not zeroes.
 5. Export a Nutrition backup and keep it somewhere outside the browser or phone.
 
@@ -86,7 +99,7 @@ self-hosting is not end-to-end encryption.
 
 ## Food data and current limits
 
-The evaluated local generation retains **3,058,354 wger product rows** and adds **835,231 strictly
+The separate personal-beta evaluation retains **3,058,354 wger product rows** and adds **835,231 strictly
 validated Open Food Facts food records**. These are processing counts, not the number of distinct
 foods you can necessarily add, and not a bundled database.
 
@@ -102,14 +115,18 @@ Current limitations include:
   names: 3,006 complete, 473 with unknown values, and 5 not addable. It is a French
   composition table, not worldwide brand coverage. OFF/wger remain unavailable in
   this public installer; existing personal-beta catalogues are separate.
+- Selecting several source IDs is not yet a working OFF + wger + Ciqual union.
+  Only Ciqual has a complete portable acquisition/reader path in this installer.
 - Real Docker execution of the new installer remains unverified in this environment;
   source-level, HTTP, catalogue and configuration tests do not replace it.
 - Local search has no typo correction. Some products are absent, ambiguous or lack enough
   trustworthy quantity/nutrition information to add safely.
 - Nutrition supports Nutrition-only restore. Applying a combined workout-and-Nutrition restore
   is deliberately blocked; export does not imply every dataset can be restored together.
-- The personal Android beta and a real scanner test provide limited device evidence. They do
-  not certify arbitrary phones, browser cameras, iOS, or recovery after physical power loss.
+- Generic Android is separate source/build work under review, with no compiled
+  public APK validated here. The personal Android beta and a real scanner test
+  provide limited device evidence; they do not certify arbitrary phones, browser
+  cameras, iOS, or recovery after physical power loss.
 - Long archives can increase write, sync and recovery costs. Back up before relying on a beta
   for your only copy of history.
 - This is a tracker, not a clinical or dietary recommendation service. Check food values and
@@ -123,7 +140,10 @@ not universal deployment instructions.
 
 | Need | Start here |
 | --- | --- |
-| Deploy and verify your instance | [Self-hosting](docs/SELF_HOSTING.md) |
+| Install for the first time | [Quick start](docs/QUICK_START.md) |
+| Administer, back up, update or roll back | [Self-hosting](docs/SELF_HOSTING.md) |
+| Understand personal/multi-user isolation and recovery | [Account policies](docs/dev/PUBLIC_ACCOUNT_MODES.md) |
+| Understand the code and data boundaries | [Architecture](docs/ARCHITECTURE.md) |
 | Understand storage, search or scanning behavior | [FAQ and troubleshooting](docs/FAQ.md) |
 | Build Android for your own server | [Generic Android guide](docs/ANDROID_SELF_HOSTING.md) |
 | Work on the code | [Contributing](CONTRIBUTING.md) |

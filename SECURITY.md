@@ -1,6 +1,7 @@
 # Security policy
 
-This policy applies to **solhren/openGym** and its experimental Nutrition branch. It does not
+This policy applies to **solhren/openGym**, its experimental Nutrition branch and
+its public-installation candidate on `review/public-readiness`. It does not
 promise support from the upstream openGym maintainer or cover a third party's hosted instance.
 
 ## Reporting availability
@@ -41,15 +42,25 @@ upgrading; follow the [self-hosting guide](docs/SELF_HOSTING.md).
   protecting sign-in does not prevent an operator or compromised host reading server files. Removing a
   passkey does not revoke sessions it already created. If a device or key is lost, use
   **Sign out everywhere** to revoke existing sessions, including paired phones.
+- **Public account modes keep histories private by default.** Personal mode admits
+  one owner; multi-user mode requires invitations unless public signup is explicitly
+  selected. First-admin setup always needs its bootstrap invitation. Managed admin
+  APIs expose account metadata rather than other users' histories. The operator is
+  still trusted; see [account policy and recovery powers](docs/dev/PUBLIC_ACCOUNT_MODES.md).
 - **Guest data is local.** Clearing browser/site data or uninstalling the app can remove local
-  history. Local storage and device-private files are not a substitute for exported backups.
+  history. Public managed web profiles disable guest entry; legacy/local-device
+  behavior is separate. Local storage and device-private files are not a substitute
+  for exported backups.
 - **Nutrition uses separate storage and sync.** A regular workout backup or an apparently healthy
   workout sync does not prove Nutrition was backed up or synchronized. Check Nutrition status
   and use its backup flow. Combined dataset restore remains blocked.
 - **Food data is untrusted input.** Validation, immutable snapshots and content hashes help detect
   malformed records or accidental corruption. Hashes do not prove a publisher's identity or
   the nutritional accuracy of a source record.
-- **External services depend on configuration.** The opt-in local `wger-v1` catalogue mode uses
+- **External services depend on configuration.** The public Compose profile has an
+  internal API network without provider internet access, including push and AI
+  providers. Its selected Ciqual reader requires authentication and has no provider
+  fallback. Separately, the opt-in local `wger-v1` catalogue mode uses
   the local SQLite worker without an external food-provider fallback during use. The historical
   provider mode can send searches/barcodes to Open Food Facts. Confirm which mode you run.
 - **AI and integrations are optional.** A configured coach can send selected data to its provider;
@@ -71,7 +82,9 @@ file permissions, request limits and backup recovery for your environment. Do no
 directories or catalogue generation files as a static download. A catalogue manifest or checksum
 is not a credential or an authorization boundary.
 
-Public food search can consume resources even when personal records require authentication.
+Catalogue search can consume resources even when personal records require authentication.
+The explicit public Ciqual profile requires an authenticated catalogue request; historical
+provider modes have different access policies.
 Review rate limits, timeouts and worker bounds before making it public. Separately prepared
 catalogues can be large; do not grant import/upload or arbitrary filesystem access to visitors.
 

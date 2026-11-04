@@ -2,17 +2,35 @@
 
 **Draft for maintainer review — not published.** This describes the experimental Nutrition work
 in `solhren/openGym`, not a released upstream openGym feature. Evidence and repository settings
-were reviewed on 3 November 2026. Recheck them before posting. The development commands in
-CONTRIBUTING.md were checked against package scripts and Vite/API configuration; they were not
-executed as a clean installation during this documentation pass.
+were reviewed on 3 November 2026; documentation was consolidated on 4 November
+against the local public-installation candidate. The repository settings have not
+been rechecked during that consolidation. No announcement is ready to post until
+the gates below have recorded evidence. Commands inspected in documentation are
+not a claim that Docker or Android packaging ran successfully.
 
 ## What can be said today
 
 The fork combines the inherited workout/body-weight tracker with Nutrition journaling, personal
 foods, recipes, optional goals, snapshot-preserving history and Nutrition-only backup/restore.
-A separately provisioned local `wger-v1` SQLite catalogue can serve search and barcode lookup
-without an external food-provider fallback during normal use. This mode is opt-in; older
-provider behavior remains in the code when it is not selected.
+The public candidate adds explicit personal and multi-user account policies,
+source-built Docker preparation, catalogue lifecycle commands and offline instance
+backup/restore tools. Personal mode admits one owner; multi-user mode uses
+invitations by default, with deliberate opt-in public signup. First-admin setup
+always requires a private invitation. Browser registration and account-only
+administration honor these policies; data does not become public in multi-user mode.
+
+The portable installer currently acquires only Ciqual 2025 directly from its
+publisher: 3,484 generic foods, 3,479 addable, official English/French names and
+explicit 100 g references. Missing nutrients remain unknown. It has no retail
+barcodes, brand catalogue or general international coverage. It is optional;
+personal foods and recipes work independently. Selection/removal retains existing
+saved foods and snapshots. A registry capable of several sources is not evidence
+of a working multi-provider union: portable OFF/wger readers remain unavailable.
+
+The older, separately provisioned local `wger-v1` catalogue can serve search and
+barcode lookup without a provider fallback. Its private generations are not a
+public installation prerequisite or a bundled download. Historical provider mode
+still exists outside the new strict local installation profile.
 
 The maintainer reports a working personal Web/Android beta and tested barcode scanning on a
 phone. Changes in this review and the generic build still need device validation. That is one
@@ -25,6 +43,29 @@ rejected/non-addable source rows. The frozen independent sample yielded 544 adda
 out of 913 supported sample barcodes (59.6%). Do not call that “59.6% of France,” a search quality
 score, or a count of products that every installation receives. Keep the
 [benchmark methodology](dev/NUTRITION_CATALOG_BENCHMARK.md) alongside any numbers.
+
+## Release checklist
+
+Use [the acceptance record](dev/PUBLIC_RELEASE_CANDIDATE.md) for actual commands,
+revisions and results. Do not aggregate overlapping test runs as extra coverage.
+This list intentionally stays open until its evidence has been supplied.
+
+| Gate | Current evidence and remaining condition |
+| --- | --- |
+| Source available | Local review commits exist; publish an explicitly reviewed ref before telling users to clone it |
+| Independent food acquisition | Official small Ciqual source/import/projection and bilingual local search verified; mixed OFF/wger installation not delivered |
+| Account policy | New HTTP and UI tests cover first-owner, invitation/public policy and account isolation; real container/proxy acceptance remains |
+| Clean Docker install | **Unverified:** daemon permission denied in the development environment; run the guide literally with new data on an authorized host |
+| Lifecycle | Script tests cover policy/configuration checks and recovery; execute container backup, restore, update and rollback before claiming end-to-end operation |
+| Browser | Follow the coordinator's real-browser evidence; component tests or a virtual authenticator do not certify physical passkeys/TLS |
+| Generic Android | Source changes under review; no generic APK compilation or phone acceptance established here |
+| Resources | Source/import/search measured; no image-size, startup-RAM or multi-user-capacity claim without a real container measurement |
+| Security/support | Enable and verify private reporting and an actual feedback channel before recruiting testers |
+| Licences/artifacts | Review the exact distributed code, media and data; no composed private catalogue is being redistributed |
+
+The public candidate must not be labelled a validated public beta while these
+critical installation and artifact gates remain open. The personal beta remains
+separate evidence, with a different deployment and signing identity.
 
 ## Outstanding launch requirements
 
@@ -54,12 +95,13 @@ or a completed public launch.
 
 | Area | Limit |
 | --- | --- |
-| Catalogue setup | Optional small Ciqual bootstrap; OFF/wger portable imports unavailable; no database in Git |
+| Catalogue setup | Optional small Ciqual bootstrap with English/French labels; OFF/wger portable imports unavailable; no complete multi-source union or database in Git |
+| Accounts | Personal or multi-user policies; passkey-only default; no anonymous recovery of lost authenticators |
 | Search | No typo correction; missing/ambiguous records and incomplete nutrition references |
 | Coverage | One frozen sample; no general French retail coverage or human relevance claim |
 | Backup | Nutrition-only restore supported; combined dataset application blocked |
 | Storage and sync | Long histories can raise write/recovery costs; keep independent backups |
-| Native platforms | Personal Android evidence; native iOS and broad hardware validation outstanding |
+| Native platforms | Personal Android evidence; generic APK compilation, its phone acceptance and native iOS remain outstanding |
 | Privacy | Host operator can read server data; optional integrations change network/data exposure |
 | Licensing | Code, database rights, record contents and media require separate consideration |
 | Support | No fork support SLA; reporting/settings need attention before announcing a public beta |
@@ -87,12 +129,19 @@ Suggested body:
 > quantities, calorie/macro goals and a history that keeps the food values used when you logged
 > a meal. Nutrition has its own backup and restore flow.
 >
-> There's also an experimental server-side SQLite catalogue using wger records and a validated
-> Open Food Facts complement. In that mode, searches and barcode lookups use your server with
-> no external food-provider fallback during use. You can log personal foods without importing
-> a catalogue. A new explicit starter bootstrap acquires generic Ciqual foods with official
-> English/French names directly from Anses; it has no retail barcodes. This installer
-> still needs a clean Docker execution before I can recommend it to public testers.
+> I'm preparing a self-hosted installation with a choice of one-owner or multi-user
+> mode. Multiple accounts keep separate journals; it is not a public sharing feed.
+> Invitations are the default, and the first administrator uses a private setup code.
+>
+> Personal foods work without a database import. The optional small Ciqual starter
+> comes directly from Anses with official English/French food names and explicit
+> 100 g references. It covers generic foods in the French food supply, not worldwide
+> brands or barcodes. The much larger wger/Open Food Facts catalogue used by my
+> personal beta is not yet a portable download supplied by this installer.
+>
+> The public installer still needs a clean Docker execution before I can recommend
+> it to public testers. The generic Android build also needs compilation and device
+> acceptance; my personal APK is not a download for other servers.
 >
 > This is still a beta. My personal Web/Android beta works and I tested barcode scanning on a
 > phone. The changes in this review and the generic build still need device validation; I
@@ -100,7 +149,9 @@ Suggested body:
 > can't be added because their source data is incomplete or ambiguous, and combined workout +
 > Nutrition restore is currently blocked. Self-hosting also means looking after your backups.
 >
-> Code and current limitations: https://github.com/solhren/openGym/tree/feature/nutrition
+> Repository: https://github.com/solhren/openGym
+>
+> Installation source: [insert the actually published, reviewed commit or tag here].
 >
 > Screenshots use synthetic demo data. The app code is AGPL; food data and exercise media have
 > separate licenses. I'm not distributing a composed food catalogue as part of this announcement.
@@ -111,7 +162,9 @@ Suggested body:
 Before using this first-person draft, the maintainer should confirm that its experience claims
 match their own. Match the community's current self-promotion and project-post rules, disclose
 that this is your fork, and include a working feedback channel once one exists. Do not post this
-draft while the reporting and release requirements above remain unresolved.
+draft while the reporting and release requirements above remain unresolved. Replace
+the source placeholder only after that ref is published, and revise the evidence
+paragraphs when the corresponding tests have actually succeeded.
 
 ## Attribution and sources reviewed
 

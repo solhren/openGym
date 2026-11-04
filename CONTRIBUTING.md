@@ -2,14 +2,17 @@
 
 This repository is [solhren/openGym](https://github.com/solhren/openGym), based on
 [DuarteSantos8/openGym](https://github.com/DuarteSantos8/openGym). Nutrition development is currently
-on `feature/nutrition`. An upstream release or CI badge is not evidence for this branch.
+on `feature/nutrition`; public-installation changes are being integrated on
+`review/public-readiness`. Check which ref actually contains the feature you are
+changing. An upstream release or CI badge is not evidence for either branch.
 
 Small, focused changes are easiest to review: a reproducible bug fix, clearer documentation,
 accessibility improvements, or food-data validation with synthetic fixtures.
 
 ## Before starting
 
-Read the [README](README.md), [security policy](SECURITY.md) and the relevant implementation notes.
+Read the [README](README.md), [architecture map](docs/ARCHITECTURE.md),
+[security policy](SECURITY.md) and the relevant implementation notes.
 Check the current target branch before proposing a change. Avoid mixing a Nutrition change with
 unrelated training, deployment or formatting changes.
 
@@ -108,7 +111,9 @@ and follow the existing Brazilian Portuguese inheritance rules.
 
 Describe the concrete problem, resulting behavior and validation. Include the target branch,
 commit/build, browser or native OS, reproduction steps, expected result and observed result.
-State whether catalogue transport was simulated, remote-provider mode or local `wger-v1` mode.
+State whether catalogue transport was simulated, remote-provider mode, the public
+Ciqual reader or local `wger-v1` mode. Record the account policy separately from the
+food source; multi-user does not imply shared journals.
 Use redacted configuration names and synthetic records; do not attach your full server data or
 backup. Separate measured results from assumptions and remaining device checks.
 
