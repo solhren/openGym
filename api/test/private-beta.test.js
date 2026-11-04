@@ -56,8 +56,22 @@ test('beta log rotation is bounded and restartable, without touching account fil
  assert.ok(fs.readdirSync(logs).length<=3);for(const f of fs.readdirSync(logs))assert.ok(fs.statSync(path.join(logs,f)).size<=256);
  log=boundedLog(logs,256);log.write('stderr',Buffer.from('restart'));log.close();assert.deepEqual(fs.readFileSync(path.join(dir,BETA_MARKER)),before);
 });
+// Only the synthetic supervisor fixture gets resource metadata. Its two Python sleeps must
+// not depend on another test/worktree consuming host headroom. Production reserves stay real.
+function fixtureResources(t,dir,{disk=24*1024**3,memory=4*1024**3}={}){
+ const statfs=fs.statfsSync,read=fs.readFileSync;
+ t.mock.method(fs,'statfsSync',(file,...args)=>file===dir?{...statfs(file,...args),bsize:1,bavail:disk}:statfs(file,...args));
+ t.mock.method(fs,'readFileSync',(file,...args)=>file==='/proc/meminfo'?`MemAvailable: ${Math.floor(memory/1024)} kB\n`:read(file,...args));
+}
+for(const [name,budget]of [['disk',{disk:21*1024**3-1}],['memory',{memory:3*1024**3-1024}]]){
+ test(`supervisor refuses below its real ${name} startup reserve before spawning`,async t=>{
+  const {dir,env}=fixture(t);fixtureResources(t,dir,budget);let spawned=0;
+  await assert.rejects(run({environment:env,spawnProcess(){spawned++;throw Error('must not spawn');}}),/private-beta-resource-reserve/);
+  assert.equal(spawned,0);assert.equal(fs.existsSync(path.join(dir,'logs')),false);
+ });
+}
 test('supervisor stop during preparation terminates its own process group, including Python descendants',{timeout:10000},async t=>{
- const {env}=fixture(t);let child,descendant;
+ const {dir,env}=fixture(t);fixtureResources(t,dir);let child,descendant;
  const done=run({environment:{...env,PATH:process.env.PATH},spawnProcess:(command,args,options)=>{
   child=spawn('python3',['-u','-c','import subprocess,time; p=subprocess.Popen(["python3","-c","import time;time.sleep(60)"]);print(p.pid,flush=True);time.sleep(60)'],options);
   child.stdout.once('data',b=>{descendant=Number(b.toString().trim());});return child;
