@@ -1,111 +1,127 @@
-# FAQ
+# FAQ and troubleshooting
 
-Short answers, with a link to the long one.
+These answers describe the Nutrition beta in **solhren/openGym**, on `feature/nutrition`.
+For deployment commands and configuration, start with [Self-hosting](SELF_HOSTING.md).
 
-### What does it cost?
+## Is this the original openGym?
 
-Nothing. openGym is open source under the AGPL: no subscription, no paid tier, no ads. If you'd like
-to support it anyway, there's [Buy Me a Coffee](https://buymeacoffee.com/duartesantos).
+It is a fork of [DuarteSantos8/openGym](https://github.com/DuarteSantos8/openGym), with Nutrition
+and local food-catalogue work. Upstream deserves credit for the original training app. Its demo,
+release assets, roadmap and support channels belong to that project; they do not demonstrate
+this fork's Nutrition functionality. Some inherited documentation still describes upstream.
 
-### Do I need my own server?
+## Can I start without importing a food catalogue?
 
-No, there are three ways to use it:
+Yes. Create personal foods from package labels, save recipes and add them to your journal.
+No nutrition database is included in Git or automatically downloaded by ordinary setup. The
+experimental local search mode needs a separately prepared server-side SQLite generation.
+The number of imported rows is not a promise that every row is safe to add.
 
-- **Try it:** the [online demo](https://opengym.ch/demo/) runs entirely in your
-  browser with example data.
-- **Phone only:** the Android app needs no server and no account; everything stays on the phone.
-  See [MOBILE.md](MOBILE.md).
-- **Your own instance:** `docker compose up` on any machine with Docker gives you sync between
-  devices and profiles for friends and family. See [SELF_HOSTING.md](SELF_HOSTING.md).
+## Why is food search empty or unavailable?
 
-### Is there an iPhone app?
+First check whether your instance has an actual catalogue configured. Personal food storage on
+your phone/browser and the server's public-food catalogue are different components. A working
+journal does not mean a SQLite catalogue has been installed.
 
-Not in the App Store, and Apple doesn't allow installing apps from anywhere else. On an iPhone you can
-self-host and add openGym to your home screen from Safari (it's a full PWA that works offline), or
-build the native app onto your own phone with Xcode. Both are described in [MOBILE.md](MOBILE.md).
-An App Store build is on the [roadmap](../ROADMAP.md).
+In local `wger-v1` mode, an unavailable worker or missing generation must be fixed on the server;
+there is no automatic remote-provider fallback. Follow the current self-hosting guide and inspect
+redacted server diagnostics. Do not copy generation paths or digests from another installation.
 
-### Why isn't it on the Play Store?
+If search works but a particular food is missing, try a simpler product or brand name, then its
+barcode. Local search has no typo correction and some records are deliberately unavailable
+because their unit reference, nutrients, provenance or license mapping cannot be established.
+You can create a personal food from the label instead. Do not substitute a similarly named
+product without comparing its quantity basis and values.
 
-That's deliberate. The APK is signed, published with a `.sha256` next to every release, and the app
-checks for updates itself. Get it from the
-[latest release](https://github.com/DuarteSantos8/openGym/releases/latest).
+## Does offline mode include the whole catalogue?
 
-### Where is my data?
+No. In local catalogue mode, “local” means on **your server**. A phone still needs to reach that
+server for catalogue searches and new product lookups. Already saved foods, recipes and journal
+entries use device storage and can be used offline once the app and local data are available.
+Offline edits wait for synchronization; check the Nutrition status after reconnecting.
 
-On a self-hosted instance, in the `./data` folder next to `docker-compose.yml`: one JSON file per
-profile plus the account list. Back up that folder and you've backed up everything. In the phone app
-it's in the app's private storage. In guest mode it's only in that browser. You can export
-everything as one file at any time under **Settings → Data & backup**.
+The older provider mode has different network behavior and may contact Open Food Facts. Being
+self-hosted alone does not prove a build is using local-only food lookup.
 
-### Does the app send anything anywhere?
+## Why won't the scanner read a product?
 
-Your instance has no telemetry and phones home to nobody. The exercise pictures and animations ship
-inside the web image, so not even those are downloaded. The AI coach, if an admin turns it on, sends
-the training data it needs to the provider you configured; [AI_COACH.md](AI_COACH.md) lists exactly
-what. Push notifications go through your browser's push service, as all web push does.
+Camera permission, browser support, lighting and the native build all matter. Use HTTPS in a
+browser, allow camera access, and try entering the barcode manually. A successful scan only
+reads a code; it does not prove the catalogue contains a complete food record for it.
 
-### Was openGym written with AI?
+A real scanner was tested in the personal Android beta. This is limited evidence for that
+setup, not certification for all Android phones, browser cameras or iOS. Include OS, app commit,
+browser/native mode and the exact failing step in a bug description, using a non-sensitive
+example barcode.
 
-It's developed with [Claude Code](https://claude.com/claude-code), Anthropic's coding agent, and a
-large share of the code, tests and docs is drafted that way. The maintainer decides what goes in,
-reviews it, and tests every release on a staging instance and on real phones. The longer answer is in
-the [README](../README.md#how-opengym-is-built).
+## Can I use it on iPhone?
 
-### Does the app itself use AI?
+The web/PWA interface is the starting point. Native iOS sources exist, but this fork does not
+claim a generally validated native iOS Nutrition release. Browser/PWA storage, permissions and
+background execution can differ from Android; test your device and export a backup. The
+inherited [mobile guide](MOBILE.md) explains the architecture and build process; its upstream APK
+links are not a Nutrition release download for this fork.
 
-Only if you turn it on. The default install calls no AI service. Two optional pieces exist: the
-[AI coach](AI_COACH.md) (off until an admin enables it, runs with your own provider key, every
-change needs your approval) and the [MCP server](../mcp/README.md), which lets an AI client on your
-computer read your history. Neither is needed for anything else in the app.
+## Why do calories or macros differ from the package?
 
-### My passkey sign-in doesn't work.
+Check whether the label uses 100 g, 100 ml, a serving or the whole container. Grams and
+millilitres are not interchangeable without a known density. Product versions and rounded
+labels can differ too. Unknown nutrient values stay unknown; they must not be treated as zero.
+Review source details before logging a quantity. Goals are optional values you choose, not
+personalized dietary advice.
 
-Almost always one of two things:
+## Does editing a food change yesterday's meal?
 
-1. You're opening it over plain `http://` on a LAN address. Passkeys only work over HTTPS (or on
-   `localhost`). Use guest mode, turn on password sign-in, or put it behind HTTPS.
-2. `RP_ID` and `ORIGIN` in `.env` don't match the address in your browser exactly.
+Journal entries retain their food or recipe snapshot. Editing a library item does not silently
+rewrite historical meal values. Edit the relevant entry if you intend to correct that meal.
+Keep source and license details when importing or sharing records.
 
-[SELF_HOSTING.md](SELF_HOSTING.md#2-understand-the-passkey-requirement-important) explains both, and
-its troubleshooting section covers the rarer cases.
+## Where is my data, and what should I back up?
 
-### Can I use a password instead of a passkey?
+Guest data belongs to the local browser or app installation. Signed-in data can synchronize
+with your own server; server operators can read server-side records. This is not end-to-end
+encryption. Browser storage can be cleared and devices can be lost.
 
-Yes, if the instance allows it: set `PASSWORD_LOGIN=1`. It's off by default. See
-[password sign-in](SELF_HOSTING.md#password-sign-in-optional).
+Use Nutrition's own export, preview and restore flow. Workout-only backups do not include a
+Nutrition guarantee. Combined exports can be inspected, but applying a combined workout and
+Nutrition restore is intentionally blocked. Nutrition-only restore is supported. New combined
+exports also warn that binary workout media are not included; preserve the existing media
+backup separately if needed. See [backup format and limits](dev/NUTRITION_BACKUP_RESTORE.md).
+Keep exports private and outside the device; verify a restore on a disposable test profile
+before depending on a backup plan.
 
-### Can several people use one instance?
+## Nutrition is stuck loading or shows a storage error. What next?
 
-Yes. Everyone creates their own profile and sees only their own data. You can make signup
-invite-only and give yourself an admin dashboard; see
-[multiple users](SELF_HOSTING.md#4-multiple-users).
+Record the app commit/build and exact message. Keep the original local data intact. If the app
+opens far enough, export a backup before reinstalling, clearing storage or changing accounts.
+Check that your installed beta includes the Android startup correction; rebuilding web assets
+alone does not update an installed APK.
 
-### How do I update?
+A local journal opening error and a catalogue search outage have different causes. Server
+catalogue installation does not repair device journal storage. Report redacted diagnostics with
+the failing step and platform; do not upload a full backup or data directory publicly.
 
-`git pull && docker compose pull && docker compose up -d`. Your data is untouched. See
-[updating](SELF_HOSTING.md#8-updating).
+## Sign-in or pairing fails. What should I check?
 
-Then update the app on every device that syncs. A phone still on v1.3.9 or older keeps syncing,
-and the server looks after what that phone doesn't know about, but it can't always tell what the
-phone has seen. One case it gets wrong on purpose: if the old phone sets something back to exactly
-what it was before, after another device changed it, the other device's change wins. Once every
-device is updated, nobody has to guess.
+Follow the self-hosting guide's authentication and proxy checks. The public URL, `ORIGIN` and
+`RP_ID` must match the intended deployment; passkeys require a secure context and are bound to
+their hostname. Choose that hostname before registration. Avoid changing it as a troubleshooting
+shortcut. For native pairing, the reverse proxy must allow the app's intended API requests and
+CORS handling. Never include the pairing code or token in a bug report.
 
-### I'm moving from another app. Can I bring my history?
+## Can I reuse the code, food data or exercise images?
 
-FitNotes, Strong and Hevy work out of the box, Apple Health for body weight, and any CSV with a date,
-an exercise and something measured. See [DATA_IMPORTS.md](DATA_IMPORTS.md).
+They have different licenses. Application code uses GNU AGPL; preserve the original copyright
+and [third-party notices](../NOTICE.md). Exercise media are separately licensed and are not a
+freely reusable asset collection. Food records retain source-specific terms; Open Food Facts
+uses ODbL for its database and DbCL for contents, with separate terms for images. See the
+[README's attribution section](../README.md#license-and-attribution) and linked official sources.
+Public redistribution of the composed catalogue or a combined backup has not been validated.
 
-### Can I reuse the exercise images in my own project?
+## Where can I get help or report a bug?
 
-No. They are © Aliaksandr Makatserchyk, Gym visual, licensed for use in openGym only and not covered
-by openGym's license. Anything outside openGym needs your own licence from
-[gymvisual.com](https://gymvisual.com/). Details in [NOTICE.md](../NOTICE.md). The exercise text in
-[catalogue/](../catalogue/README.md) is a different story: that's openGym's, and fixes are welcome.
-
-### Where do I ask something that isn't here?
-
-The [Discord](https://discord.gg/e62jY6fwVb) for a quick answer,
-[Discussions](https://github.com/DuarteSantos8/openGym/discussions) if the next person should be
-able to find it, [Issues](https://github.com/DuarteSantos8/openGym/issues) for a bug.
+As checked on 3 November 2026, this fork has Issues and Discussions disabled and no verified
+private vulnerability-reporting channel. Check the repository's current settings and
+[Contributing](../CONTRIBUTING.md) for contribution guidance. Do not assume upstream chat is
+support for this fork. Follow [SECURITY.md](../SECURITY.md) for sensitive findings and never post
+credentials or personal history in a public report.

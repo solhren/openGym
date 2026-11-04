@@ -1,55 +1,45 @@
-# openGym documentation
+# openGym fork documentation
 
-Pick the part that matches what you're doing. If you just have a question, try the
-[FAQ](FAQ.md) first.
+Start with the [fork README](../README.md), then choose a guide below. This is the experimental
+Nutrition branch of **solhren/openGym**, based on
+[DuarteSantos8/openGym](https://github.com/DuarteSantos8/openGym). The original project and its
+contributors retain their credit and notices.
 
-## Using the app
+## Start here
 
-| Guide | Read it when |
-|---|---|
-| [FAQ](FAQ.md) | You have a quick question: iPhone, cost, where your data goes, AI, the exercise media |
-| [Phone app](MOBILE.md) | You want the Android APK or the iPhone options, or to connect the app to your own server |
-| [Importing data](DATA_IMPORTS.md) | You're coming from FitNotes, Strong, Hevy or Apple Health, or sharing a plan with someone |
-| [AI coach](AI_COACH.md) | Your instance has the coach switched on and you want to know what it sees and can change |
+| Need | Guide |
+| --- | --- |
+| Understand the beta and its limits | [README](../README.md) |
+| Install this fork from source | [Self-hosting](SELF_HOSTING.md) |
+| Understand food search, scanning or storage | [FAQ and troubleshooting](FAQ.md) |
+| Contribute or reproduce a bug locally | [Contributing](../CONTRIBUTING.md) |
+| Review security and private reporting availability | [Security policy](../SECURITY.md) |
+| Review the announcement draft and outstanding launch work | [Public launch notes](PUBLIC_LAUNCH.md) |
 
-The [live demo](https://opengym.ch/demo/) is the real app with example data, nothing
-to install.
+The minimal self-hosting profile supports personal foods and recipes. It does not ship or
+provision the experimental multi-gigabyte food catalogue. Its configuration and verification
+steps live in the self-hosting guide, not in a maintainer's personal deployment notes.
 
-## Hosting it
+## Feature references
 
-| Guide | Read it when |
-|---|---|
-| [Self-hosting](SELF_HOSTING.md) | You're setting up an instance. Start here: running it, passkeys and HTTPS, users, backups, updates, troubleshooting |
-| [HTTPS at home](SELF_HOSTING_HTTPS.md) | You want valid certificates on your LAN without exposing the server to the internet |
-| [Kubernetes](SELF_HOSTING_KUBERNETES.md) | You run a cluster instead of Docker Compose |
-| [AI coach](AI_COACH.md) | You're deciding whether to turn the coach on, and with which provider |
-| [MCP server](../mcp/README.md) | You want Claude Desktop, Cursor or another AI client to read your training history |
-| [NixOS](NIX.md) | You run NixOS and want openGym native — flake packages and a NixOS module, no Docker |
-| [Security](../SECURITY.md) | You host it for other people, or want to report a vulnerability |
+| Guide | Scope |
+| --- | --- |
+| [Nutrition backup and restore](dev/NUTRITION_BACKUP_RESTORE.md) | Nutrition-only restoration, global export and combined-restore limits |
+| [Food catalogue](dev/NUTRITION_FOOD_CATALOG.md) | Current local mode, source metadata and historical provider experiments |
+| [Catalogue benchmark](dev/NUTRITION_CATALOG_BENCHMARK.md) | Frozen sample methodology and limits of coverage claims |
+| [Nutrition UI](dev/NUTRITION_UI.md) | Interface implementation and bounded validation evidence |
+| [Phone app](MOBILE.md) | Inherited Capacitor architecture/build reference; upstream downloads are not this fork's beta |
+| [Importing training data](DATA_IMPORTS.md) | Inherited workout import formats |
+| [AI coach](AI_COACH.md) | Optional integration; availability/network access depends on the deployment profile |
+| [MCP server](../mcp/README.md) | Optional assistant access to the data it exposes |
+| [HTTP API](API.md) | API reference; inspect current code for branch-specific Nutrition routes |
+| [Exercise catalogue](../catalogue/README.md) | Exercise text/translation workflow and media restrictions |
 
-All settings live in `.env`; [`.env.example`](../.env.example) explains each one, and the
-[README](../README.md#quick-start) has the full table.
+Older guides, the inherited [roadmap](../ROADMAP.md) and [changelog](../CHANGELOG.md), and documents
+under `dev/` contain upstream history or previous experiments. Read their dates and status before
+applying commands. An upstream demo or release does not demonstrate the Nutrition branch. The
+current self-hosting guide takes priority over inherited deployment examples for this fork.
 
-## Working on the code
-
-| Guide | Read it when |
-|---|---|
-| [Contributing](../CONTRIBUTING.md) | Before your first pull request: setup, guidelines, what CI checks |
-| [CLAUDE.md](../CLAUDE.md) | You want the architecture in one page (written for Claude Code, useful for people too) |
-| [HTTP API](API.md) | You're touching routes; the OpenAPI spec is the source of truth |
-| [Roadmap](../ROADMAP.md) | You want to know what's planned and where your idea fits |
-| [Changelog](../CHANGELOG.md) | You want to know what changed in a release |
-
-Design notes for specific features, kept next to the code they describe:
-
-| Note | Covers |
-|---|---|
-| [Set types](dev/SET_TYPES.md) | Drop sets and rest-pause: the set-row model and how totals are counted |
-| [Workout views](dev/LIST_VIEW.md) | The cards, list and compact layouts of the workout screen |
-| [Combine routines](dev/COMBINE_ROUTINES.md) | Spec for running more than one routine in a session |
-
-## Still stuck?
-
-Ask on the [Discord](https://discord.gg/e62jY6fwVb) or in
-[Discussions](https://github.com/DuarteSantos8/openGym/discussions). If something in these docs was
-wrong or missing, that's worth an issue too.
+For support and reporting availability, consult the current fork policy in
+[Contributing](../CONTRIBUTING.md) and [Security](../SECURITY.md); upstream community channels are
+not a support promise for this fork.
