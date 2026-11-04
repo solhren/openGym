@@ -1,6 +1,7 @@
-// Opt-in source-checkout experiment, never enabled in a production process.
+// The historical source-checkout experiment and an independent opt-in public profile.
 // User storage/authentication does not enter the public reader or provider relay.
 import path from 'node:path';
+import fs from 'node:fs';
 import { createValidatedProductCache } from './catalog-product-cache.js';
 import { fileURLToPath } from 'node:url';
 import { validateFood } from './core/validate.js';
@@ -14,6 +15,129 @@ const allowedWarnings = ['estimated-values', 'reference-required', 'serving-only
 const check = (ok, code = 'catalog-local-invalid-response') => { if (!ok) throw new CatalogHttpError(503, code, undefined, 'local-sqlite'); };
 const text = v => typeof v === 'string' && v.length <= 300 && !/[\u0000-\u001f\u007f]/.test(v);
 const canonicalCode = code => { const digits = code.replace(/^0+/, ''); return digits.padStart(digits.length <= 8 ? 8 : digits.length <= 13 ? 13 : 14, '0'); };
+
+/** The public profile never borrows beta privileges, catalogue workspaces or external relay.
+ * Account files and the public read-only catalogue must be separate trees. */
+export function selfHostedCatalogConfig({ environment = process.env, dataDir = environment.DATA_DIR } = {}) {
+  if (environment.OPENGYM_SELF_HOSTED_CATALOG !== '1') return null;
+  const validPath = value => typeof value === 'string' && path.isAbsolute(value) && path.resolve(value) === value && value !== '/';
+  const registry = environment.OPENGYM_CATALOG_REGISTRY;
+  const directory = registry ? path.dirname(registry) : environment.OPENGYM_CATALOG_DIR;
+  const listenHost = environment.OPENGYM_CATALOG_LISTEN_HOST ?? '127.0.0.1';
+  if (environment.NODE_ENV !== 'production' || environment.NUTRITION_LOCAL_CATALOG !== '1' ||
+      environment.NUTRITION_LOCAL_CATALOG_KIND !== (registry ? 'public-registry' : 'ciqual-local') ||
+      ['OPENGYM_PRIVATE_BETA', 'OPENGYM_PERSONAL_BETA', 'OPENGYM_BETA_DOCKER'].some(key => environment[key] === '1') ||
+      !validPath(dataDir) || environment.DATA_DIR !== dataDir || !validPath(directory) ||
+      (registry && !validPath(registry)) ||
+      !['127.0.0.1', '0.0.0.0'].includes(listenHost) ||
+      directory === dataDir || directory.startsWith(dataDir + path.sep) || dataDir.startsWith(directory + path.sep)) {
+    throw new Error('invalid-self-hosted-catalogue-configuration');
+  }
+  return Object.freeze({ ...(registry ? { registry } : { directory }), listenHost });
+}
+
+function publicRegistry(file) {
+  const fail = ok => { if (!ok) throw new Error('invalid-public-catalogue-registry'); };
+  fail(fs.realpathSync(file) === file);
+  const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+  let value;
+  try {
+    const stat = fs.fstatSync(fd); fail(stat.isFile() && stat.nlink === 1 && stat.size <= 16384);
+    const bytes = Buffer.alloc(16385); let size = 0, read;
+    while (size < bytes.length && (read = fs.readSync(fd, bytes, size, bytes.length - size, null))) size += read;
+    fail(size <= 16384);
+    value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(0, size)));
+  } finally { fs.closeSync(fd); }
+  const exact = (v, keys) => v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).sort().join(',') === keys.slice().sort().join(',');
+  fail(exact(value, ['format', 'version', 'catalogues']) && value.format === 'opengym-public-catalogue-registry' && value.version === 1 && Array.isArray(value.catalogues) && value.catalogues.length <= 8);
+  const names = new Set(), directories = new Set(), revisions = new Set();
+  for (const entry of value.catalogues) {
+    fail(exact(entry, ['id', 'kind', 'directory', 'enabled', 'catalogueSha256']));
+    fail(['id', 'directory'].every(key => typeof entry[key] === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(entry[key])) &&
+      !names.has(entry.id) && !directories.has(entry.directory) && entry.kind === 'ciqual-local' && typeof entry.enabled === 'boolean' && /^[a-f0-9]{64}$/.test(entry.catalogueSha256));
+    names.add(entry.id); directories.add(entry.directory);
+    if (entry.enabled) revisions.add(entry.catalogueSha256);
+  }
+  // One source version per provider: different Ciqual generations share lookup IDs and cannot
+  // be selected silently. Exact generation aliases are verified individually, then deduplicated.
+  fail(revisions.size <= 1);
+  return value.catalogues.filter(entry => entry.enabled);
+}
+
+async function registryCatalogRelay({ registry, createPublicCatalog, onEvent }) {
+  const entries = publicRegistry(registry), opened = [];
+  try {
+    const unique = new Map();
+    for (const entry of entries) {
+      const catalog = await createPublicCatalog({ directory: path.join(path.dirname(registry), entry.directory) });
+      opened.push(catalog);
+      const manifest = await catalog.inspect();
+      if (manifest.sha256 !== entry.catalogueSha256) throw new Error('catalogue-registry-digest-mismatch');
+      const relay = createPublicCatalogRelay({ catalog, onEvent }); await relay.warm();
+      const identity = entry.kind + ':' + manifest.sha256;
+      if (unique.has(identity)) { opened.pop(); await catalog.close(); }
+      else unique.set(identity, relay);
+    }
+    if (unique.size) return unique.values().next().value;
+    // Removing the last source keeps the authenticated local boundary. No constructor for an
+    // external provider is reached and personal Nutrition storage remains available.
+    return { localSearch: true, available: false, capabilities: CIQUAL_CAPABILITIES,
+      async read() { throw new CatalogHttpError(503, 'catalog-local-unavailable', undefined, 'local-ciqual'); }, async close() {} };
+  } catch (error) { await Promise.allSettled(opened.map(catalog => catalog.close())); throw error; }
+}
+
+export const CIQUAL_CAPABILITIES = Object.freeze({ schemaVersion: 2, textSearch: 'local', provider: 'ciqual', selection: 'local-only', productIds: true });
+export function createPublicCatalogRelay({ catalog, onEvent = () => {} }) {
+  let closed = false;
+  const fail = (ok, status = 400, code = 'catalog-invalid-query') => { if (!ok) throw new CatalogHttpError(status, code, undefined, 'local-ciqual'); };
+  return {
+    localSearch: true, capabilities: CIQUAL_CAPABILITIES,
+    async warm() {
+      const value = await catalog.inspect();
+      fail(value?.format === 'opengym-public-food-catalog' && value.schemaVersion === 1 && value.provider === 'ciqual' &&
+        /^[a-f0-9]{64}$/.test(value.sha256) && Number.isSafeInteger(value.rows) && value.rows > 0 && value.rows <= 100000 && value.literalOnly === true,
+      503, 'catalog-local-unavailable');
+    },
+    async read(kind, input, { signal } = {}) {
+      fail(!closed && !signal?.aborted, 409, 'catalog-request-cancelled');
+      fail(typeof input === 'string' && input.length <= 2048 && ['search', 'product'].includes(kind));
+      const params = new URL(input, 'http://local').searchParams;
+      const allowed = kind === 'search' ? ['q', 'page', 'lc', 'staging'] : ['id', 'code', 'lc', 'staging'];
+      fail([...params.keys()].every(key => allowed.includes(key) && params.getAll(key).length === 1));
+      const lc = params.get('lc') ?? 'fr';
+      fail(/^[a-z]{2}$/.test(lc) && ['0', null].includes(params.get('staging')));
+      let args;
+      if (kind === 'search') {
+        const q = (params.get('q') ?? '').normalize('NFC').trim().replace(/\s+/g, ' '), page = params.get('page') ?? '1';
+        fail(q.length >= 2 && q.length <= 120 && !/[\u0000-\u001f\u007f]/.test(q) && /^[1-9]\d?$/.test(page) && Number(page) <= 20);
+        const tokens = q.match(/[\p{L}\p{N}]+/gu) ?? [];
+        fail(tokens.length >= 1 && tokens.length <= 8 && tokens.every(token => token.length <= 40));
+        args = { q, page: Number(page), lc };
+      } else fail(params.has('id') !== params.has('code') && (params.has('id') ? /^ciqual:[0-9]{1,8}$/.test(params.get('id')) : /^(?:\d{8}|\d{12,14})$/.test(params.get('code'))));
+      try {
+        let body;
+        if (kind === 'search') body = await catalog.search(args, { signal });
+        else {
+          // This source has no GTINs. A printed barcode is never treated as an alim_code.
+          const product = params.has('code') ? null : await catalog.product(params.get('id'), { lc, signal });
+          fail(product !== null, 404, 'catalog-not-found');
+          body = { product };
+        }
+        fail(!closed && !signal?.aborted, 409, 'catalog-request-cancelled');
+        inspectCatalogValue(body);
+        return { status: 200, body: { format: 'opengym-local-food-catalog', schemaVersion: 1, ...body },
+          headers: { 'Cache-Control': 'no-store', 'X-openGym-Catalog-Source': 'local-ciqual' } };
+      } catch (error) {
+        if (error instanceof CatalogHttpError) throw error;
+        const cancelled = closed || signal?.aborted;
+        try { onEvent({ event: 'reader-error', source: 'local-ciqual', category: cancelled ? 'cancelled' : error.code === 'worker-busy' ? 'overload' : 'unavailable' }); } catch {}
+        throw new CatalogHttpError(cancelled ? 409 : error.code === 'worker-busy' ? 429 : 503,
+          cancelled ? 'catalog-request-cancelled' : error.code === 'worker-busy' ? 'catalog-client-rate-limited' : 'catalog-local-unavailable', undefined, 'local-ciqual');
+      }
+    },
+    async close() { closed = true; await catalog.close(); }
+  };
+}
 
 async function unavailableWgerRelay(onEvent) {
   const {createWgerRelay} = await import('./catalog-wger.js');
@@ -97,10 +221,25 @@ export function createLocalCatalogRelay({ worker, onEvent = () => {}, remote = c
   return {localSearch:true,read,async close(){ closed=true; await worker.close(); }};
 }
 
-/** Dev-only loader. The unchanged production image never imports prototype code
- * or needs Python. A source checkout and explicitly isolated DATA_DIR are required.
+/** The explicit public profile uses its own verified, read-only source. Without that opt-in,
+ * the historical experiment keeps its development/beta gates and existing behavior.
  */
-export async function experimentalCatalogRelay({ environment = process.env, dataDir, remote, onEvent = () => {}, loadWorker, loadWger } = {}) {
+export async function experimentalCatalogRelay({ environment = process.env, dataDir, remote, onEvent = () => {}, loadWorker, loadWger, loadPublic } = {}) {
+  const publicConfig = selfHostedCatalogConfig({ environment, dataDir });
+  if (publicConfig) {
+    let catalog;
+    try {
+      const { createPublicCatalog } = loadPublic ? await loadPublic() : await import(new URL('../../scripts/nutrition-local-catalog/public-catalog-client.mjs', import.meta.url));
+      if (publicConfig.registry) return await registryCatalogRelay({ registry: publicConfig.registry, createPublicCatalog, onEvent });
+      catalog = await createPublicCatalog({ directory: publicConfig.directory });
+      const relay = createPublicCatalogRelay({ catalog, onEvent });
+      await relay.warm();
+      return relay;
+    } catch {
+      await catalog?.close();
+      throw new Error('self-hosted-catalogue-unavailable');
+    }
+  }
   const beta=privateBetaConfig({environment,dataDir});
   if (environment.NUTRITION_LOCAL_CATALOG !== '1') return null;
   const name = environment.NUTRITION_LOCAL_CATALOG_WORKSPACE;

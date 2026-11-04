@@ -36,12 +36,13 @@ import { stampPut } from './sync-stamps.js';
 import { atomicWrite as durableWrite } from './durable.js';
 import { nutritionRoutes } from './nutrition/routes.js';
 import { foodCatalogRoutes } from './nutrition/food-catalog.js';
-import { experimentalCatalogRelay } from './nutrition/catalog-local.js';
+import { experimentalCatalogRelay, selfHostedCatalogConfig } from './nutrition/catalog-local.js';
 import { privateBetaConfig } from './nutrition/catalog-beta.js';
 import { excusedOn, nudgeFor, nudgeWindowOpen, toneOf } from './nudge.js';
 
 // Refuse a beta configuration before loading/creating any account state. The
 // ordinary production profile is unaffected when this opt-in flag is absent.
+const SELF_HOSTED_CATALOG = selfHostedCatalogConfig();
 const BETA_CONFIG = privateBetaConfig();
 const PERSONAL_BETA = BETA_CONFIG?.personal === true;
 const PORT = +(process.env.PORT || 3000);
@@ -2614,7 +2615,7 @@ const routes = {
   /* ---------- Nutrition (independent v1 publications) ---------- */
   ...nutritionRoutes({ json, sessionOf, dataDir: DATA, origin: ORIGIN }),
   // Public catalogue reads never load personal Nutrition documents or forward sessions.
-  ...foodCatalogRoutes({ json, origin: ORIGIN, limitAddress, ...(PERSONAL_BETA ? {requireUser:readSession} : {}), ...(localCatalogue ? {relay:localCatalogue} : {}) }),
+  ...foodCatalogRoutes({ json, origin: ORIGIN, limitAddress, ...(PERSONAL_BETA || SELF_HOSTED_CATALOG ? {requireUser:readSession} : {}), ...(localCatalogue ? {relay:localCatalogue} : {}) }),
 
   /* ---------- photos & videos ---------- */
   // Absent, not refusing, when MEDIA_UPLOADS=0: a 404 is what a server from before the feature
@@ -2758,4 +2759,4 @@ if (localCatalogue) {
     await localCatalogue.close(); process.exit(0);
   });
 }
-server.listen(PORT, localCatalogue ? (BETA_CONFIG?.listenHost??'127.0.0.1') : undefined, () => console.log(`gym-api on :${server.address().port} (rpID=${RP_ID}, origin=${ORIGIN})`));
+server.listen(PORT, localCatalogue ? (SELF_HOSTED_CATALOG?.listenHost??BETA_CONFIG?.listenHost??'127.0.0.1') : undefined, () => console.log(`gym-api on :${server.address().port} (rpID=${RP_ID}, origin=${ORIGIN})`));

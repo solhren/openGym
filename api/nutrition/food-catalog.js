@@ -291,6 +291,7 @@ export function foodCatalogRoutes({ json, origin, limitAddress, requireUser, onE
       if (wait) { try { onEvent({ event: 'blocked', source: 'local-overload', kind, status: 429 }); } catch { /* diagnostics only */ } throw new CatalogHttpError(429, 'catalog-client-rate-limited', undefined, 'local-overload'); }
       if (kind === 'capabilities') {
         reject(new URL(req.url, 'http://localhost').search === '');
+        reject(relay.available !== false, 503, 'catalog-local-unavailable');
         json(res, 200, relay.capabilities ?? { schemaVersion:1, textSearch:relay.localSearch === true ? 'local' : 'explicit-remote' }, { 'Cache-Control':'no-store' });
         return;
       }
