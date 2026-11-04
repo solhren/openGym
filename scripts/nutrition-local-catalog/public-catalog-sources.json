@@ -19,7 +19,7 @@
       "features": {"textSearch": true, "barcodeLookup": false, "reference": "100 g edible portion, including drinks"},
       "sourceBytes": 3123029,
       "maxWorkspaceBytes": 67108864,
-      "limits": ["No branded-product barcode database", "Qualified and missing nutrient values remain unknown", "Partial and rejected foods are reported explicitly", "No mass-to-volume conversion"]
+      "limits": ["No branded-product barcode database", "Qualified and missing nutrient values remain unknown", "Partial and rejected foods are reported explicitly", "No mass-to-volume conversion", "Pinned source downloads and derived database integrity hashes are not a publisher signature on the database; trust the installation administrator"]
     },
     {
       "id": "open-food-facts",

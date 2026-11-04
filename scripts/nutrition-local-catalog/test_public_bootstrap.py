@@ -82,7 +82,7 @@ class PublicBootstrapTests(unittest.TestCase):
         self.output = self.root / 'catalogues'
 
     def records(self):
-        manifest = m.inspect_generation(self.output / m.WORKSPACE)
+        manifest = json.loads((self.output / m.WORKSPACE / 'current.json').read_text())
         connection = sqlite3.connect(self.output / m.WORKSPACE / manifest['file'])
         try:
             return [json.loads(payload) for (payload,) in connection.execute('SELECT payload FROM foods ORDER BY rowid')]
@@ -112,7 +112,7 @@ class PublicBootstrapTests(unittest.TestCase):
     def test_completed_acquisition_is_idempotent_and_offline(self):
         first = build_fixture(self.output)
         calls = []
-        second = m.acquire(self.output, opener=lambda *args, **kwargs: calls.append(args), guard=lambda *args: None)
+        second = m.acquire(self.output, specs=fixture_sources()[0], opener=lambda *args, **kwargs: calls.append(args), guard=lambda *args: None)
         self.assertEqual(first, second)
         self.assertEqual(calls, [])
 
@@ -250,11 +250,19 @@ class PublicBootstrapTests(unittest.TestCase):
             stream.seek(100)
             stream.write(b'corrupt')
         with self.assertRaisesRegex(ValueError, 'catalogue-digest-mismatch'):
-            m.inspect_generation(directory)
+            m.inspect_generation(directory, expected_specs=fixture_sources()[0])
         manifest['file'] = '../outside.sqlite'
         path.write_text(json.dumps(manifest))
         with self.assertRaisesRegex(ValueError, 'unsafe-catalogue-generation'):
+            m.inspect_generation(directory, expected_specs=fixture_sources()[0])
+
+    def test_public_inspection_default_rejects_self_declared_source_pins(self):
+        build_fixture(self.output)
+        directory = self.output / m.WORKSPACE
+        with self.assertRaisesRegex(ValueError, 'unsupported-source-pins'):
             m.inspect_generation(directory)
+        manifest = m.inspect_generation(directory, expected_specs=fixture_sources()[0])
+        self.assertEqual(manifest['rows'], 2)
 
     def test_source_url_redirect_xml_declarations_and_workspace_symlinks_are_refused(self):
         for url in ['http://entrepot.recherche.data.gouv.fr/api/access/datafile/666260',

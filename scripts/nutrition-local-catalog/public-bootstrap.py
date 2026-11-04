@@ -455,10 +455,16 @@ def build_generation(directory, source, names_source, specs=SOURCES, expected_ro
     manifest['receiptSha256'] = digest_file(directory / 'receipt.json')
     workspace_budget(directory, guard)
     atomic_write(directory / 'current.json', (canonical(manifest) + '\n').encode())
-    return inspect_generation(directory)
+    return inspect_generation(directory, expected_specs=specs)
 
 
-def inspect_generation(directory):
+def inspect_generation(directory, expected_specs=SOURCES):
+    """Verify an operator-sealed generation against the supported source pins.
+
+    expected_specs is dependency injection for tiny in-process test fixtures.
+    The CLI and runtime default always use the committed publisher/source pins.
+    A derived database hash is integrity metadata, not a publisher signature.
+    """
     directory = safe_directory(directory)
     current = directory / 'current.json'
     require(current.is_file() and not current.is_symlink() and current.stat().st_size <= 16384, 'missing-or-unsafe-catalogue-manifest')
@@ -481,6 +487,10 @@ def inspect_generation(directory):
                 value['version'] == '2025-11-03' and re.fullmatch('[a-f0-9]{32}', value['md5']) is not None and
                 re.fullmatch('[a-f0-9]{64}', value['sha256']) is not None, 'invalid-source-receipt')
         allowed_url(value['url'])
+    require(len(expected_specs) == 2 and
+            manifest['source'] == {key: value for key, value in expected_specs[0].items() if key != 'name'} and
+            manifest['namesSource'] == {key: value for key, value in expected_specs[1].items() if key != 'name'},
+            'unsupported-source-pins')
     file = directory / manifest['file']
     require(file.is_file() and not file.is_symlink() and type(manifest.get('bytes')) is int and
             file.stat().st_size == manifest['bytes'] <= MAX_DB and digest_file(file) == sha, 'catalogue-digest-mismatch')
@@ -528,7 +538,7 @@ def acquire(root, restart=False, opener=None, guard=reserve, specs=SOURCES, expe
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         directory = safe_directory(root / WORKSPACE, create=True)
         if (directory / 'current.json').exists() or (directory / 'current.json').is_symlink():
-            return summary(inspect_generation(directory))
+            return summary(inspect_generation(directory, expected_specs=specs))
         if restart:
             for name in ('NOTICE.txt.tmp', 'receipt.json.tmp', 'current.json.tmp'):
                 partial = directory / name
