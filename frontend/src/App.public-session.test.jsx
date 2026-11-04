@@ -14,8 +14,9 @@ import App from './App.jsx'
 import {useStore,DEF} from './store/useStore.js'
 import {setLang} from './lib/i18n.js'
 
-test('real boot and Shell show a retryable secure-session error without touching local data',async()=>{
+test.each([false,true])('real boot and Shell preserve local data on secure-session failure (uncertain timeout: %s)',async uncertain=>{
   globalThis.IS_REACT_ACT_ENVIRONMENT=true
+  native.get.mockClear().mockRejectedValue(Object.assign(new Error('synthetic vault failure'),uncertain?{code:'secure-storage-timeout'}:{}))
   const previous=useStore.getState(),fetch=vi.fn();vi.stubGlobal('fetch',fetch)
   vi.spyOn(window,'scrollTo').mockImplementation(()=>{})
   const state=structuredClone(DEF);state.workouts=[{id:'unsent-workout',d:'2026-11-04',entries:[]}]
@@ -24,9 +25,10 @@ test('real boot and Shell show a retryable secure-session error without touching
   try{
     await act(async()=>root.render(<App/>))
     for(let n=0;n<100&&!host.querySelector('[role="alert"]');n++)await act(async()=>new Promise(resolve=>setTimeout(resolve,5)))
-    expect(host.textContent).toContain('secure-session-unavailable');expect(host.querySelector('#tabbar')).toBeNull()
-    const retry=[...host.querySelectorAll('button')].find(button=>button.textContent==='Try again');expect(retry).toBeTruthy()
-    await act(async()=>retry.click());expect(native.get).toHaveBeenCalledTimes(2)
+    expect(host.textContent).toContain(uncertain?'secure-session-restart-required':'secure-session-unavailable');expect(host.querySelector('#tabbar')).toBeNull()
+    const retry=[...host.querySelectorAll('button')].find(button=>button.textContent==='Try again')
+    if(uncertain){expect(retry).toBeUndefined();expect(native.get).toHaveBeenCalledTimes(1)}
+    else{expect(retry).toBeTruthy();await act(async()=>retry.click());expect(native.get).toHaveBeenCalledTimes(2)}
     expect(useStore.getState().S.workouts).toEqual(state.workouts);expect(useStore.getState().ready).toBe(false)
     expect(native.writeFile).not.toHaveBeenCalled();expect(native.readFile).not.toHaveBeenCalled();expect(fetch).not.toHaveBeenCalled()
   }finally{

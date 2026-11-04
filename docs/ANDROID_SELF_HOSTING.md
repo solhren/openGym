@@ -74,6 +74,8 @@ Renewal uses the same durable path. No second plaintext token or migration copy
 is created in `opengym-remote.json`; older distributions retain their own behavior.
 Concurrent pairing/disconnect/local-choice transitions are refused. A renewal
 from a previous origin, account or token cannot overwrite the current session.
+Secure-session reads use that same transition lock: a delayed startup read must
+finish before another pairing can begin.
 
 A missing session means first use. An unreadable or malformed secure session is
 an explicit `secure-session-unavailable` startup state with **Try again**, not
@@ -81,6 +83,19 @@ an empty guest installation. The error path leaves workout mirrors, Nutrition
 partitions and pending operations unchanged. Unlock the device and retry; if the
 error persists, retain app data and collect the logs below. There is no automatic
 key reset, local-data deletion or forced re-pairing.
+
+A native timeout is a different state, `secure-session-restart-required`. A
+JavaScript timer does **not** cancel a native write; its completion may still
+change the stored session. The public profile therefore blocks all further
+session reads, pairings, renewals and disconnects and clears the in-memory HTTP
+credential. A late callback never unlocks it or starts another session change.
+Do not merely reload the WebView: use Android Settings → Apps → openGym Self-hosted
+→ **Force stop**, then reopen. Do **not** choose Clear storage or uninstall. The
+new process reads and validates the session actually left in secure storage;
+the failed pairing may have persisted despite its timeout. This is conservative
+recovery from an uncertain outcome, not a promise that the native write was
+cancelled or rolled back. Verify this procedure on a physical device before
+distributing the APK.
 
 Cloud Auto Backup is disabled for this profile. Explicit cloud/device-transfer
 rules also exclude the secure plugin's encrypted preferences and legacy pairing
@@ -169,6 +184,15 @@ The mobile-flavour Vite build and its asset/marker checks passed, without native
 synchronization or packaging. The 18 locales retained 2,466 keys each. Existing
 Vite chunk-size and ineffective-dynamic-import warnings remain; no warning was
 silenced. No tests were skipped in these runs. Android/SDK tools were not installed.
+
+Cross-review then reproduced two asynchronous races: a native write could finish
+after its JS timeout and overwrite a subsequent pairing, and an unlocked startup
+read could return an older session after a new pairing. The shared read/mutation
+lock and fail-closed timeout state fix these in the public profile. Deferred
+native read/write regressions and the real startup error screen passed in a
+**65-test, seven-file** rerun, including personal-session, Coach secret storage,
+paired catalogue and offline workout regressions (zero failures/skips). These are
+overlapping tests, not additional distinct coverage to add to the earlier count.
 
 Before distribution, test first pairing, restart, revoked session and recovery;
 offline edits and synchronization; two accounts and two servers with the same

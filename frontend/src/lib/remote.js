@@ -14,19 +14,32 @@ import {durableSecureGet,durableSecureSet,durableSecureRemove} from './coach-sec
 import {PUBLIC_ANDROID,publicServerOrigin} from './public-android.js'
 const PERSONAL_SESSION='opengym.personal.session.'+new URL(PERSONAL_ORIGIN).hostname
 const PUBLIC_SESSION='opengym.selfhosted.session.v1'
-let publicSession=null,publicTransition=false
+let publicSession=null,publicTransition=false,publicSessionUncertain=false
+const uncertainSession=()=>Object.assign(new Error('secure-session-restart-required'),{code:'secure-session-restart-required'})
 async function savePairing(data){
   if(PERSONAL_BETA||PUBLIC_ANDROID)await durableSecureSet(PERSONAL_BETA?PERSONAL_SESSION:PUBLIC_SESSION,JSON.stringify(data))
   else await saveRemoteFile(data)
   if(PUBLIC_ANDROID)publicSession=data
 }
 // Do not allow a delayed renewal/disconnect to overwrite a newer pairing. The
-// public profile rejects concurrent transitions; the UI can retry explicitly.
+// public profile rejects concurrent reads/transitions. A JS timeout cannot cancel
+// a native write. Once its outcome is unknown, keep this process closed to every
+// session operation, even if the native callback eventually arrives. Recovery
+// requires a full app-process restart; a WebView reload is not a cancellation.
 async function changePublicSession(action){
   if(!PUBLIC_ANDROID)return action()
+  if(publicSessionUncertain)throw uncertainSession()
   if(publicTransition)throw new Error('Session change already in progress')
   publicTransition=true
-  try{return await action()}finally{publicTransition=false}
+  try{return await action()}
+  catch(error){
+    if(error?.code==='secure-storage-timeout'){
+      publicSessionUncertain=true
+      setRemoteAuth('',null)
+      throw uncertainSession()
+    }
+    throw error
+  }finally{if(!publicSessionUncertain)publicTransition=false}
 }
 
 // Accepts what someone actually types: bare host, no scheme, trailing slash, stray whitespace.
@@ -45,8 +58,7 @@ export function normalizeServerUrl(raw) {
 }
 
 export async function loadRemote() {
-  if(PUBLIC_ANDROID){
-    if(publicTransition)throw new Error('Session change already in progress')
+  if(PUBLIC_ANDROID)return changePublicSession(async()=>{
     // This package has its own app sandbox. Never import another distribution's
     // plaintext token or silently fall back to a local session after a vault error.
     const raw=await durableSecureGet(PUBLIC_SESSION)
@@ -58,7 +70,7 @@ export async function loadRemote() {
       typeof value.token!=='string'||!value.token||value.token.length>4096||
       typeof value.user?.id!=='string'||!value.user.id||value.user.id.length>128)throw new Error('secure-session-invalid')
     publicSession=value;return value
-  }
+  })
   if(PERSONAL_BETA){
     try{const raw=await durableSecureGet(PERSONAL_SESSION),v=raw?JSON.parse(raw):null;return v?.mode==='remote'&&v.base===PERSONAL_ORIGIN&&typeof v.token==='string'&&v.token.length<=4096&&v.token.length>0&&typeof v.user?.id==='string'?v:null}catch{return null}
   }

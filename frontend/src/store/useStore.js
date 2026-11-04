@@ -1849,7 +1849,7 @@ export const useStore = create((set, get) => {
         } catch (error) {
           if(!PUBLIC_ANDROID)throw error
           setRemoteAuth('',null)
-          set({ready:false,mobileSessionError:true})
+          set({ready:false,mobileSessionError:error?.code==='secure-session-restart-required'?'secure-session-restart-required':true})
           return // preserve every local account mirror and unsent operation
         }
         // Before the first request: a server behind Cloudflare Access answers nothing without it.

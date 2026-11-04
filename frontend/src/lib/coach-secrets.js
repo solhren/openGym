@@ -32,7 +32,7 @@ function plugin() {
 // this long the platform store is treated as unavailable and the process-local map takes over.
 const NATIVE_TIMEOUT_MS = 4000
 export const withTimeout = (promise, ms = NATIVE_TIMEOUT_MS) => new Promise((resolve, reject) => {
-  const tm = setTimeout(() => reject(new Error('secure storage timed out')), ms)
+  const tm = setTimeout(() => reject(Object.assign(new Error('secure storage timed out'), {code:'secure-storage-timeout'})), ms)
   promise.then(v => { clearTimeout(tm); resolve(v) }, e => { clearTimeout(tm); reject(e) })
 })
 

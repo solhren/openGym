@@ -196,8 +196,8 @@ function Shell() {
   const authed = user || isGuest
   if(mobileSessionError)return <main id="app" className="narrow">
     <h1>{t('Could not load')}</h1>
-    <p role="alert">{t('Something went wrong on this phone.')} <code>secure-session-unavailable</code></p>
-    <Button variant="primary" onClick={()=>useStore.getState().boot()}>{t('Try again')}</Button>
+    <p role="alert">{t('Something went wrong on this phone.')} <code>{mobileSessionError==='secure-session-restart-required'?mobileSessionError:'secure-session-unavailable'}</code></p>
+    {mobileSessionError!=='secure-session-restart-required'&&<Button variant="primary" onClick={()=>useStore.getState().boot()}>{t('Try again')}</Button>}
   </main>
   if (!ready && (!authed||PERSONAL_BETA||PUBLIC_ANDROID)) return (
     <div id="app">
