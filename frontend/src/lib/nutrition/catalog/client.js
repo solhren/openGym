@@ -255,7 +255,7 @@ export function createFoodCatalog({ transport = directTransport, guard = () => {
         if (response.status !== 200) return unavailable()
         const body = await readJson(response); current(); response.assertSessionCurrent?.(); if (controller.signal.aborted) throw aborted()
         if (body.schemaVersion === 2) {
-          fail(Object.keys(body).sort().join(',') === 'productIds,provider,schemaVersion,selection,textSearch' && body.textSearch === 'local' && body.provider === 'wger' && body.selection === 'local-only' && body.productIds === true,'invalid-response')
+          fail(Object.keys(body).sort().join(',') === 'productIds,provider,schemaVersion,selection,textSearch' && body.textSearch === 'local' && ['wger','ciqual','multi'].includes(body.provider) && body.selection === 'local-only' && body.productIds === true,'invalid-response')
           if (!localV1) { cache.clear(); bytes = 0 }
           localRelay = true; localV1 = true; localReady = true
           return {...body,available:true}

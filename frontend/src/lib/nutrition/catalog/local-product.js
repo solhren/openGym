@@ -1,7 +1,7 @@
 import {fail,inspectExternal,barcode} from './normalize.js'
 import {validateFood} from '../validate.js'
 import {canonicalJson} from '../persistence-contract.js'
-import {isLocalCatalogId,isWgerId,catalogBarcodeKey,sameCatalogBarcode} from './identity.js'
+import {isLocalCatalogId,isWgerId,isCiqualId,catalogBarcodeKey,sameCatalogBarcode} from './identity.js'
 
 /** A local DTO is not an OFF response. Preserve the already validated Food and
  * its identity/provenance; never infer units from a product name or barcode. */
@@ -16,6 +16,25 @@ export function normalizeLocalProduct(record) {
   if(record.code!==null)barcode(record.code)
   fail(['validated','partial','needs-verification'].includes(record.validationStatus),'invalid-response')
   fail(['issues','warnings'].every(k=>Array.isArray(record[k])&&record[k].length<=100&&record[k].every(v=>typeof v==='string'&&v.length<=100)),'invalid-response')
+  if (isCiqualId(record.id)) {
+    const provenance=record.source, food=record.food, license=provenance?.license
+    const url='https://doi.org/10.57745/RDMHWY'
+    fail(record.code===null && record.brand==='' && ['fr','en'].includes(record.language) && record.translation===undefined && record.originalName===undefined && record.lookupId===undefined,'invalid-response')
+    fail(provenance && Object.keys(provenance).sort().join(',')==='foodCode,license,names,namesSourceSha256,provider,sourceName,sourceSha256,sourceUrl,version' && provenance.provider==='ciqual' && provenance.foodCode===record.id.slice(7) && provenance.version==='2025' && provenance.sourceName==='Anses — Ciqual 2025' && provenance.sourceUrl===url && /^[a-f0-9]{64}$/.test(provenance.sourceSha256) && /^[a-f0-9]{64}$/.test(provenance.namesSourceSha256),'invalid-response')
+    fail(provenance.names && Object.keys(provenance.names).sort().join(',')==='en,fr' && typeof provenance.names.fr==='string' && provenance.names.fr.length>0 && provenance.names.fr.length<=300 && (provenance.names.en===null || typeof provenance.names.en==='string' && provenance.names.en.length>0 && provenance.names.en.length<=300) && record.name===provenance.names[record.language],'invalid-response')
+    fail(license && Object.keys(license).sort().join(',')==='attribution,id,url' && license.id==='Etalab-2.0' && license.url==='https://spdx.org/licenses/etalab-2.0.html' && typeof license.attribution==='string' && license.attribution.length>0,'invalid-response')
+    if (food===null) fail(record.reference===null && record.validationStatus==='needs-verification','invalid-response')
+    else {
+      fail(validateFood(food).length===0 && food.kind==='food' && food.name===record.name && (food.brand??'')==='' && record.validationStatus!=='needs-verification','invalid-response')
+      // Ciqual reports edible portions by mass, including beverages. It supplies
+      // no density or retail barcode: neither can be inferred by the UI.
+      fail(food.reference.amount===100 && food.reference.unit==='g' && food.densityGPerMl===undefined && food.portions.length===0,'invalid-response')
+      fail(food.source?.kind==='custom' && food.source.externalId===record.id && food.source.url===url && canonicalJson(food.source.publicCatalogImport)===canonicalJson(provenance) && canonicalJson(food.source.license)===canonicalJson(license) && canonicalJson(food.reference)===canonicalJson(record.reference),'invalid-response')
+      const complete=['kcal','protein','carbs','fat'].every(k=>typeof food.nutrients[k]==='number')
+      fail(record.validationStatus===(complete?'validated':'partial'),'invalid-response')
+    }
+    return {...structuredClone(record),image:null,serving:'',sourceUrl:url}
+  }
   if(record.id.startsWith('off:')) {
     const food=record.food,source=food?.source,lineage=source?.offReference
     fail(record.code!==null&&record.id===`off:${catalogBarcodeKey(record.code)}`&&record.validationStatus==='validated'&&food&&validateFood(food).length===0,'invalid-response')

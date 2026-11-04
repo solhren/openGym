@@ -117,8 +117,8 @@ export function useRead(service, revision, descriptor, load) {
 export function FoodSource({ food }) {
   const candidates = food?.kind === 'recipe' ? food.ingredientSources ?? [] : [{ name: food?.name, source: food?.source }]
   const sources = new Map(candidates.filter(item => item.source?.kind === 'open-food-facts').map(item => [item.source.url, item]))
-  const publicSources = new Map(candidates.filter(item => item.source?.publicCatalogImport?.provider === 'wger').map(item => [item.source.externalId,item]))
-  const licenses = { 'CC0-1.0':'https://creativecommons.org/publicdomain/zero/1.0/', 'CC-BY-SA-3.0':'https://creativecommons.org/licenses/by-sa/3.0/', 'CC-BY-SA-4.0':'https://creativecommons.org/licenses/by-sa/4.0/', 'CC-BY-4.0':'https://creativecommons.org/licenses/by/4.0/', 'ODbL-1.0':'https://opendatacommons.org/licenses/odbl/1-0/' }
+  const publicSources = new Map(candidates.filter(item => ['wger','ciqual'].includes(item.source?.publicCatalogImport?.provider)).map(item => [item.source.externalId,item]))
+  const licenses = { 'Etalab-2.0':'https://spdx.org/licenses/etalab-2.0.html', 'CC0-1.0':'https://creativecommons.org/publicdomain/zero/1.0/', 'CC-BY-SA-3.0':'https://creativecommons.org/licenses/by-sa/3.0/', 'CC-BY-SA-4.0':'https://creativecommons.org/licenses/by-sa/4.0/', 'CC-BY-4.0':'https://creativecommons.org/licenses/by/4.0/', 'ODbL-1.0':'https://opendatacommons.org/licenses/odbl/1-0/' }
   return <>{[...sources.values()].map(item => {
     // Portable provenance is JSON, not a guarantee that a restored URL is safe to open.
     let href = null
@@ -133,8 +133,8 @@ export function FoodSource({ food }) {
     const url=typeof license?.id==='string' ? licenses[license.id] : null
     // Render supplied credits as text. Only fixed licence URLs are clickable;
     // arbitrary links in portable/restored provenance never become navigation.
-    return <details className="muted small nutrition-source" key={source.externalId}><summary>{food.kind==='recipe'?`${item.name} · `:''}wger · {credit(provenance.sourceName) || 'wger'} · {license?.id}</summary>
-      <p>{license?.attribution}</p>{credit(provenance.licenseMetadata?.title) && <p>{provenance.licenseMetadata.title}</p>}
+    return <details className="muted small nutrition-source" key={source.externalId}><summary>{food.kind==='recipe'?`${item.name} · `:''}{provenance.provider==='ciqual'?'Ciqual':'wger'} · {credit(provenance.sourceName) || provenance.provider} · {credit(license?.id)}</summary>
+      <p>{credit(license?.attribution)}</p>{credit(provenance.licenseMetadata?.title) && <p>{provenance.licenseMetadata.title}</p>}
       {[...new Set([source.url,provenance.sourceUrl,provenance.licenseMetadata?.authorUrl,provenance.licenseMetadata?.objectUrl,provenance.licenseMetadata?.derivativeUrl].filter(v=>typeof v==='string'&&v))].map(uri=><p key={uri}>{uri}</p>)}
       {url && <a href={url} target="_blank" rel="noopener noreferrer">{license.id}</a>}</details>
   })}</>

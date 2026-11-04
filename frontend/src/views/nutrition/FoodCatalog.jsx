@@ -22,16 +22,17 @@ const messages = {
 export default function FoodCatalog({ service, onChoose, autoFocus = false }) {
   const [query, setQuery] = useState(''), [mode, setMode] = useState('text'), [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null), [selected, setSelected] = useState(null), [error, setError] = useState(null), [camera, setCamera] = useState(null)
+  const [provider, setProvider] = useState(null)
   const [local, setLocal] = useState(false), [open, setOpen] = useState(false), [activeOption, setActiveOption] = useState(-1), [composing, setComposing] = useState(false)
   const input = useRef(null), timer = useRef(null), scanActive = useRef(false), listId = useId()
   const detail = useRef(null)
   useEffect(() => { if (selected) detail.current?.focus() }, [selected])
   const task = useRef(null), epoch = useRef(0), alive = useRef(true)
   useEffect(() => {
-    alive.current = true; setLocal(false); setQuery(''); setResult(null); setSelected(null); setError(null); setOpen(false); setActiveOption(-1); setLoading(false); setCamera(null)
+    alive.current = true; setLocal(false); setProvider(null); setQuery(''); setResult(null); setSelected(null); setError(null); setOpen(false); setActiveOption(-1); setLoading(false); setCamera(null)
     const controller = new AbortController()
     service.catalog.capabilities?.({ signal:controller.signal }).then(value => {
-      if (!controller.signal.aborted && alive.current) { service.assertCurrent(); setLocal(value.textSearch === 'local') }
+      if (!controller.signal.aborted && alive.current) { service.assertCurrent(); setLocal(value.textSearch === 'local'); setProvider(value.provider ?? null) }
     }).catch(() => {})
     return () => { alive.current = false; epoch.current++; task.current?.abort(); controller.abort(); clearTimeout(timer.current) }
   }, [service])
@@ -44,7 +45,8 @@ export default function FoodCatalog({ service, onChoose, autoFocus = false }) {
       // A failed initial capability probe must not latch V1 unavailable forever.
       // Only retry on an actual search; never downgrade to a food provider.
       if (service.catalog.localOnly && service.catalog.localReady === false) {
-        await service.catalog.capabilities({signal:controller.signal}); service.assertCurrent()
+        const capabilities = await service.catalog.capabilities({signal:controller.signal}); service.assertCurrent()
+        if (alive.current && token === epoch.current) setProvider(capabilities.provider ?? null)
       }
       const found = kind === 'barcode' ? await service.catalog.product(value.trim(), options) : await service.catalog.search(value, options)
       service.assertCurrent()
@@ -105,9 +107,9 @@ export default function FoodCatalog({ service, onChoose, autoFocus = false }) {
   }
   if (camera) return <CameraScan decode={camera} hint="Point the camera at the product barcode" onFound={onFound} onCancel={() => setCamera(null)} />
   return <div className="nutrition-catalog">
-    <p className="muted small">{service.catalog.localOnly ? `${t('Food catalogue')} · wger / USDA / Open Food Facts` : local ? t('Source: Open Food Facts contributors') : t('Search Open Food Facts explicitly. Products are contributed by the community; values may be incomplete.')}</p>
+    <p className="muted small">{service.catalog.localOnly ? `${t('Food catalogue')}${provider==='ciqual'?' · Anses — Ciqual 2025':provider==='wger'?' · wger / USDA / Open Food Facts':''}` : local ? t('Source: Open Food Facts contributors') : t('Search Open Food Facts explicitly. Products are contributed by the community; values may be incomplete.')}</p>
     <div className="nutrition-actions nutrition-catalog-modes"><Button size="sm" aria-pressed={mode === 'text'} onClick={() => { cancel(); setMode('text'); setResult(null); setSelected(null); setQuery(''); setError(null) }}>{t('Product name or brand')}</Button>
-      <Button size="sm" aria-pressed={mode === 'barcode'} onClick={() => { cancel(); setMode('barcode'); setResult(null); setSelected(null); setQuery(''); setError(null) }}>{t('Barcode')}</Button><Button size="sm" icon="camera" className="nutrition-icon-action" aria-label={t('Scan product barcode')} title={t('Scan product barcode')} disabled={loading} onClick={scan}><span className="sr-only">{t('Scan product barcode')}</span></Button></div>
+      {provider!=='ciqual' && <><Button size="sm" aria-pressed={mode === 'barcode'} onClick={() => { cancel(); setMode('barcode'); setResult(null); setSelected(null); setQuery(''); setError(null) }}>{t('Barcode')}</Button><Button size="sm" icon="camera" className="nutrition-icon-action" aria-label={t('Scan product barcode')} title={t('Scan product barcode')} disabled={loading} onClick={scan}><span className="sr-only">{t('Scan product barcode')}</span></Button></>}</div>
     <form onSubmit={e => { e.preventDefault(); if (!loading) explicitSearch() }}>
       <SearchField ref={input} autoFocus={autoFocus} aria-label={t(mode === 'text' ? service.catalog.localOnly ? 'Food catalogue' : 'Search Open Food Facts' : 'Product barcode')} value={query}
         onChange={e => changeQuery(e.target.value)} onClear={() => { changeQuery(''); input.current?.focus() }}
@@ -145,6 +147,6 @@ export default function FoodCatalog({ service, onChoose, autoFocus = false }) {
       <div className="nutrition-actions">{selected.food && <Button variant="primary" onClick={() => onChoose(selected.food)}>{t('Choose quantity')}</Button>}<Button onClick={() => { setSelected(null); setOpen(true); input.current?.focus() }}>{t('Back to results')}</Button></div>
     </section>}
     {result?.products && (result.hasMore || result.page > 1) && !selected && <div className="nutrition-actions"><Button disabled={loading || result.page === 1} onClick={() => explicitSearch(result.query, result.page - 1, result.mode)}>{t('Prev')}</Button><span>{t('Page {0}', result.page)}</span><Button disabled={loading || !result.hasMore} onClick={() => explicitSearch(result.query, result.page + 1, result.mode)}>{t('Next')}</Button></div>}
-    {service.catalog.localOnly ? <><p className="muted small"><a href="https://wger.de" target="_blank" rel="noopener noreferrer">wger</a> · {t('Food catalogue')}</p>{selected?.food && <FoodSource food={selected.food} />}</> : <p className="muted small"><a href={selected?.sourceUrl ?? 'https://world.openfoodfacts.org'} target="_blank" rel="noopener noreferrer">{t('Source: Open Food Facts contributors')}</a> · <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener noreferrer">ODbL</a> / DbCL{selected?.image && <> · <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer">{t('Product image: CC BY-SA')}</a></>}</p>}
+    {service.catalog.localOnly ? <>{['ciqual','wger'].includes(provider) && <p className="muted small"><a href={provider==='ciqual'?'https://doi.org/10.57745/RDMHWY':'https://wger.de'} target="_blank" rel="noopener noreferrer">{provider==='ciqual'?'Anses — Ciqual 2025':'wger'}</a> · {t('Food catalogue')}</p>}{selected?.food && <FoodSource food={selected.food} />}</> : <p className="muted small"><a href={selected?.sourceUrl ?? 'https://world.openfoodfacts.org'} target="_blank" rel="noopener noreferrer">{t('Source: Open Food Facts contributors')}</a> · <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener noreferrer">ODbL</a> / DbCL{selected?.image && <> · <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer">{t('Product image: CC BY-SA')}</a></>}</p>}
   </div>
 }

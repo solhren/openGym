@@ -32,7 +32,7 @@ export function EntryEditor({ source, snapshot, date, meal, service, status, clo
   const initial = formQuantity(source?.quantity ?? food.defaultQuantity ?? { amount: food.kind === 'recipe' ? 1 : food.reference.amount, unit: food.kind === 'recipe' ? 'serving' : food.reference.unit })
   const [amount, setAmount] = useState(initial.amount), [option, setOption] = useState(initial.option), [targetMeal, setMeal] = useState(source?.meal ?? meal)
   const saveEntry = entry => {
-    const catalogFood = food.source?.kind === 'open-food-facts' || food.source?.publicCatalogImport?.provider === 'wger'
+    const catalogFood = food.source?.kind === 'open-food-facts' || ['wger','ciqual'].includes(food.source?.publicCatalogImport?.provider)
     if (source || !catalogFood) return service.save('foodEntries', entry, source ?? null)
     // Identical saved revisions are no-ops; durable food + intake are one publication.
     return service.batch([{ collection: 'savedFoods', id: food.id, value: food, base: null }, { collection: 'foodEntries', id: entry.id, value: entry, base: null }])

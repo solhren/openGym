@@ -13,6 +13,7 @@ import { join } from 'node:path'
 import { setLang } from '../../lib/i18n.js'
 import { localCapabilities, localBody, localSearchBody, localRecord } from '../../lib/nutrition/catalog/local-fixtures.test-util.js'
 import { FoodSource } from './common.jsx'
+import { ciqualRecord, ciqualCapabilities } from '../../lib/nutrition/catalog/ciqual-fixtures.test-util.js'
 import { validateFood } from '../../lib/nutrition/validate.js'
 import { referenceFixture } from '../../../../scripts/nutrition-local-catalog/off-integration-fixtures.mjs'
 
@@ -319,3 +320,46 @@ test('v3 supplier failure never enables addition using the index nutrition',asyn
   const input=await localSearch('nutella'); await key(input,'ArrowDown'); await key(input,'Enter'); await wait(()=>host.querySelector('[role="alert"]'))
   expect(host.querySelector('.nutrition-product')).toBeNull(); expect(host.textContent).not.toContain('Choose quantity'); expect((await service.day('2026-10-10')).entries).toHaveLength(0)
 })
+
+
+test('public bilingual catalogue: search, attribution, mass-only journal, reopen and Nutrition restore without a provider',async()=>{
+  service.close();fixture=await backupFixture('fs')
+  const row=ciqualRecord('en');let available=true
+  const local=vi.fn(async path=>{
+    if(!available)throw Error('server offline')
+    return response(localBody(path.includes('/search?')?{products:[row],count:1,page:1,pageSize:20,literalOnly:true,registryVerified:true,catalogueVersion:'c'.repeat(64)}:{product:row}))
+  })
+  const make=()=>createNutritionUISession({store:fixture.store,session:fixture.session.value,getSession:()=>fixture.session.value,online:()=>false,
+    catalogLocalOnly:true,catalogTransport:transport,catalogLocalTransport:local,catalogCapabilitiesTransport:async()=>response(ciqualCapabilities)})
+  service=make();await mount();await click('Add food');await type(field('Meal'),'dinner')
+  await wait(()=>host.querySelector('[role="combobox"]'))
+  expect(host.textContent).toContain('Ciqual 2025');expect(host.textContent).not.toContain('wger / USDA')
+  expect(host.querySelector('[aria-label="Scan product barcode"]')).toBeNull()
+  const input=host.querySelector('[role="combobox"]');await act(async()=>input.focus());await type(input,'milk')
+  await wait(()=>host.querySelector('[role="option"]'));await key(input,'ArrowDown');await key(input,'Enter')
+  await wait(()=>host.querySelector('.nutrition-product'));expect(host.textContent).toContain('Test milk')
+  expect(host.textContent).toContain('Etalab-2.0');expect(host.textContent).toContain('100 g')
+  await click('Choose quantity');expect([...field('Unit').options].some(o=>o.value==='ml')).toBe(false)
+  await type(field('Quantity'),'50');await save()
+  const first=(await service.day('2026-10-10')).entries[0]
+  expect(first.snapshot).toEqual(row.food);expect(first.quantity).toEqual({amount:50,unit:'g'})
+  expect((await service.library()).domains.flatMap(p=>p.records.savedFoods??[])).toEqual([row.food])
+  await wait(()=>host.querySelector('[aria-label="Edit Test milk"]'))
+  await act(async()=>host.querySelector('[aria-label="Edit Test milk"]').click());await type(field('Quantity'),'75');await save()
+  const archive=await service.export()
+  const restored=await backupFixture('fs'),backup=restored.service()
+  const preview=await backup.preview(archive.blob,{restoreId:'ciqual-roundtrip',mode:'empty'})
+  expect(preview.applicable).toBe(true);await backup.restore(preview)
+  const restoredSession=createNutritionUISession({store:restored.store,session:restored.session.value,getSession:()=>restored.session.value,online:()=>false,catalogTransport:transport})
+  try {expect((await restoredSession.day('2026-10-10')).entries[0]).toMatchObject({snapshot:row.food,quantity:{amount:75,unit:'g'}})} finally {restoredSession.close()}
+  await act(async()=>root.unmount());service.close();available=false;await fixture.reopen();service=make();root=createRoot(host);await mount()
+  expect((await service.day('2026-10-10')).entries[0].snapshot).toEqual(row.food)
+  await wait(()=>host.querySelector('[aria-label="Delete Test milk"]'))
+  await act(async()=>host.querySelector('[aria-label="Delete Test milk"]').click());await click('Delete')
+  await wait(()=>!service.getSnapshot().busy&&!host.querySelector('[aria-label="Edit Test milk"]'))
+  expect((await service.day('2026-10-10')).entries).toHaveLength(0)
+  await click('Add food');await click('Local foods and recipes');await wait(()=>host.querySelector('.nutrition-result'))
+  await act(async()=>host.querySelector('.nutrition-result').click());await save()
+  expect((await service.day('2026-10-10')).entries[0].snapshot).toEqual(row.food)
+  expect(service.getSnapshot().pending).toBeGreaterThan(0);expect(transport).not.toHaveBeenCalled();expect(local).toHaveBeenCalledTimes(2)
+},20000)
