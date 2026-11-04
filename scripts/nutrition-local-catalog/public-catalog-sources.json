@@ -14,6 +14,7 @@
       "url": "https://doi.org/10.57745/RDMHWY",
       "license": {"id": "Etalab-2.0", "url": "https://spdx.org/licenses/etalab-2.0.html"},
       "languages": ["fr", "en"],
+      "labelFallback": "French for fr; official English for other UI languages when available, otherwise French. No automatic translation.",
       "coverage": "Generic foods consumed in France; official French and English names. International population coverage is not measured.",
       "featuresScope": "Capabilities enabled in this installation profile, not a description of every source capability",
       "features": {"textSearch": true, "barcodeLookup": false, "reference": "100 g edible portion, including drinks"},

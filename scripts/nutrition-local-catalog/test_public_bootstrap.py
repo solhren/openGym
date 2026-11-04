@@ -106,7 +106,9 @@ class PublicBootstrapTests(unittest.TestCase):
         self.assertEqual(english['id'], records[0]['id'])
         self.assertNotEqual(english['food']['id'], records[0]['food']['id'])
         m.validate_record(english, english['source']['sourceSha256'], english['source']['namesSourceSha256'])
-        self.assertEqual(m.localize_record(records[0], 'de'), records[0])
+        self.assertEqual(m.localize_record(records[0], 'fr'), records[0])
+        for language in ['de', 'es', 'pt']:
+            self.assertEqual(m.localize_record(records[0], language), english)
         self.assertEqual(m.fold_text('Œufs PÂTES'), 'oeufs pates')
 
     def test_completed_acquisition_is_idempotent_and_offline(self):
@@ -135,7 +137,8 @@ class PublicBootstrapTests(unittest.TestCase):
         build_fixture(self.output, [('1', 'Riz', '', ['100', '2', '20', '1'])])
         record = self.records()[0]
         self.assertIsNone(record['source']['names']['en'])
-        self.assertEqual(m.localize_record(record, 'en'), record)
+        for language in ['en', 'de', 'es']:
+            self.assertEqual(m.localize_record(record, language), record)
 
     def test_source_checksum_failure_never_publishes(self):
         specs, bodies = fixture_sources()

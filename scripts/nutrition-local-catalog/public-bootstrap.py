@@ -175,7 +175,7 @@ def validate_record(record, source_sha256, names_sha256=None):
 
 def localize_record(record, lc):
     result = copy.deepcopy(record)
-    language = 'en' if lc == 'en' and result['source']['names']['en'] else 'fr'
+    language = 'en' if lc != 'fr' and result['source']['names']['en'] else 'fr'
     result['language'] = language
     result['name'] = result['source']['names'][language]
     if result['food'] is not None:
@@ -442,6 +442,7 @@ def build_generation(directory, source, names_source, specs=SOURCES, expected_ro
     notice = (LICENSE['attribution'] + '\nLicence Ouverte / Open Licence 2.0: ' + LICENSE['url'] + '\n'
               'Source data acquired directly from ANSES / Recherche Data Gouv; openGym is not endorsed by ANSES.\n'
               'Generic foods consumed in France; official French and English labels. No brands or barcodes.\n'
+              'Other UI languages use official English labels when available, otherwise French. No automatic translation.\n'
               'All declared values are per 100 g edible food, including drinks. No density or ml conversion.\n'
               'Protein: N x 6.25; energy: EU Regulation 1169/2011 kcal. Qualified or missing values remain unknown.\n').encode()
     receipt = {'format': 'opengym-public-catalogue-acquisition', 'schemaVersion': 1, 'complete': True,
