@@ -16,7 +16,7 @@ from unittest.mock import patch
 TOOLS = Path(__file__).resolve().parents[1]
 REPO = TOOLS.parents[1]
 sys.path.insert(0, str(TOOLS))
-from prepare import browser_origin, prepare
+from prepare import browser_origin, prepare, installation_policy
 from state import backup, restore
 from backup import offline_backup
 from catalogue import (acquire, apply, configure, load_registry, plan_catalogues,
@@ -119,6 +119,9 @@ print(json.dumps(receipt))
         instance, metadata = self.prepared()
         self.assertEqual(metadata['catalogue'], 'none')
         self.assertEqual(metadata['apiEgress'], False)
+        self.assertEqual(metadata['instanceMode'], 'personal')
+        self.assertEqual(metadata['signupPolicy'], 'invite')
+        self.assertEqual(metadata['maxUsers'], 1)
         self.assertEqual((instance / 'data').stat().st_mode & 0o777, 0o700)
         self.assertEqual((instance / 'instance.env').stat().st_mode & 0o777, 0o600)
         code = (instance / 'data/bootstrap-invite.txt').read_text().strip()
@@ -148,6 +151,99 @@ print(json.dumps(receipt))
         with self.assertRaises(ValueError):
             prepare(target, 'https://gym.example.com', repo=self.repo, guard=lambda *args: None)
         self.assertFalse(target.exists())
+
+    def test_personal_and_multi_user_policies_are_explicit_and_public_requires_acknowledgment(self):
+        self.assertEqual(installation_policy(), {'instanceMode': 'personal', 'signupPolicy': 'invite', 'maxUsers': 1})
+        self.assertEqual(installation_policy('multi-user'), {'instanceMode': 'multi-user', 'signupPolicy': 'invite', 'maxUsers': 100})
+        self.assertEqual(installation_policy('multi-user', 'public', 12, True),
+                         {'instanceMode': 'multi-user', 'signupPolicy': 'public', 'maxUsers': 12})
+        for values in [('personal', 'public', 1, True), ('personal', 'invite', 2, False),
+                       ('multi-user', 'public', 100, False), ('multi-user', 'invite', 1, False),
+                       ('multi-user', 'invite', 1001, False)]:
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                installation_policy(*values)
+        for mode, signup, maximum, acknowledgment in [('personal', 'public', 1, True), ('multi-user', 'public', 100, False)]:
+            target = self.root / ('unsafe-mode-' + mode)
+            with self.assertRaises(ValueError):
+                prepare(target, 'https://gym.example.com', repo=self.repo, guard=lambda *args: None,
+                        mode=mode, signup=signup, max_users=maximum, allow_public=acknowledgment)
+            self.assertFalse(target.exists())
+
+    def test_dollar_sign_in_instance_path_is_refused_before_creation(self):
+        target = self.root / 'instance $UNSET_VARIABLE'
+        with self.assertRaisesRegex(ValueError, 'dollar sign'):
+            prepare(target, 'https://gym.example.com', repo=self.repo, guard=lambda *args: None)
+        self.assertFalse(target.exists())
+
+    @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
+    def test_multi_user_modes_resolve_to_prepared_environment_and_keep_bootstrap_private(self):
+        for signup in ('invite', 'public'):
+            with self.subTest(signup=signup):
+                target = self.root / ('multi-' + signup)
+                metadata = prepare(target, 'https://gym.example.com', repo=self.repo, guard=lambda *args: None,
+                                   mode='multi-user', signup=signup, max_users=20, allow_public=signup == 'public')
+                env = compose_config(target)['services']['api']['environment']
+                self.assertEqual(env['OPENGYM_INSTANCE_MODE'], 'multi-user')
+                self.assertEqual(env['OPENGYM_SIGNUP_POLICY'], signup)
+                self.assertEqual(env['OPENGYM_MAX_USERS'], '20')
+                self.assertEqual(env['OPENGYM_LISTEN_HOST'], '0.0.0.0')
+                self.assertEqual(env['INVITE_ONLY'], '1')
+                self.assertEqual(env['ALLOW_GUEST'], '0')
+                db = json.loads((target / 'data/db.json').read_text())
+                self.assertEqual(db['users'], [])
+                self.assertEqual(len(db['invites']), 1)
+                self.assertRegex(db['invites'][0]['code'], '^[0-9A-F]{32}$')
+                self.assertEqual(metadata['signupPolicy'], signup)
+
+    def test_restore_preserves_mode_and_legacy_requires_operator_choice_without_account_migration(self):
+        source = self.root / 'multi-source'
+        metadata = prepare(source, 'https://gym.example.com', repo=self.repo, guard=lambda *args: None,
+                           mode='multi-user', max_users=5)
+        data = self.data(source)
+        db = json.loads((data / 'db.json').read_text())
+        db['users'] = [{'id': 'existing-a', 'admin': True}, {'id': 'existing-b', 'admin': False}]
+        (data / 'db.json').write_text(json.dumps(db))
+        original = (data / 'db.json').read_bytes()
+        current = self.root / 'multi-mode.tar.gz'
+        backup(data, current, metadata, guard=lambda *args: None)
+        recovered = self.root / 'multi-recovered'
+        restored_meta = prepare(recovered, metadata['origin'], repo=self.repo, guard=lambda *args: None, archive=current)
+        self.assertEqual(restored_meta['instanceMode'], 'multi-user')
+        self.assertEqual(restored_meta['maxUsers'], 5)
+        self.assertEqual((recovered / 'data/db.json').read_bytes(), original)
+        with self.assertRaisesRegex(ValueError, 'different instance mode'):
+            prepare(self.root / 'wrong-restored-mode', metadata['origin'], repo=self.repo,
+                    guard=lambda *args: None, archive=current, mode='personal')
+        legacy_meta = {key: value for key, value in metadata.items() if key not in ('instanceMode', 'signupPolicy', 'maxUsers')}
+        legacy = self.root / 'legacy.tar.gz'
+        backup(data, legacy, legacy_meta, guard=lambda *args: None)
+        incomplete = self.root / 'legacy-no-mode'
+        with self.assertRaisesRegex(ValueError, 'Legacy backup'):
+            prepare(incomplete, metadata['origin'], repo=self.repo, guard=lambda *args: None, archive=legacy)
+        self.assertFalse((incomplete / 'instance.env').exists())
+        with self.assertRaisesRegex(ValueError, 'account count exceeds'):
+            prepare(self.root / 'legacy-personal', metadata['origin'], repo=self.repo,
+                    guard=lambda *args: None, archive=legacy, mode='personal')
+        explicit = self.root / 'legacy-multi'
+        chosen = prepare(explicit, metadata['origin'], repo=self.repo, guard=lambda *args: None,
+                         archive=legacy, mode='multi-user', max_users=5)
+        self.assertEqual(chosen['instanceMode'], 'multi-user')
+        self.assertEqual((explicit / 'data/db.json').read_bytes(), original)
+        self.assertEqual((data / 'db.json').read_bytes(), original)
+
+    @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
+    def test_apply_refuses_core_mode_drift_before_any_container_action(self):
+        instance, _ = self.prepared()
+        file = instance / 'instance.env'
+        file.write_text(file.read_text().replace("OPENGYM_INSTANCE_MODE='personal'", "OPENGYM_INSTANCE_MODE='multi-user'"))
+        calls = []
+        def runner(command, **kwargs):
+            calls.append(command)
+            return subprocess.run(command, **kwargs)
+        with self.assertRaisesRegex(ValueError, 'instance mode'):
+            apply(instance, runner=runner)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][-3:], ['config', '--format', 'json'])
 
     def test_complete_backup_restore_preserves_bytes_and_origin(self):
         archive, original = self.archive()
@@ -399,9 +495,11 @@ print(json.dumps(receipt))
         calls = []
         def runner(command, **kwargs):
             calls.append(command[6:])
+            if command[-3:] == ['config', '--format', 'json']:
+                return subprocess.run(command, **kwargs)
             return subprocess.CompletedProcess(command, 0)
         apply(instance, runner=runner)
-        self.assertEqual(calls, [['config', '--quiet'], ['up', '-d', '--no-build', '--force-recreate', 'api', 'web']])
+        self.assertEqual(calls[-2:], [['config', '--quiet'], ['up', '-d', '--no-build', '--force-recreate', 'api', 'web']])
 
     @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
     def test_interrupted_three_file_publication_refuses_apply_and_inspect_until_recovered(self):
@@ -491,6 +589,7 @@ print(json.dumps(receipt))
         with patch.dict(os.environ, {'OPENGYM_ORIGIN': 'https://different.example.com',
                                     'OPENGYM_RP_ID': 'different.example.com', 'OPENGYM_RELEASE': 'unreviewed-build',
                                     'OPENGYM_SOURCE': '/unreviewed', 'OPENGYM_UID': '0', 'OPENGYM_GID': '0',
+                                    'OPENGYM_INSTANCE_MODE': 'multi-user', 'OPENGYM_SIGNUP_POLICY': 'public', 'OPENGYM_MAX_USERS': '1000',
                                     'COMPOSE_PROJECT_NAME': 'unreviewed-project'}):
             effective = compose_config(instance)
         api = effective['services']['api']
@@ -500,6 +599,9 @@ print(json.dumps(receipt))
         self.assertEqual(api['build']['context'], str(instance / 'source'))
         self.assertEqual(api['user'], str(os.getuid()) + ':' + str(os.getgid()))
         self.assertEqual(effective['name'], 'opengym-selfhost')
+        self.assertEqual(api['environment']['OPENGYM_INSTANCE_MODE'], 'personal')
+        self.assertEqual(api['environment']['OPENGYM_SIGNUP_POLICY'], 'invite')
+        self.assertEqual(api['environment']['OPENGYM_MAX_USERS'], '1')
 
     @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
     def test_catalogue_backup_reference_restore_and_disable_preserve_private_data(self):
@@ -537,6 +639,27 @@ status: url.endsWith('/capabilities') ? Number(process.argv[1]) : 200,
 json: async () => url.endsWith('/health') ? {writable:process.argv[3]==='true'} : {allow_guest:false,invite_only:process.argv[4]==='true'}
 }); await import(process.argv[2]);'''
                 result = subprocess.run(['node', '--input-type=module', '-e', program, str(status), (TOOLS / 'health.mjs').as_uri(), str(writable).lower(), str(invite_only).lower()], capture_output=True, text=True)
+                self.assertEqual(result.returncode, expected, result.stderr)
+
+    @unittest.skipUnless(shutil.which('node'), 'Node unavailable for readiness probe test')
+    def test_health_accepts_multi_user_public_bootstrap_transition_and_checks_declared_policy(self):
+        cases = [('personal', 'invite', 1, True, 1, 0),
+                 ('multi-user', 'invite', 100, True, 100, 0),
+                 ('multi-user', 'public', 100, True, 100, 0),
+                 ('multi-user', 'public', 100, False, 100, 0),
+                 ('personal', 'invite', 1, False, 1, 1),
+                 ('multi-user', 'public', 100, False, 999, 1)]
+        for mode, signup, limit, invite_only, reported_limit, expected in cases:
+            with self.subTest(mode=mode, signup=signup, invite_only=invite_only, reported_limit=reported_limit):
+                body = {'allow_guest': False, 'invite_only': invite_only, 'instance_mode': mode,
+                        'signup_policy': signup, 'max_users': reported_limit, 'registration_open': True}
+                program = '''process.env.OPENGYM_INSTANCE_MODE=process.argv[1];process.env.OPENGYM_LISTEN_HOST='127.0.0.1';
+process.env.OPENGYM_SIGNUP_POLICY=process.argv[2];process.env.OPENGYM_MAX_USERS=process.argv[3];
+globalThis.fetch=async url=>({status:url.endsWith('/capabilities')?401:200,
+json:async()=>url.endsWith('/health')?{writable:true}:JSON.parse(process.argv[4])});
+await import(process.argv[5]);'''
+                result = subprocess.run(['node', '--input-type=module', '-e', program, mode, signup,
+                                         str(limit), json.dumps(body), (TOOLS / 'health.mjs').as_uri()], capture_output=True, text=True)
                 self.assertEqual(result.returncode, expected, result.stderr)
 
     @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')

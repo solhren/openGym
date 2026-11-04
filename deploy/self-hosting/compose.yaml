@@ -35,6 +35,10 @@ services:
       ORIGIN: ${OPENGYM_ORIGIN:?set browser origin}
       RP_ID: ${OPENGYM_RP_ID:?set passkey hostname}
       RP_NAME: openGym
+      OPENGYM_INSTANCE_MODE: ${OPENGYM_INSTANCE_MODE:?set an explicit installation mode}
+      OPENGYM_LISTEN_HOST: 0.0.0.0
+      OPENGYM_SIGNUP_POLICY: ${OPENGYM_SIGNUP_POLICY:?set an explicit signup policy}
+      OPENGYM_MAX_USERS: ${OPENGYM_MAX_USERS:?set the account limit}
       FIRST_USER_ADMIN: "1"
       INVITE_ONLY: "1"
       ALLOW_GUEST: "0"
@@ -49,7 +53,7 @@ services:
           create_host_path: false
     networks: [private]
     healthcheck:
-      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test: [CMD, node, /app/scripts/self-hosting/health.mjs]
       interval: 30s
       timeout: 5s
       start_period: 30s

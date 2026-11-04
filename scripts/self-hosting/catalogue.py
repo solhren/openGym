@@ -215,6 +215,11 @@ def validate_effective(instance, effective, metadata, catalogue_root):
             any(service['build']['context'] != str(instance / 'source') for service in (api, web)) or
             api['user'] != f'{owner.st_uid}:{owner.st_gid}'):
         raise ValueError('Compose origin/release/source/owner differs from the prepared instance')
+    if metadata.get('instanceMode') is not None:
+        policy = {'OPENGYM_INSTANCE_MODE': metadata['instanceMode'], 'OPENGYM_LISTEN_HOST': '0.0.0.0', 'OPENGYM_SIGNUP_POLICY': metadata['signupPolicy'],
+                  'OPENGYM_MAX_USERS': str(metadata['maxUsers'])}
+        if any(api['environment'].get(key) != value for key, value in policy.items()):
+            raise ValueError('Compose instance mode/signup/account limit differs from the prepared instance')
     if catalogue_root is not None:
         expected = {'OPENGYM_SELF_HOSTED_CATALOG': '1', 'OPENGYM_CATALOG_LISTEN_HOST': '0.0.0.0', 'NUTRITION_LOCAL_CATALOG': '1',
                     'NUTRITION_LOCAL_CATALOG_KIND': 'public-registry', 'OPENGYM_CATALOG_REGISTRY': '/catalogues/registry.json'}
@@ -399,6 +404,11 @@ def apply(instance, runner=subprocess.run):
     command = ['docker', 'compose', '--env-file', str(instance / 'instance.env'), '-f', str(instance / 'compose.yaml')]
     with configuration_lock(instance):
         configuration_consistent(instance)
+        metadata = json.loads((instance / 'instance.json').read_text())
+        if metadata.get('instanceMode') is not None and metadata.get('catalogue') == 'none':
+            # The initial core Compose is still a template. Validate its prepared
+            # mode/policy before applying env-file interpolation to a service.
+            compose_config(instance, runner=runner)
         runner(command + ['config', '--quiet'], check=True, cwd=instance, env=prepared_environment())
         # Explicit operator action only. The images must have been built first.
         runner(command + ['up', '-d', '--no-build', '--force-recreate', 'api', 'web'], check=True, cwd=instance, env=prepared_environment())

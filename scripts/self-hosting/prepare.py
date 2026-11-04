@@ -61,15 +61,43 @@ def allowed_source(name):
 
 
 def env_value(value):
-    # Compose single quotes keep spaces, # and $ literal. Refuse quotes/newlines.
+    # Keep spaces and # literal; refuse values Compose cannot round-trip safely.
     value = str(value)
-    if any(c in value for c in "'\r\n\0"):
-        raise ValueError('Unsupported quote or newline in installation path')
+    if any(c in value for c in "'$\r\n\0"):
+        raise ValueError('Unsupported quote, dollar sign or newline in installation path')
     return "'" + value + "'"
 
 
-def prepare(directory, origin, port=8080, project='opengym-selfhost', archive=None, repo=REPO, guard=reserve, catalogues=None):
+def installation_policy(mode=None, signup=None, max_users=None, allow_public=False, restored=None, user_count=0):
+    """Resolve installation settings without changing or promoting any account."""
+    old_mode = restored.get('instanceMode') if restored else None
+    if restored is not None and old_mode is None and mode is None:
+        raise ValueError('Legacy backup has no instance mode; restore with --mode personal or --mode multi-user explicitly')
+    if old_mode is not None and old_mode not in ('personal', 'multi-user'):
+        raise ValueError('Invalid instance mode in backup metadata')
+    if old_mode is not None and mode is not None and old_mode != mode:
+        raise ValueError('Restoring into a different instance mode requires a server migration; keep the recorded mode')
+    mode = mode or old_mode or 'personal'
+    signup = signup or (restored.get('signupPolicy') if restored else None) or 'invite'
+    max_users = max_users if max_users is not None else (restored.get('maxUsers') if restored else None)
+    max_users = max_users if max_users is not None else (1 if mode == 'personal' else 100)
+    if mode not in ('personal', 'multi-user') or signup not in ('invite', 'public'):
+        raise ValueError('Choose personal or multi-user mode and invite or public signup')
+    if mode == 'personal' and (signup != 'invite' or type(max_users) is not int or max_users != 1):
+        raise ValueError('Personal mode has one owner and closes registration; public signup and larger limits are refused')
+    if mode == 'multi-user' and (type(max_users) is not int or not 2 <= max_users <= 1000):
+        raise ValueError('Multi-user mode requires --max-users from 2 to 1000 (default 100)')
+    if signup == 'public' and not allow_public:
+        raise ValueError('Public signup requires both --mode multi-user --signup public and --allow-public-signup')
+    if user_count > max_users:
+        raise ValueError('Restored account count exceeds the selected instance limit; no accounts were removed')
+    return {'instanceMode': mode, 'signupPolicy': signup, 'maxUsers': max_users}
+
+
+def prepare(directory, origin, port=8080, project='opengym-selfhost', archive=None, repo=REPO, guard=reserve,
+            catalogues=None, mode=None, signup=None, max_users=None, allow_public=False):
     host = browser_origin(origin)
+    policy = installation_policy(mode, signup, max_users, allow_public) if not archive or mode is not None else None
     from catalogue import plan_catalogues
     requested = plan_catalogues(repo, catalogues)
     if not re.fullmatch(r'[a-z][a-z0-9-]{0,39}', project) or not 1024 <= port <= 65535:
@@ -113,6 +141,10 @@ def prepare(directory, origin, port=8080, project='opengym-selfhost', archive=No
     restored = None
     if archive:
         restored = restore(archive, data, origin, guard=guard)
+        db = json.loads((data / 'db.json').read_text())
+        if not isinstance(db, dict) or not isinstance(db.get('users'), list):
+            raise ValueError('Restored account database has no valid users list')
+        policy = installation_policy(mode, signup, max_users, allow_public, restored, len(db['users']))
     else:
         data.mkdir(mode=0o700)
         code = secrets.token_hex(16).upper()
@@ -122,12 +154,14 @@ def prepare(directory, origin, port=8080, project='opengym-selfhost', archive=No
         private_write(data / 'bootstrap-invite.txt', (code + '\n').encode())
     metadata = {'format': 'opengym-selfhost-instance', 'version': 1, 'origin': origin,
                 'release': release, 'sourceCommit': subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'HEAD']).decode().strip(),
-                'sourceSha256': source_hash, 'catalogue': 'none', 'apiEgress': False}
+                'sourceSha256': source_hash, 'catalogue': 'none', 'apiEgress': False, **policy}
     if restored is not None:
         metadata['restoredCatalogue'] = restored.get('catalogue', 'none')
     values = {'OPENGYM_PROJECT': project, 'OPENGYM_RELEASE': release, 'OPENGYM_SOURCE': source_dir,
               'OPENGYM_DATA_DIR': data, 'OPENGYM_ORIGIN': origin, 'OPENGYM_RP_ID': host,
-              'OPENGYM_WEB_PORT': port, 'OPENGYM_UID': os.getuid(), 'OPENGYM_GID': os.getgid()}
+              'OPENGYM_WEB_PORT': port, 'OPENGYM_UID': os.getuid(), 'OPENGYM_GID': os.getgid(),
+              'OPENGYM_INSTANCE_MODE': policy['instanceMode'], 'OPENGYM_SIGNUP_POLICY': policy['signupPolicy'],
+              'OPENGYM_MAX_USERS': policy['maxUsers']}
     private_write(target / 'instance.env', ''.join(key + '=' + env_value(value) + '\n' for key, value in values.items()).encode())
     private_write(target / 'instance.json', (json.dumps(metadata, indent=2) + '\n').encode())
     private_write(target / 'source-inventory.json', (json.dumps(inventory, indent=2) + '\n').encode())
@@ -148,15 +182,20 @@ def main():
     parser.add_argument('--project', default='opengym-selfhost')
     parser.add_argument('--restore', help='Restore a verified offline backup into this new instance')
     parser.add_argument('--catalogues', help='Explicit downloads: recommended or ciqual; default none. List other sources with catalogue.py list')
+    parser.add_argument('--mode', choices=['personal', 'multi-user'], help='Default personal for a new instance; inherit a recorded mode on restore')
+    parser.add_argument('--signup', choices=['invite', 'public'], help='Default invite; public is an explicit multi-user option')
+    parser.add_argument('--max-users', type=int, help='Personal is fixed at 1; multi-user default 100, allowed 2..1000')
+    parser.add_argument('--allow-public-signup', action='store_true', help='Acknowledge public registration after the first administrator has used the private bootstrap invite')
     args = parser.parse_args()
     if os.getuid() == 0:
         parser.error('Use the non-root account that will own the instance and run Docker')
     try:
-        metadata = prepare(args.directory, args.origin, args.port, args.project, args.restore, catalogues=args.catalogues)
+        metadata = prepare(args.directory, args.origin, args.port, args.project, args.restore, catalogues=args.catalogues,
+                           mode=args.mode, signup=args.signup, max_users=args.max_users, allow_public=args.allow_public_signup)
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         parser.exit(1, f'Preparation refused: {error}\n')
     mode = 'public catalogue registry selected' if isinstance(metadata['catalogue'], dict) else 'personal foods only'
-    print(f"Prepared {metadata['release']}; {mode}. No service was started.")
+    print(f"Prepared {metadata['release']}; {metadata['instanceMode']} / {metadata['signupPolicy']}; {mode}. No service was started.")
     print('Invitation: data/bootstrap-invite.txt inside the private instance directory (not printed).')
 
 
