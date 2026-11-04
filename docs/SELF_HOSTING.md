@@ -382,8 +382,10 @@ python3 "$OPENGYM_CHECKOUT/scripts/self-hosting/backup.py" \
   "$HOME/opengym-instance/backups/instance-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
 ```
 
-The tool validates Compose, confirms its API mount, stops the API for a consistent
-archive, and restarts it if it was running, even when archiving fails. A previously
+The tool takes the catalogue configuration lock, refuses an interrupted configuration,
+ignores unrelated shell project overrides, and validates the prepared Compose project
+and API mount before stopping anything. It stops the API for a consistent archive
+and restarts it if it was running, even when archiving fails. A previously
 stopped API stays stopped. The web can briefly return 502 during this maintenance.
 The output and its `.sha256` sidecar are private. `.partial` files indicate a
 failed/incomplete backup. Copy the archive **and checksum** to private storage on

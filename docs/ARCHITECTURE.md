@@ -87,7 +87,10 @@ explicit public modes, an administrator manages accounts and invitations without
 receiving other users' workout or meal content. The legacy administrative API
 predates this restriction and can expose workout data; do not equate its default
 configuration with the explicit public policy. The host operator remains trusted and can read
-the server files; this is not end-to-end encryption. See [SECURITY](../SECURITY.md).
+the server files; this is not end-to-end encryption. If an operator explicitly enables
+password login, administrator-issued password recovery can grant access to a
+nonadministrator profile. The default public profile disables that recovery path.
+See [account modes](dev/PUBLIC_ACCOUNT_MODES.md) and [SECURITY](../SECURITY.md).
 
 Concurrency belongs at the persistence/publication boundary: conditional revisions,
 durable manifests, interrupted-write recovery and preserved divergent versions.

@@ -2,38 +2,50 @@
 """Stop the instance API, back up its entire private data folder, then resume it."""
 import argparse
 import json
+import re
 from pathlib import Path
 import subprocess
 
 from state import backup
+from catalogue import configuration_lock, configuration_consistent, prepared_environment
 
 
 def offline_backup(instance, output, runner=subprocess.run):
-    instance = Path(instance).resolve()
+    instance = Path(instance).absolute()
     output = Path(output).absolute()
     if output == instance / 'data' or instance / 'data' in output.parents:
         raise ValueError('Backups must be outside the data directory')
-    metadata = json.loads((instance / 'instance.json').read_text())
-    if metadata.get('format') != 'opengym-selfhost-instance':
-        raise ValueError('A prepared self-hosting instance is required')
-    compose = ['docker', 'compose', '--env-file', str(instance / 'instance.env'), '-f', str(instance / 'compose.yaml')]
-    def run(args, **kwargs):
-        return runner(compose + args, check=True, cwd=instance, **kwargs)
-    run(['config', '--quiet'])
-    # The published profile always binds this directory. Reject edits that would
-    # otherwise back up an unused directory while the real database keeps writing.
-    effective = json.loads(run(['config', '--format', 'json'], capture_output=True, text=True).stdout)
-    mounts = effective['services']['api']['volumes']
-    if not any(item.get('type') == 'bind' and item.get('target') == '/data' and
-               Path(item['source']).resolve() == instance / 'data' for item in mounts):
-        raise ValueError('API data mount differs from this prepared instance')
-    running = run(['ps', '--status', 'running', '-q', 'api'], capture_output=True, text=True).stdout.strip()
-    run(['stop', 'api'])
-    try:
-        backup(instance / 'data', output, metadata)
-    finally:
-        if running:
-            run(['start', 'api'])
+    # Hold the same operator lock through stop/copy/restart. A catalogue change
+    # must not switch the reviewed configuration underneath a backup.
+    with configuration_lock(instance):
+        configuration_consistent(instance)
+        metadata = json.loads((instance / 'instance.json').read_text())
+        if metadata.get('format') != 'opengym-selfhost-instance':
+            raise ValueError('A prepared self-hosting instance is required')
+        projects = re.findall(r"^OPENGYM_PROJECT='([a-z][a-z0-9-]{0,39})'$", (instance / 'instance.env').read_text(), re.MULTILINE)
+        if len(projects) != 1:
+            raise ValueError('A single prepared Compose project is required')
+        compose = ['docker', 'compose', '--env-file', str(instance / 'instance.env'), '-f', str(instance / 'compose.yaml')]
+        environment = prepared_environment()
+        def run(args, **kwargs):
+            return runner(compose + args, check=True, cwd=instance, env=environment, **kwargs)
+        run(['config', '--quiet'])
+        # A shell COMPOSE_PROJECT_NAME can redirect stop/start even when the data
+        # mount is correct. Ignore ambient overrides and verify the effective name.
+        effective = json.loads(run(['config', '--format', 'json'], capture_output=True, text=True).stdout)
+        if effective.get('name') != projects[0]:
+            raise ValueError('Compose project differs from this prepared instance')
+        mounts = effective['services']['api']['volumes']
+        if not any(item.get('type') == 'bind' and item.get('target') == '/data' and
+                   Path(item['source']).resolve() == instance / 'data' for item in mounts):
+            raise ValueError('API data mount differs from this prepared instance')
+        running = run(['ps', '--status', 'running', '-q', 'api'], capture_output=True, text=True).stdout.strip()
+        run(['stop', 'api'])
+        try:
+            backup(instance / 'data', output, metadata)
+        finally:
+            if running:
+                run(['start', 'api'])
 
 
 def main():

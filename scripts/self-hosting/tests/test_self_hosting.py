@@ -337,7 +337,7 @@ print(json.dumps(receipt))
             calls.append(args)
             stdout = ''
             if args == ['config', '--format', 'json']:
-                stdout = json.dumps({'services': {'api': {'volumes': [{'type': 'bind', 'target': '/data', 'source': str(instance / ('wrong' if wrong else 'data'))}]}}})
+                stdout = json.dumps({'name': 'opengym-selfhost', 'services': {'api': {'volumes': [{'type': 'bind', 'target': '/data', 'source': str(instance / ('wrong' if wrong else 'data'))}]}}})
             elif args and args[0] == 'ps':
                 stdout = 'fake-api-container-id\n'
             return subprocess.CompletedProcess(command, 0, stdout)
@@ -351,6 +351,42 @@ print(json.dumps(receipt))
         with self.assertRaisesRegex(ValueError, 'mount differs'):
             offline_backup(instance, self.root / 'wrong.tar.gz', runner=runner)
         self.assertNotIn(['stop', 'api'], calls)
+
+    @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
+    def test_backup_uses_prepared_environment_for_every_compose_command(self):
+        instance, _ = self.prepared()
+        calls = []
+        def runner(command, **kwargs):
+            args = command[6:]
+            calls.append(args)
+            self.assertNotIn('COMPOSE_PROJECT_NAME', kwargs['env'])
+            self.assertFalse(any(key.startswith('OPENGYM_') for key in kwargs['env']))
+            if args[0] == 'config':
+                return subprocess.run(command, **kwargs)  # Real CLI parser; never the daemon.
+            return subprocess.CompletedProcess(command, 0, 'synthetic-api-id' if args[0] == 'ps' else '')
+        with patch.dict(os.environ, {'COMPOSE_PROJECT_NAME': 'unrelated-service', 'OPENGYM_PROJECT': 'wrong',
+                                     'OPENGYM_DATA_DIR': '/never-touch', 'OPENGYM_RELEASE': 'wrong'}):
+            with patch('backup.backup') as save:
+                offline_backup(instance, self.root / 'safe.tar.gz', runner=runner)
+                save.assert_called_once()
+        self.assertIn(['stop', 'api'], calls)
+        self.assertEqual(calls[-1], ['start', 'api'])
+
+    def test_backup_refuses_wrong_project_or_pending_configuration_before_stopping(self):
+        instance, _ = self.prepared()
+        calls = []
+        def runner(command, **kwargs):
+            args = command[6:]; calls.append(args)
+            value = {'name': 'unrelated-service', 'services': {'api': {'volumes': [
+                {'type': 'bind', 'target': '/data', 'source': str(instance / 'data')}]}}}
+            return subprocess.CompletedProcess(command, 0, json.dumps(value))
+        with self.assertRaisesRegex(ValueError, 'project differs'):
+            offline_backup(instance, self.root / 'wrong-project.tar.gz', runner=runner)
+        self.assertFalse(any(args[0] in ('ps', 'stop', 'start') for args in calls))
+        calls.clear(); (instance / PENDING).write_text('{}')
+        with self.assertRaisesRegex(ValueError, 'Incomplete catalogue update'):
+            offline_backup(instance, self.root / 'pending.tar.gz', runner=runner)
+        self.assertEqual(calls, [])
 
     @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
     def test_catalogue_profile_uses_readonly_data_and_keeps_account_network_boundaries(self):
