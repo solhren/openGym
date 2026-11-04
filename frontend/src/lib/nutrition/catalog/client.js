@@ -136,6 +136,7 @@ async function readJson(response) {
       text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
     } finally { try { await reader.cancel() } catch { /* already closed */ } reader.releaseLock() }
   } else { text = await response.text(); fail(encoder.encode(text).length <= MAX_RESPONSE_BYTES, 'response-too-large') }
+  response.assertSessionCurrent?.()
   let result; try { result = JSON.parse(text) } catch { throw new CatalogError('invalid-response') }
   inspectExternal(result); return result
 }
@@ -155,7 +156,7 @@ export function createFoodCatalog({ transport = directTransport, guard = () => {
     fail(['https:', 'http:'].includes(base.protocol) && !base.username && !base.password && !base.search && !base.hash && serverOrigin === base.origin + base.pathname.replace(/\/$/, ''), 'invalid-query')
   }
   const personalRead=async(path,options)=>{const {authenticatedCatalogFetch}=await import('../../api.js');const r=await authenticatedCatalogFetch(path,options);return {status:r.status,headers:r.headers,body:r.body,text:()=>r.text(),catalogRelay:true}}
-  const pairedRead=async(path,options)=>{const {authenticatedCatalogFetch}=await import('../../api.js');current();const r=await authenticatedCatalogFetch(path,{...options,expectedBase:serverOrigin});return {status:r.status,headers:r.headers,body:r.body,text:()=>r.text(),catalogRelay:true}}
+  const pairedRead=async(path,options)=>{const {authenticatedCatalogFetch}=await import('../../api.js');current();const r=await authenticatedCatalogFetch(path,{...options,expectedBase:serverOrigin});return {status:r.status,headers:r.headers,body:r.body,text:()=>r.text(),assertSessionCurrent:r.assertSessionCurrent,catalogRelay:true}}
   const accountRead = PERSONAL_BETA ? personalRead : pairedMobile ? pairedRead : null
   const mobileRelay = MOBILE && !PERSONAL_BETA && !pairedMobile && publicOrigin && originalDefault ? createPublicCatalogRelay(publicOrigin) : null
   let localRelay = false
@@ -212,7 +213,7 @@ export function createFoodCatalog({ transport = directTransport, guard = () => {
       }
       fail(response.status === 200, 'network-error')
       const json = await readJson(response); current(); if (controller.signal.aborted) throw aborted()
-      const value = await normalize(json); current(); if (controller.signal.aborted) throw aborted()
+      const value = await normalize(json); current(); response.assertSessionCurrent?.(); if (controller.signal.aborted) throw aborted()
       if (!options.fresh) remember(key, value, kind === 'search' ? 300000 : 86400000)
       return structuredClone({ ...value, cached: false })
     } catch (error) { if (timedOut && !closed && !options.signal?.aborted) throw new CatalogError('network-error'); if (controller.signal.aborted) throw aborted(); if (error instanceof CatalogError || error?.issues) throw error; throw new CatalogError('network-error') }
@@ -252,7 +253,7 @@ export function createFoodCatalog({ transport = directTransport, guard = () => {
         const response = await (capabilitiesTransport ?? accountRead ?? mobileRelay?.capabilities ?? fetch)('/api/nutrition/catalog/capabilities', { signal:controller.signal, credentials:'omit', redirect:'error', referrerPolicy:'no-referrer', headers:{Accept:'application/json'} })
         current(); if (controller.signal.aborted) throw aborted()
         if (response.status !== 200) return unavailable()
-        const body = await readJson(response); current(); if (controller.signal.aborted) throw aborted()
+        const body = await readJson(response); current(); response.assertSessionCurrent?.(); if (controller.signal.aborted) throw aborted()
         if (body.schemaVersion === 2) {
           fail(Object.keys(body).sort().join(',') === 'productIds,provider,schemaVersion,selection,textSearch' && body.textSearch === 'local' && body.provider === 'wger' && body.selection === 'local-only' && body.productIds === true,'invalid-response')
           if (!localV1) { cache.clear(); bytes = 0 }

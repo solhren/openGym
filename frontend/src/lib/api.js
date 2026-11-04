@@ -45,10 +45,16 @@ export function authenticatedCatalogFetch(path,{signal,expectedBase}={}){
   // pairing must not receive the previous account's queries or publish its replies.
   const base=remoteBase,token=remoteToken
   if(MOBILE&&expectedBase!==undefined&&base!==expectedBase)throw failure('Catalogue session changed','session-changed',0)
-  if(MOBILE&&expectedBase!==undefined)return fetch(base+path,{signal,redirect:'error',credentials:'omit',headers:{Accept:'application/json',...remoteHeaders()}}).then(response=>{
-    if(remoteBase!==base||remoteToken!==token)throw failure('Catalogue session changed','session-changed',0)
-    return response
-  })
+  if(MOBILE&&expectedBase!==undefined){
+    const assertSessionCurrent=()=>{if(remoteBase!==base||remoteToken!==token)throw failure('Catalogue session changed','session-changed',0)}
+    return fetch(base+path,{signal,redirect:'error',credentials:'omit',headers:{Accept:'application/json',...remoteHeaders()}}).then(response=>{
+      assertSessionCurrent()
+      // Fetch settles at the headers. Keep the captured session check available
+      // through the bounded body reader, including the native pairing-file await
+      // before the UI's account/epoch changes. No credential leaves this closure.
+      return {status:response.status,headers:response.headers,body:response.body,text:()=>response.text(),assertSessionCurrent}
+    })
+  }
   return fetch((MOBILE?remoteBase:appBase().replace(/\/$/,''))+path,{signal,redirect:'error',credentials:MOBILE?'omit':'same-origin',headers:{Accept:'application/json',...(MOBILE?remoteHeaders():{})}})
 }
 

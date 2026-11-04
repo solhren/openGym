@@ -4,7 +4,9 @@ import { localBody, localCapabilities, localRecord, localSearchBody } from './lo
 import { offProduct } from './fixtures.test-util.js'
 
 const bridge = vi.hoisted(() => ({ get: vi.fn() }))
+const files = vi.hoisted(() => ({ writeFile: vi.fn() }))
 vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => true }, CapacitorHttp: { get: bridge.get } }))
+vi.mock('@capacitor/filesystem', () => ({ Filesystem: files, Directory: { Data: 'DATA' }, Encoding: { UTF8: 'utf8' } }))
 const origin = 'https://my-own-gym.example'
 let catalog, api, fetcher
 const answer = (body, url, status = 200) => {
@@ -19,6 +21,7 @@ beforeEach(async () => {
   vi.stubEnv('VITE_NUTRITION_LOCAL_V1', '1')
   vi.stubEnv('VITE_NUTRITION_CATALOG_ORIGIN', '')
   bridge.get.mockReset()
+  files.writeFile.mockReset()
   fetcher = vi.fn(async url => answer(url.endsWith('capabilities') ? localCapabilities : url.includes('/search?') ? localSearchBody() : localBody({ product: localRecord() }), url))
   vi.stubGlobal('fetch', fetcher)
   api = await import('../../api.js')
@@ -111,6 +114,31 @@ test('an account changed while reading a search body cannot receive late results
   await vi.waitFor(() => expect(deliver).toBeTypeOf('function'))
   current = false; deliver()
   await rejection
+})
+
+test.each([[origin, false], ['https://different-gym.example', false], [origin, true], ['https://different-gym.example', true]])('pairing to %s during a body read (stream=%s) rejects stale results before pairing persistence completes', async (newBase, stream) => {
+  api.setRemoteAuth(origin, 'old-session')
+  await create(); await catalog.capabilities()
+  let deliverBody, finishPersistence
+  const text = JSON.stringify(localSearchBody())
+  const body = stream ? new ReadableStream({ pull(controller) { deliverBody = () => { controller.enqueue(new TextEncoder().encode(text)); controller.close() } } }, { highWaterMark: 0 }) : null
+  fetcher.mockResolvedValueOnce({ status: 200, headers: { get: () => null }, body,
+    text: () => new Promise(resolve => { deliverBody = () => resolve(text) }) })
+  const pending = catalog.search('riz')
+  // Consume the outcome immediately so a rejected late body is always observed.
+  const outcome = pending.then(value => ({ value }), error => ({ error }))
+  await vi.waitFor(() => expect(deliverBody).toBeTypeOf('function'))
+  files.writeFile.mockImplementationOnce(() => new Promise(resolve => { finishPersistence = resolve }))
+  fetcher.mockResolvedValueOnce(answer({ token: 'new-account-session', user: { id: 'new-account', name: 'Fixture' } }, newBase + '/api/pair/redeem'))
+  const remote = await import('../../remote.js')
+  let paired = false
+  const connecting = remote.connect(newBase, 'PAIR1234').then(() => { paired = true })
+  await vi.waitFor(() => expect(finishPersistence).toBeTypeOf('function'))
+  try {
+    expect(paired).toBe(false) // connectToServer cannot update its user/server yet.
+    deliverBody()
+    expect((await outcome).error).toBeTruthy()
+  } finally { finishPersistence(); await connecting }
 })
 
 test('noncanonical account addresses are refused before a request', async () => {
