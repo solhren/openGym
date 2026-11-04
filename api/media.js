@@ -605,7 +605,9 @@ export function createMediaStore({ dir, limits, now = Date.now, readState = () =
   }
   const existed = (hash, f) => ({ status: 200, body: { ok: true, hash, mime: EXT_MIME[f.ext], size: f.size, existed: true } });
 
-  async function receive(uid, hash, req) {
+  // The route may supply a synchronous authorization assertion. Streaming yields to account
+  // revocation; authorization must still hold before publishing or touching an existing file.
+  async function receive(uid, hash, req, { assertAuthorized = () => {} } = {}) {
     if (!HASH_RE.test(String(hash))) { drain(req, maxCap); throw new MediaError(400, 'bad-request'); }
     const e = entry(uid);
     if (e.inflight >= MAX_INFLIGHT) {
@@ -631,7 +633,7 @@ export function createMediaStore({ dir, limits, now = Date.now, readState = () =
       // after an upload, a damaged restore). Then these bytes, checked against the hash below,
       // replace it, instead of the damaged file being vouched for forever.
       const have = intact(e, hash, len);
-      if (have) { drain(req, 2 * cap); touch(e, hash); return existed(hash, have); }
+      if (have) { assertAuthorized(); drain(req, 2 * cap); touch(e, hash); return existed(hash, have); }
 
       // Reserved before a byte is read, so two uploads at once cannot both fit into the space
       // that is only left for one.
@@ -657,6 +659,9 @@ export function createMediaStore({ dir, limits, now = Date.now, readState = () =
 
       tmp = path.join(e.dir, '.tmp', crypto.randomBytes(12).toString('hex'));
       const got = await streamToFile(req, tmp, { max: cap, maxMB: capMB(declared.kind), idleMs });
+      // A deleted account may already have removed this temporary file, so check before any
+      // further file access as well as at the final publication boundary below.
+      assertAuthorized();
 
       if (got.sha !== hash) throw new MediaError(400, 'hash-mismatch');
       const sn = sniffMedia(got.head);
@@ -674,9 +679,11 @@ export function createMediaStore({ dir, limits, now = Date.now, readState = () =
       // The same bytes from another device may have landed while these were streaming. The
       // rename and the cache update below are synchronous, so this check cannot be overtaken.
       const now2 = intact(e, hash, got.size);
-      if (now2) { touch(e, hash); return existed(hash, now2); }
+      if (now2) { assertAuthorized(); touch(e, hash); return existed(hash, now2); }
       // The bytes are on disk before the name is, and the name before the answer (durable.js).
       syncFile(tmp);
+      // No await follows this check: replacement, rename and cache publication are synchronous.
+      assertAuthorized();
       const damaged = e.hashes.get(hash);
       if (damaged) {
         if (damaged.ext !== sn.ext) { try { fs.unlinkSync(path.join(e.dir, `${hash}.${damaged.ext}`)); } catch { /* gone */ } }

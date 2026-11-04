@@ -11,16 +11,18 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { boundPort } from './helpers.mjs';
+import { jpeg, sha, fakeReq } from './media-samples.mjs';
+import { createMediaStore } from '../media.js';
 
 const API = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-async function startServer(t) {
+async function startServer(t, { media = false } = {}) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gym-session-revocation-'));
   const secret = crypto.randomBytes(32).toString('hex');
   const state = { routines: [], workouts: [], bodyweight: [{ d: '2026-11-01', w: 75 }], _rev: 1 };
   fs.writeFileSync(path.join(dataDir, 'secret'), secret, { mode: 0o600 });
   fs.writeFileSync(path.join(dataDir, 'db.json'), JSON.stringify({
-    users: [{ id: 'owner', name: 'Owner' }, { id: 'admin', name: 'Admin', admin: true }],
+    users: [{ id: 'owner', name: 'Owner' }, { id: 'admin', name: 'Admin', admin: true }, { id: 'other', name: 'Other' }],
     creds: [], subs: [], invites: []
   }));
   const stateFile = path.join(dataDir, 'state-owner.json');
@@ -28,7 +30,7 @@ async function startServer(t) {
   const child = spawn(process.execPath, ['server.js'], {
     cwd: API, stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, PORT: '0', DATA_DIR: dataDir, ORIGIN: 'http://localhost:8080', RP_ID: 'localhost',
-      COACH_DISABLED: '1', MEDIA_UPLOADS: '0', PASSWORD_LOGIN: '', INVITE_ONLY: '', ADMIN_UIDS: '', FIRST_USER_ADMIN: '',
+      COACH_DISABLED: '1', MEDIA_UPLOADS: media ? '1' : '0', MEDIA_MIN_FREE_MB: '1', PASSWORD_LOGIN: '', INVITE_ONLY: '', ADMIN_UIDS: '', FIRST_USER_ADMIN: '',
       OPENGYM_PRIVATE_BETA: '', OPENGYM_PERSONAL_BETA: '', OPENGYM_BETA_DOCKER: '', NUTRITION_LOCAL_CATALOG: '' }
   });
   let log = '';
@@ -46,16 +48,20 @@ async function startServer(t) {
       ...(method === 'GET' ? {} : { body: JSON.stringify(body) }) });
     return { status: r.status, body: await r.json() };
   };
-  return { base, auth, request, state, stateFile, db: () => JSON.parse(fs.readFileSync(path.join(dataDir, 'db.json'), 'utf8')) };
+  const uploadFiles = (subdir = '') => {
+    try { return fs.readdirSync(path.join(dataDir, 'uploads', 'owner', subdir)).filter(f => !f.startsWith('.')); }
+    catch (e) { if (e.code === 'ENOENT') return []; throw e; }
+  };
+  return { base, auth, request, state, stateFile, uploadFiles, db: () => JSON.parse(fs.readFileSync(path.join(dataDir, 'db.json'), 'utf8')) };
 }
 
-async function pendingBody(t, h, method, route, headers, body) {
-  const bytes = JSON.stringify(body);
+async function pendingBody(t, h, method, route, headers, body, { prefixBytes = 0 } = {}) {
+  const bytes = Buffer.isBuffer(body) ? body : Buffer.from(JSON.stringify(body));
   let req;
   let continued;
   const ready = new Promise(resolve => { continued = resolve; });
   const response = new Promise((resolve, reject) => {
-    req = http.request(h.base + route, { method, headers: { ...headers, 'Content-Type': 'application/json',
+    req = http.request(h.base + route, { method, headers: { 'Content-Type': 'application/json', ...headers,
       'Content-Length': Buffer.byteLength(bytes), Expect: '100-continue' } }, res => {
       let raw = '';
       res.setEncoding('utf8');
@@ -72,7 +78,8 @@ async function pendingBody(t, h, method, route, headers, body) {
   });
   t.after(() => req.destroy());
   await Promise.race([ready, response.then(r => { throw new Error(`answered before the body: ${r.status}`); })]);
-  return () => { req.end(bytes); return response; };
+  if (prefixBytes) await new Promise((resolve, reject) => req.write(bytes.subarray(0, prefixBytes), e => e ? reject(e) : resolve()));
+  return () => { req.end(bytes.subarray(prefixBytes)); return response; };
 }
 
 test('a cookie write waiting for its body cannot outlive sign out everywhere', async t => {
@@ -121,4 +128,67 @@ test('anonymous registration options do not depend on an unrelated revoked cooki
   assert.equal(result.status, 200);
   assert.equal(typeof result.body.cid, 'string');
   assert.equal(result.body.options.user.name, 'New profile');
+});
+
+test('a current write survives deletion of an unrelated profile while its body is pending', async t => {
+  const h = await startServer(t);
+  const finish = await pendingBody(t, h, 'PUT', '/api/data', h.auth('owner'), {
+    state: { routines: [], workouts: [], bodyweight: h.state.bodyweight }, baseRev: 1
+  });
+  assert.equal((await h.request('POST', '/api/admin/user/delete', h.auth('admin'), { id: 'other' })).status, 200);
+  assert.equal((await finish()).status, 200);
+  assert.equal(JSON.parse(fs.readFileSync(h.stateFile, 'utf8'))._rev, 2);
+});
+
+for (const action of ['sign out everywhere', 'disablement', 'deletion']) {
+  test(`a raw media upload cannot publish after ${action}`, async t => {
+    const h = await startServer(t, { media: true });
+    const bytes = jpeg(1024), hash = sha(bytes);
+    const finish = await pendingBody(t, h, 'PUT', '/api/media/' + hash,
+      { ...h.auth('owner', action !== 'sign out everywhere'), 'Content-Type': 'image/jpeg' }, bytes, { prefixBytes: 128 });
+    const revoked = action === 'sign out everywhere'
+      ? await h.request('POST', '/api/logout/all', h.auth('owner'))
+      : await h.request('POST', '/api/admin/user/' + (action === 'disablement' ? 'disable' : 'delete'),
+        h.auth('admin'), { id: 'owner', disabled: true });
+    assert.equal(revoked.status, 200);
+    assert.equal((await finish()).status, 401);
+    assert.deepEqual(h.uploadFiles(), []);
+    assert.deepEqual(h.uploadFiles('.tmp'), []);
+  });
+}
+
+test('a current raw media upload survives unrelated profile deletion and remains readable', async t => {
+  const h = await startServer(t, { media: true });
+  const bytes = jpeg(1024), hash = sha(bytes);
+  const finish = await pendingBody(t, h, 'PUT', '/api/media/' + hash,
+    { ...h.auth('owner', true), 'Content-Type': 'image/jpeg' }, bytes, { prefixBytes: 128 });
+  assert.equal((await h.request('POST', '/api/admin/user/delete', h.auth('admin'), { id: 'other' })).status, 200);
+  assert.equal((await finish()).status, 201);
+  const get = await fetch(h.base + '/api/media/' + hash, { headers: h.auth('owner', true) });
+  assert.equal(get.status, 200);
+  assert.ok(Buffer.from(await get.arrayBuffer()).equals(bytes));
+  assert.deepEqual(h.uploadFiles(), [hash + '.jpg']);
+  assert.deepEqual(h.uploadFiles('.tmp'), []);
+});
+
+test('authorization expiring during the file flush cannot replace a damaged stored upload', async t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gym-media-commit-auth-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const store = createMediaStore({ dir: root, limits: { minFreeMB: 0 }, log: { error() {} } });
+  const bytes = jpeg(1024), hash = sha(bytes), file = path.join(root, 'owner', hash + '.jpg');
+  assert.equal((await store.receive('owner', hash, fakeReq(bytes))).status, 201);
+  fs.truncateSync(file, 128);
+  const original = fs.readFileSync(file), usage = store.usage('owner');
+  let authorized = true;
+  const flush = fs.fsyncSync;
+  // A flush can outlast a token's expiry even though it is synchronous. Revoke at this exact
+  // boundary, after the streamed file was authorized but before its publication may replace data.
+  t.mock.method(fs, 'fsyncSync', fd => { const result = flush(fd); authorized = false; return result; });
+  const denied = new Error('session expired');
+  await assert.rejects(store.receive('owner', hash, fakeReq(bytes), {
+    assertAuthorized() { if (!authorized) throw denied; }
+  }), error => error === denied);
+  assert.ok(fs.readFileSync(file).equals(original));
+  assert.deepEqual(store.usage('owner'), usage);
+  assert.deepEqual(fs.readdirSync(path.join(root, 'owner', '.tmp')), []);
 });

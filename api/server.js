@@ -1862,7 +1862,9 @@ const mediaRoutes = {
     if (!user) { MEDIA.discard(req); return json(res, 401, { error: 'not signed in' }); }
     try { mediaThrottle(req, user, MEDIA_BURST); } catch (e) { MEDIA.discard(req); throw e; }
     req.allowSlowBody?.();   // a signed-in upload within its budget may take the half hour
-    const r = await MEDIA.receive(user.id, req.mediaHash, req);
+    const r = await MEDIA.receive(user.id, req.mediaHash, req, { assertAuthorized: () => {
+      if (readSession(req) !== user) throw new HttpError(401, 'not signed in');
+    } });
     json(res, r.status, r.body);
   },
   'GET /api/media/{hash}': async (req, res) => {
