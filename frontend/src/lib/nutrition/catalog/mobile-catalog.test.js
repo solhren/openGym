@@ -16,9 +16,10 @@ test('guest Android public origin serves local suggestions and validated selecti
  for(const [request] of bridge.get.mock.calls){expect(new URL(request.url).origin).toBe('https://catalogue.example');expect(request.headers).toEqual({Accept:'application/json'});expect(request).not.toHaveProperty('cookies');expect(request).not.toHaveProperty('Authorization')}
  expect(bridge.get.mock.calls[1][0].url).toContain('local=1');expect(bridge.get.mock.calls[2][0].url).toContain('/api/nutrition/catalog/product?')
 })
-test('paired server origin takes precedence over the public guest build setting',async()=>{
- const {createFoodCatalog}=await import('./client.js');catalog=createFoodCatalog({serverOrigin:'https://paired.example'});await catalog.capabilities()
- expect(new URL(bridge.get.mock.calls[0][0].url).origin).toBe('https://paired.example')
+test('guest build endpoint remains anonymous when no account server is supplied',async()=>{
+ const {createFoodCatalog}=await import('./client.js');catalog=createFoodCatalog();await catalog.capabilities()
+ expect(new URL(bridge.get.mock.calls[0][0].url).origin).toBe('https://catalogue.example')
+ expect(bridge.get.mock.calls[0][0].headers).toEqual({Accept:'application/json'})
 })
 test('unsafe public origin is refused before the native bridge starts',async()=>{
  vi.stubEnv('VITE_NUTRITION_CATALOG_ORIGIN','file:///private');const {createFoodCatalog}=await import('./client.js');expect(()=>createFoodCatalog()).toThrow();expect(bridge.get).not.toHaveBeenCalled()

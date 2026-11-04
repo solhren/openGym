@@ -147,12 +147,30 @@ export function createFoodCatalog({ transport = directTransport, guard = () => {
   // Guest Android can use the same public catalogue without pairing an account.
   // Explicit build-time endpoint is public configuration, never a credential.
   const publicOrigin = serverOrigin || import.meta.env?.VITE_NUTRITION_CATALOG_ORIGIN || null
+  // An explicit account server uses the existing app session. The build-time
+  // public endpoint remains an anonymous guest relay, independent of pairing.
+  const pairedMobile = MOBILE && !PERSONAL_BETA && !!serverOrigin && originalDefault
+  if (pairedMobile) {
+    const base = new URL(serverOrigin)
+    fail(['https:', 'http:'].includes(base.protocol) && !base.username && !base.password && !base.search && !base.hash && serverOrigin === base.origin + base.pathname.replace(/\/$/, ''), 'invalid-query')
+  }
   const personalRead=async(path,options)=>{const {authenticatedCatalogFetch}=await import('../../api.js');const r=await authenticatedCatalogFetch(path,options);return {status:r.status,headers:r.headers,body:r.body,text:()=>r.text(),catalogRelay:true}}
-  const mobileRelay = MOBILE && !PERSONAL_BETA && publicOrigin && originalDefault ? createPublicCatalogRelay(publicOrigin) : null
+  const pairedRead=async(path,options)=>{const {authenticatedCatalogFetch}=await import('../../api.js');current();const r=await authenticatedCatalogFetch(path,{...options,expectedBase:serverOrigin});return {status:r.status,headers:r.headers,body:r.body,text:()=>r.text(),catalogRelay:true}}
+  const accountRead = PERSONAL_BETA ? personalRead : pairedMobile ? pairedRead : null
+  const mobileRelay = MOBILE && !PERSONAL_BETA && !pairedMobile && publicOrigin && originalDefault ? createPublicCatalogRelay(publicOrigin) : null
   let localRelay = false
   let localV1 = localOnlyV1||PERSONAL_BETA, localReady = false
-  const localRead = localTransport ?? (PERSONAL_BETA?personalRead:mobileRelay?.localRequest) ?? ((path, options) => fetch(path, { signal:options.signal,credentials:'omit',redirect:'error',referrerPolicy:'no-referrer',headers:{Accept:'application/json'} }).then(r=>({status:r.status,headers:r.headers,body:r.body,text:()=>r.text(),catalogRelay:true})))
+  const localRead = localTransport ?? accountRead ?? mobileRelay?.localRequest ?? ((path, options) => fetch(path, { signal:options.signal,credentials:'omit',redirect:'error',referrerPolicy:'no-referrer',headers:{Accept:'application/json'} }).then(r=>({status:r.status,headers:r.headers,body:r.body,text:()=>r.text(),catalogRelay:true})))
   if (mobileRelay) transport = (url, options) => localRelay || options.localOnly ? mobileRelay.transport(url, options) : directTransport(url, options)
+  if (pairedMobile) transport = (url, options) => {
+    if (!localRelay && !options.localOnly) return directTransport(url, options)
+    const target = new URL(url), product = /^\/api\/v3\/product\/\d{8,14}$/.test(target.pathname)
+    fail(target.origin === OFF_ORIGIN && !target.username && !target.password && (product || target.pathname === '/cgi/search.pl'), 'invalid-query')
+    const params = new URLSearchParams({ lc: target.searchParams.get('lc') || 'fr', staging: '0' })
+    if (product) params.set('code', target.pathname.split('/').at(-1))
+    else { params.set('q', target.searchParams.get('search_terms') || ''); params.set('page', target.searchParams.get('page') || '1'); if (options.localOnly) params.set('local', '1') }
+    return pairedRead(`/api/nutrition/catalog/${product ? 'product' : 'search'}?${params}`, options)
+  }
   const cache = new Map(), controllers = new Set(), throttle = limiter ?? createRateLimiter(); let closed = false, bytes = 0
   const current = () => { fail(!closed, 'session-changed'); guard() }
   const remember = (key, value, ttl) => {
@@ -226,12 +244,12 @@ export function createFoodCatalog({ transport = directTransport, guard = () => {
     async capabilities({ signal } = {}) {
       current(); if (signal?.aborted) throw aborted()
       const unavailable = () => { localReady=false; return localV1 ? {textSearch:'local',selection:'local-only',available:false} : {textSearch:'explicit-remote'} }
-      if (OFF_ORIGIN.endsWith('.net') || (MOBILE && !mobileRelay&&!PERSONAL_BETA) || (!capabilitiesTransport && !originalDefault)) return unavailable()
+      if (OFF_ORIGIN.endsWith('.net') || (MOBILE && !mobileRelay && !accountRead && !capabilitiesTransport) || (!capabilitiesTransport && !originalDefault)) return unavailable()
       const controller = new AbortController(), abort = () => controller.abort(); controllers.add(controller)
       signal?.addEventListener('abort', abort, { once:true }); if (signal?.aborted) abort()
       const timeout = setTimeout(abort, 3000)
       try {
-        const response = await (capabilitiesTransport ?? (PERSONAL_BETA?personalRead:mobileRelay?.capabilities) ?? fetch)('/api/nutrition/catalog/capabilities', { signal:controller.signal, credentials:'omit', redirect:'error', referrerPolicy:'no-referrer', headers:{Accept:'application/json'} })
+        const response = await (capabilitiesTransport ?? accountRead ?? mobileRelay?.capabilities ?? fetch)('/api/nutrition/catalog/capabilities', { signal:controller.signal, credentials:'omit', redirect:'error', referrerPolicy:'no-referrer', headers:{Accept:'application/json'} })
         current(); if (controller.signal.aborted) throw aborted()
         if (response.status !== 200) return unavailable()
         const body = await readJson(response); current(); if (controller.signal.aborted) throw aborted()

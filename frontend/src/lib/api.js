@@ -37,9 +37,18 @@ const remoteHeaders = () => Object.assign({}, accessFor(remoteBase), remoteToken
 
 // Same session as training, bounded/abortable catalogue response is parsed by
 // the catalogue client. Never return the bearer token to a view or follow redirects.
-export function authenticatedCatalogFetch(path,{signal}={}){
+export function authenticatedCatalogFetch(path,{signal,expectedBase}={}){
   if(typeof path!=='string'||path.length>2048||!/^\/api\/nutrition\/catalog\/(?:capabilities|search|product)(?:\?[^#]*)?$/.test(path))throw failure('Invalid catalogue path','invalid-query',400)
   if(MOBILE&&(!remoteBase||!remoteToken))throw failure(t('This phone is not connected to a server.'),'not-paired',0)
+  // The catalogue belongs to a captured account session. Compare the full base,
+  // including any mount prefix, before dispatch and after the response: a new
+  // pairing must not receive the previous account's queries or publish its replies.
+  const base=remoteBase,token=remoteToken
+  if(MOBILE&&expectedBase!==undefined&&base!==expectedBase)throw failure('Catalogue session changed','session-changed',0)
+  if(MOBILE&&expectedBase!==undefined)return fetch(base+path,{signal,redirect:'error',credentials:'omit',headers:{Accept:'application/json',...remoteHeaders()}}).then(response=>{
+    if(remoteBase!==base||remoteToken!==token)throw failure('Catalogue session changed','session-changed',0)
+    return response
+  })
   return fetch((MOBILE?remoteBase:appBase().replace(/\/$/,''))+path,{signal,redirect:'error',credentials:MOBILE?'omit':'same-origin',headers:{Accept:'application/json',...(MOBILE?remoteHeaders():{})}})
 }
 
