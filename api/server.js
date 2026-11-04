@@ -45,6 +45,19 @@ import { excusedOn, nudgeFor, nudgeWindowOpen, toneOf } from './nudge.js';
 const SELF_HOSTED_CATALOG = selfHostedCatalogConfig();
 const BETA_CONFIG = privateBetaConfig();
 const PERSONAL_BETA = BETA_CONFIG?.personal === true;
+// Explicit public-installation modes are independent of the historical beta flags. Leaving
+// them unset preserves the existing deployment contract, including open legacy instances.
+const INSTANCE_MODE = process.env.OPENGYM_INSTANCE_MODE || null;
+const SIGNUP_POLICY = INSTANCE_MODE ? (process.env.OPENGYM_SIGNUP_POLICY || 'invite') : null;
+const MAX_USERS = INSTANCE_MODE ? Number(process.env.OPENGYM_MAX_USERS || (INSTANCE_MODE === 'personal' ? 1 : 100)) : null;
+const INSTANCE_LISTEN_HOST = INSTANCE_MODE ? (process.env.OPENGYM_LISTEN_HOST ?? '127.0.0.1') : null;
+if (INSTANCE_MODE && (!['personal', 'multi-user'].includes(INSTANCE_MODE) || !['invite', 'public'].includes(SIGNUP_POLICY) ||
+    !['127.0.0.1', '0.0.0.0'].includes(INSTANCE_LISTEN_HOST) ||
+    BETA_CONFIG || (INSTANCE_MODE === 'personal' && (SIGNUP_POLICY !== 'invite' || MAX_USERS !== 1)) ||
+    (INSTANCE_MODE === 'multi-user' && (!Number.isInteger(MAX_USERS) || MAX_USERS < 2 || MAX_USERS > 1000)))) {
+  throw new Error('invalid-public-account-mode');
+}
+if (!INSTANCE_MODE && (process.env.OPENGYM_SIGNUP_POLICY || process.env.OPENGYM_MAX_USERS)) throw new Error('public-account-mode-required');
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
 const RP_ID = process.env.RP_ID || 'localhost';
@@ -54,7 +67,7 @@ const RP_NAME = process.env.RP_NAME || 'openGym';
 // INVITE_ONLY gates new signups behind a code the admin generates. Off by default, so a fresh
 // self-hosted instance stays open.
 const ADMIN_UIDS = (process.env.ADMIN_UIDS || '').split(',').map(s => s.trim()).filter(Boolean);
-const INVITE_ONLY = /^(1|true|yes|on)$/i.test(process.env.INVITE_ONLY || '');
+const INVITE_ONLY = !!INSTANCE_MODE || /^(1|true|yes|on)$/i.test(process.env.INVITE_ONLY || '');
 // The first profile made on an instance with no profiles at all becomes its admin (#328), so a
 // fresh install has someone who can open the admin dashboard without editing ADMIN_UIDS and
 // restarting. Stored on the user record (user.admin), which isAdmin already honours. It is
@@ -62,7 +75,7 @@ const INVITE_ONLY = /^(1|true|yes|on)$/i.test(process.env.INVITE_ONLY || '');
 // nothing on upgrade. Default OFF: an existing instance with no profiles yet (guest-only, or phones
 // kept local) would otherwise hand admin to whoever signs up first after the upgrade.
 // FIRST_USER_ADMIN=1 turns it on for a fresh install.
-const FIRST_USER_ADMIN = /^(1|true|yes|on)$/i.test(process.env.FIRST_USER_ADMIN || '');
+const FIRST_USER_ADMIN = !!INSTANCE_MODE || /^(1|true|yes|on)$/i.test(process.env.FIRST_USER_ADMIN || '');
 // Checked synchronously right before db.users.push, with no await in between, so two
 // registrations racing each other cannot both see an empty instance.
 function claimFirstAdmin(req, user) {
@@ -74,7 +87,7 @@ function claimFirstAdmin(req, user) {
 // server — but on an instance meant for a known set of people, an entrance nobody can walk back
 // out of is still the wrong front door (#42). Default ON, so existing instances are unchanged;
 // the polarity is inverted from INVITE_ONLY because the safe default here is the permissive one.
-const ALLOW_GUEST = !/^(0|false|no|off)$/i.test(process.env.ALLOW_GUEST || '');
+const ALLOW_GUEST = !INSTANCE_MODE && !/^(0|false|no|off)$/i.test(process.env.ALLOW_GUEST || '');
 // Name-and-password sign-in next to passkeys (#118). Off by default: it adds a second way into
 // every account that opts in, so an instance has to ask for it. While it is off every password
 // route answers 404 and the app shows none of it; hashes already stored stay where they are.
@@ -103,7 +116,17 @@ const MAX_BODY = 5 * 1024 * 1024;
 // Secure cookies require HTTPS; over plain http://localhost the flag would drop the cookie
 const SECURE = /^https:/i.test(ORIGIN) ? ' Secure;' : '';
 
-fs.mkdirSync(DATA, { recursive: true });
+if (INSTANCE_MODE) {
+  if (!path.isAbsolute(DATA) || path.resolve(DATA) !== DATA || DATA === '/') throw new Error('public-account-data-directory-invalid');
+  let ancestor = DATA;
+  while (!fs.existsSync(ancestor)) ancestor = path.dirname(ancestor);
+  if (fs.realpathSync(ancestor) !== ancestor) throw new Error('public-account-data-directory-invalid');
+}
+fs.mkdirSync(DATA, { recursive: true, ...(INSTANCE_MODE ? { mode: 0o700 } : {}) });
+if (INSTANCE_MODE) {
+  const directory = fs.lstatSync(DATA);
+  if (!directory.isDirectory() || directory.isSymbolicLink() || (directory.mode & 0o077)) throw new Error('public-account-data-directory-private-required');
+}
 /* The secrets are locked down file by file rather than by sealing the whole directory.
  *
  * A blanket `chmod 0700` on DATA looks stronger and is worse: ./data is a host bind mount and
@@ -156,11 +179,27 @@ db.subs = db.subs || [];
 db.invites = db.invites || [];
 db.deviceLinks = db.deviceLinks || [];   // unused one-time device links, hashed (device-link.js)
 if (PERSONAL_BETA && (!Array.isArray(db.users)||db.users.length>1||(db.users.length===1&&!db.personalOwner)||(db.personalOwner&&(db.users.length!==1||db.users[0].id!==db.personalOwner)))) throw new Error('personal-beta-owner-state-invalid');
-const ownerSignupOpen = () => !PERSONAL_BETA || (!db.personalOwner && db.users.length === 0);
-const refuseOwnerSignup = res => { if(ownerSignupOpen())return false;json(res,403,{error:'registration is closed',code:'registration-closed'});return true; };
+const ownerSignupOpen = () => PERSONAL_BETA ? !db.personalOwner && db.users.length === 0 : INSTANCE_MODE === 'personal' ? !db.instanceOwner && db.users.length === 0 : true;
+const registrationOpen = () => ownerSignupOpen() && (!INSTANCE_MODE || db.users.length < MAX_USERS);
+const inviteRequired = () => INSTANCE_MODE === 'multi-user' && SIGNUP_POLICY === 'public' ? db.users.length === 0 : INVITE_ONLY;
+const refuseOwnerSignup = res => {
+  if (registrationOpen()) return false;
+  const closed = !ownerSignupOpen();
+  json(res, 403, { error: closed ? 'registration is closed' : 'the instance account limit has been reached', code: closed ? 'registration-closed' : 'registration-full' });
+  return true;
+};
 // Synchronous with db.users.push; concurrent ceremonies cannot claim two users.
-const claimPersonalOwner = user => { if(PERSONAL_BETA)db.personalOwner=user.id; };
+const claimPersonalOwner = user => { if(PERSONAL_BETA)db.personalOwner=user.id; if(INSTANCE_MODE==='personal')db.instanceOwner=user.id; };
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
+if (INSTANCE_MODE) {
+  if (!Array.isArray(db.users) || !Array.isArray(db.creds) || !Array.isArray(db.invites) ||
+      db.users.some(user => !user || typeof user.id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(user.id)) ||
+      new Set(db.users.map(user => user.id)).size !== db.users.length ||
+      (!db.users.length && db.creds.length) || (db.users.length && !db.users.some(isAdmin))) throw new Error('public-account-state-invalid');
+  if (INSTANCE_MODE === 'personal' && (db.users.length > 1 ||
+      (db.users.length === 1 && !isAdmin(db.users[0])) ||
+      (db.instanceOwner && (db.users.length !== 1 || db.users[0].id !== db.instanceOwner)))) throw new Error('personal-account-state-invalid');
+}
 // 0600: db.json holds passkey credential material. It used to be covered by a blanket 0700 on
 // the whole directory; now that the directory stays traversable, the file carries its own mode.
 // Once the new version is on disk, a second copy of it goes to db.json.bak, the same durable
@@ -675,7 +714,10 @@ const CSRF_EXEMPT = new Set([
 const originsMatch = (a, b) => a.replace(/\/+$/, '') === b.replace(/\/+$/, '');
 function csrfOk(req, key) {
   if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return true;
-  if (CSRF_EXEMPT.has(key)) return true;
+  // Generic installation signup is a browser action too. A software "none" attestation can
+  // be made by an attacker; accepting it from a cross-site form would set their account cookie
+  // on the visitor. Legacy/beta ceremonies keep their existing mobile compatibility contract.
+  if (CSRF_EXEMPT.has(key) && !(INSTANCE_MODE && key.startsWith('POST /api/register/'))) return true;
   // The paired mobile app authenticates with a Bearer token. A browser never attaches one on its
   // own, so there is no ambient authority for a hostile page to borrow and no origin to check.
   if ((req.headers.authorization || '').startsWith('Bearer ')) return true;
@@ -962,13 +1004,17 @@ if (AUDIT_ON) {
 // the whole instance: one client can pause *password* sign-in for everybody for a while, and the
 // per-name pause is what still protects each password.
 const AUTH_BURST = createWindow({ max: 60, windowMs: 60000 });
+// Public registration is opt-in and bounded independently of sign-in, recovery and pairing.
+// With TRUST_PROXY=0 all visitors behind one proxy share the address budget, conservatively.
+const PUBLIC_SIGNUP_ADDRESSES = createWindow({ max: 10, windowMs: 3600000 });
+const PUBLIC_SIGNUP_INSTANCE = createWindow({ max: 100, windowMs: 3600000, maxKeys: 1 });
 const ADDR_FAILS = createBackoff({ free: 20, baseMs: 30000, maxMs: 15 * 60000, forgetMs: 3600000 });
 const ACCOUNT_FAILS = createBackoff({
   free: 5, baseMs: 60000, maxMs: 3600000, forgetMs: 24 * 3600000,
   // At most one per profile with a password, so this cannot grow without bound.
   keep: k => k.startsWith('acct:') && hasPassword(db.users.find(u => u.id === k.slice(5)))
 });
-setInterval(() => { AUTH_BURST.sweep(); ADDR_FAILS.sweep(); ACCOUNT_FAILS.sweep(); }, 60000).unref();
+setInterval(() => { AUTH_BURST.sweep(); ADDR_FAILS.sweep(); ACCOUNT_FAILS.sweep(); PUBLIC_SIGNUP_ADDRESSES.sweep(); PUBLIC_SIGNUP_INSTANCE.sweep(); }, 60000).unref();
 
 // Route -> the kind of failure it can count. Every route listed here also spends the burst
 // budget; `null` spends only that.
@@ -1312,8 +1358,8 @@ const passwordRoutes = {
     if (!name) return json(res, 400, { error: 'name required', code: 'missing' });
     const code = text(body.code).trim().toUpperCase();
     const invite = () => db.invites.find(i => i.code === code && !i.usedBy && !i.revoked);
-    if (INVITE_ONLY && addressPaused(req, res, 'signup')) return;
-    if (INVITE_ONLY && !invite()) {
+    if (inviteRequired() && addressPaused(req, res, 'signup')) return;
+    if (inviteRequired() && !invite()) {
       audit(req, 'auth.register.denied', { ok: false, name, msg: 'invite-rejected' });
       strikeAddress(req, 'signup');
       return json(res, 403, { error: 'a valid invite code is required', code: 'invite' });
@@ -1338,7 +1384,7 @@ const passwordRoutes = {
     const h = await hashPassword(body.password);
     if(refuseOwnerSignup(res))return;
     let inv = null;
-    if (INVITE_ONLY) {
+    if (inviteRequired()) {
       inv = invite();
       if (!inv) {
         audit(req, 'auth.register.fail', { ok: false, name, msg: 'invite-invalid' });
@@ -1964,7 +2010,8 @@ const routes = {
     // were not signed in when you asked", and would re-ask on every sign-in on every instance
     // that has no Coach. The key's absence is that answer.
     json(res, 200, {
-      invite_only: INVITE_ONLY, allow_guest: ALLOW_GUEST,
+      invite_only: inviteRequired(), allow_guest: ALLOW_GUEST,
+      ...(INSTANCE_MODE ? { instance_mode: INSTANCE_MODE, signup_policy: SIGNUP_POLICY, max_users: MAX_USERS, registration_open: registrationOpen() } : {}),
       ...(PERSONAL_BETA ? { personal_beta:true, registration_open:ownerSignupOpen() } : {}),
       // Only when on, so an instance without passwords answers exactly as it did before (#118).
       ...(PASSWORD_LOGIN ? { password_login: true } : {}),
@@ -1998,7 +2045,7 @@ const routes = {
     const name = text(body.name).trim().slice(0, 40);
     if (!name) return json(res, 400, { error: 'name required' });
     const code = text(body.code).trim().toUpperCase();
-    if (INVITE_ONLY && !db.invites.some(i => i.code === code && !i.usedBy && !i.revoked)) {
+    if (inviteRequired() && !db.invites.some(i => i.code === code && !i.usedBy && !i.revoked)) {
       // The rejected code itself is never recorded — a near-miss guess in the log is a liability.
       audit(req, 'auth.register.denied', { ok: false, name, msg: 'invite-rejected' });
       return json(res, 403, { error: 'a valid invite code is required', code: 'invite' });
@@ -2049,7 +2096,7 @@ const routes = {
     // Re-check the invite at the last moment (it may have been used/revoked since options), then burn it.
     if(refuseOwnerSignup(res))return;
     let invite = null;
-    if (INVITE_ONLY) {
+    if (inviteRequired()) {
       invite = db.invites.find(i => i.code === c.code && !i.usedBy && !i.revoked);
       if (!invite) {
         audit(req, 'auth.register.fail', { ok: false, name: c.name, msg: 'invite-invalid' });
@@ -2309,7 +2356,7 @@ const routes = {
     let text;
     try { text = JSON.stringify(body.state); }
     catch (e) { if (e instanceof RangeError) return json(res, 400, { error: 'invalid state' }); throw e; }
-    atomicWrite(stateFile(user.id), text);
+    atomicWrite(stateFile(user.id), text, INSTANCE_MODE ? 0o600 : undefined);
     // The stat cache cannot see this write on its own: mtime granularity is 4 ms here (ext4 on
     // this kernel — 3901 of 3999 back-to-back same-size writes shared one timestamp), and a
     // `_rev` going from 7 to 8 does not change the file's size, so two writes inside one 4 ms
@@ -2444,6 +2491,11 @@ const routes = {
   'GET /api/admin/users': async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const users = db.users.map(u => {
+      if (INSTANCE_MODE) return {
+        id: u.id, name: u.name, created: u.created || null,
+        disabled: !!u.disabled, admin: isAdmin(u), invitedBy: u.invitedBy || null,
+        ...(PASSWORD_LOGIN ? { password: hasPassword(u), email: u.email || null } : {})
+      };
       const S = readState(u.id) || {};
       const workouts = records(S.workouts);
       const last = workouts[workouts.length - 1];
@@ -2460,7 +2512,7 @@ const routes = {
         ...(PASSWORD_LOGIN ? { password: hasPassword(u), email: u.email || null } : {})
       };
     });
-    json(res, 200, { users, invite_only: INVITE_ONLY, ...(PASSWORD_LOGIN ? { password_login: true } : {}), now: Date.now() });
+    json(res, 200, { users, invite_only: inviteRequired(), ...(INSTANCE_MODE ? { account_only: true } : {}), ...(PASSWORD_LOGIN ? { password_login: true } : {}), now: Date.now() });
   },
 
   // Drill-down: full workout history + body-weight log for one user.
@@ -2469,6 +2521,10 @@ const routes = {
     const id = new URL(req.url, 'http://x').searchParams.get('id');
     const u = db.users.find(x => x.id === id);
     if (!u) return json(res, 404, { error: 'no such user' });
+    if (INSTANCE_MODE) return json(res, 200, { account_only: true, user: {
+      id: u.id, name: u.name, created: u.created || null, disabled: !!u.disabled, admin: isAdmin(u), invitedBy: u.invitedBy || null,
+      ...(PASSWORD_LOGIN ? { password: hasPassword(u), email: u.email || null, resetUntil: u.pwReset?.exp > Date.now() ? u.pwReset.exp : null } : {})
+    } });
     const S = readState(u.id) || {};
     json(res, 200, {
       user: {
@@ -2538,12 +2594,12 @@ const routes = {
     const invites = db.invites.map(i => ({
       ...i, usedByName: i.usedBy ? (db.users.find(u => u.id === i.usedBy) || {}).name || null : null
     }));
-    json(res, 200, { invites, invite_only: INVITE_ONLY });
+    json(res, 200, { invites, invite_only: inviteRequired() });
   },
 
   'POST /api/admin/invites/new': async (req, res) => {
     const admin = requireAdmin(req, res); if (!admin) return;
-    if(PERSONAL_BETA)return json(res,403,{error:'registration is closed',code:'registration-closed'});
+    if(PERSONAL_BETA||INSTANCE_MODE==='personal')return json(res,403,{error:'registration is closed',code:'registration-closed'});
     const body = await readBody(req);
     let code;
     // 16 hex chars = 64 bits, up from 8 chars / 32 bits. Passkey signup has no rate limiting by
@@ -2719,6 +2775,11 @@ const server = http.createServer(async (req, res) => {
     const wait = AUTH_BURST.take(addr) || (kind ? ADDR_FAILS.retryAfter(kind + '|' + addr) : 0);
     if (wait) return tooMany(res, wait);
   }
+  if (INSTANCE_MODE === 'multi-user' && SIGNUP_POLICY === 'public' && db.users.length > 0 &&
+      ['POST /api/register/options', 'POST /api/register/verify', 'POST /api/register/password'].includes(key)) {
+    const wait = PUBLIC_SIGNUP_INSTANCE.take('instance') || PUBLIC_SIGNUP_ADDRESSES.take(limitAddress(req));
+    if (wait) return tooMany(res, wait);
+  }
   try { await handler(req, res); }
   catch (e) {
     if (e?.clientGone) { console.warn(key, 'client went away mid-body:', e.message); return; }
@@ -2759,4 +2820,4 @@ if (localCatalogue) {
     await localCatalogue.close(); process.exit(0);
   });
 }
-server.listen(PORT, localCatalogue ? (SELF_HOSTED_CATALOG?.listenHost??BETA_CONFIG?.listenHost??'127.0.0.1') : undefined, () => console.log(`gym-api on :${server.address().port} (rpID=${RP_ID}, origin=${ORIGIN})`));
+server.listen(PORT, INSTANCE_LISTEN_HOST ?? (localCatalogue ? (SELF_HOSTED_CATALOG?.listenHost??BETA_CONFIG?.listenHost??'127.0.0.1') : undefined), () => console.log(`gym-api on :${server.address().port} (rpID=${RP_ID}, origin=${ORIGIN})`));
