@@ -99,8 +99,10 @@ class Reader:
             'WHERE foods_fts MATCH ? ORDER BY '
             '(opengym_fold(f.name)=? OR opengym_fold(coalesce(json_extract(f.payload,\'$.source.names.en\'),\'\'))=?) DESC,'
             '(' + whole_terms + ') DESC,'
+            '(instr(opengym_fold(f.name)||\' \',?)=1 OR instr(opengym_fold(coalesce(json_extract(f.payload,\'$.source.names.en\'),\'\'))||\' \',?)=1) DESC,'
             'f.addable DESC,f.complete DESC,bm25(foods_fts),f.name COLLATE NOCASE,f.id LIMIT 20 OFFSET ?',
-            (expression, bootstrap.fold_text(q), bootstrap.fold_text(q), *(' ' + token + ' ' for token in tokens), (page - 1) * 20)).fetchall()
+            (expression, bootstrap.fold_text(q), bootstrap.fold_text(q), *(' ' + token + ' ' for token in tokens),
+             bootstrap.fold_text(q) + ' ', bootstrap.fold_text(q) + ' ', (page - 1) * 20)).fetchall()
         return {'products': [self.record(row[0], lc) for row in rows], 'count': count, 'page': page,
                 'pageSize': 20, 'literalOnly': True, 'registryVerified': True,
                 'catalogueVersion': self.manifest['sha256']}

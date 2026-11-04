@@ -21,7 +21,7 @@ for spec,body in zip(specs,[b'synthetic-xlsx-source',b'synthetic-xml-source']):s
 Path(sys.argv[3]).write_text(m.canonical(specs))
 names={'99900001':{'fr':'Riz cru de test','en':'Test raw rice'},'99900002':{'fr':'Lait de test','en':'Test milk'},'99900003':{'fr':'Riz inconnu de test','en':'Test unknown rice'},'99900004':{'fr':'Riz','en':'Rice'}}
 rows=[{'G':'99900001','H':names['99900001']['fr'],'K':'350','P':'7','Q':'75','R':'1'},{'G':'99900002','H':names['99900002']['fr'],'K':'60','P':'3','Q':'5','R':'3'},{'G':'99900003','H':names['99900003']['fr'],'K':'-','P':'-','Q':'-','R':'-'},{'G':'99900004','H':'Riz','K':'350','P':'7','Q':'75','R':'1'}]
-for code,fr,en in [('99900005','Lait entier','Milk, whole'),('99900006','Laitance','Milkshake'),('99900007','Œuf cru','Egg, raw'),('99900008','Aubergine','Eggplant')]:
+for code,fr,en in [('99900005','Lait de vache entier pasteurisé en bouteille','Milk, whole'),('99900006','Laitance','Milkshake'),('99900007','Œuf cru','Egg, raw'),('99900008','Aubergine','Eggplant'),('99900009','Camembert','Camembert cheese, cow milk')]:
  names[code]={'fr':fr,'en':en};rows.append({'G':code,'H':fr,'K':'60','P':'3','Q':'5','R':'3'})
 records=[m.normalize_row(row,names,specs[0]['sha256'],specs[1]['sha256'])for row in rows]
 file=root/'staged.sqlite';c=sqlite3.connect(file)

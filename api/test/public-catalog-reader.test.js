@@ -21,7 +21,9 @@ test('real read-only public reader preserves English/French identity, provenance
   assert.equal(rice.count, 3); assert.equal(rice.products[0].id, 'ciqual:99900004', 'exact official label comes first');
   assert.equal(rice.products.at(-1).food, null, 'relevant addable foods precede unknown nutrition');
   const milk = await catalog.search({ q: 'milk', page: 1, lc: 'en' });
-  assert.notEqual(milk.products[0].name, 'Milkshake'); assert.equal(milk.products.at(-1).name, 'Milkshake');
+  assert.equal(milk.products[0].name, 'Milk, whole', 'official-name word prefix precedes an interior attribute');
+  assert.ok(milk.products.findIndex(product => product.name === 'Camembert cheese, cow milk') > 0);
+  assert.equal(milk.products.at(-1).name, 'Milkshake');
   const egg = await catalog.search({ q: 'egg', page: 1, lc: 'en' });
   assert.equal(egg.products[0].name, 'Egg, raw'); assert.equal(egg.products.at(-1).name, 'Eggplant');
   const lait = await catalog.search({ q: 'lait', page: 1, lc: 'fr' });
