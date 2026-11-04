@@ -1,0 +1,61 @@
+{
+  "format": "opengym-public-catalogue-sources",
+  "version": 1,
+  "recommended": ["ciqual-2025"],
+  "sources": [
+    {
+      "id": "ciqual-2025",
+      "kind": "ciqual-local",
+      "name": "ANSES Ciqual 2025",
+      "available": true,
+      "status": "available",
+      "acquisition": "direct-pinned-download",
+      "publisher": "Anses / Recherche Data Gouv",
+      "url": "https://doi.org/10.57745/RDMHWY",
+      "license": {"id": "Etalab-2.0", "url": "https://spdx.org/licenses/etalab-2.0.html"},
+      "languages": ["fr", "en"],
+      "coverage": "Generic foods consumed in France; official French and English names. International population coverage is not measured.",
+      "featuresScope": "Capabilities enabled in this installation profile, not a description of every source capability",
+      "features": {"textSearch": true, "barcodeLookup": false, "reference": "100 g edible portion, including drinks"},
+      "sourceBytes": 3123029,
+      "maxWorkspaceBytes": 67108864,
+      "limits": ["No branded-product barcode database", "Qualified and missing nutrient values remain unknown", "Partial and rejected foods are reported explicitly", "No mass-to-volume conversion"]
+    },
+    {
+      "id": "open-food-facts",
+      "kind": "off-local",
+      "name": "Open Food Facts",
+      "available": false,
+      "status": "experimental-unavailable",
+      "acquisition": null,
+      "publisher": "Open Food Facts contributors",
+      "url": "https://world.openfoodfacts.org/data",
+      "license": {"id": "ODbL-1.0", "contentLicense": "DbCL-1.0", "url": "https://opendatacommons.org/licenses/odbl/1-0/"},
+      "languages": [],
+      "coverage": "International contributed branded-product data; no portable corpus installed or coverage measured by this bootstrap.",
+      "featuresScope": "Capabilities enabled in this installation profile; Open Food Facts itself contains barcodes",
+      "features": {"textSearch": false, "barcodeLookup": false},
+      "sourceBytes": null,
+      "maxWorkspaceBytes": null,
+      "limits": ["No supported portable acquisition/reader in this profile", "Do not substitute the historical private VPS generations", "Bulk import is not run by the recommended installer", "Numerical macros alone do not resolve the 100 g/100 ml reference"]
+    },
+    {
+      "id": "wger",
+      "kind": "wger-local",
+      "name": "wger ingredient catalogue",
+      "available": false,
+      "status": "experimental-unavailable",
+      "acquisition": null,
+      "publisher": "wger and individually attributed source contributors",
+      "url": "https://wger.de/en/software/api",
+      "license": {"id": "per-record", "url": "https://wger.de/en/software/api"},
+      "languages": [],
+      "coverage": "International mixed-source ingredient data; no portable corpus installed or coverage measured by this bootstrap.",
+      "featuresScope": "Capabilities enabled in this installation profile, not a description of every source capability",
+      "features": {"textSearch": false, "barcodeLookup": false},
+      "sourceBytes": null,
+      "maxWorkspaceBytes": null,
+      "limits": ["No supported portable acquisition/reader in this profile", "Original per-record licences and reference eligibility require verification", "OFF-derived ambiguous references are not valid Foods", "The historical three-million-row generation is neither copied nor rebuilt"]
+    }
+  ]
+}
