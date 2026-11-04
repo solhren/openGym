@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import os
 from contextlib import closing
 from pathlib import Path
 import shutil
@@ -18,7 +19,9 @@ sys.path.insert(0, str(TOOLS))
 from prepare import browser_origin, prepare
 from state import backup, restore
 from backup import offline_backup
-from catalogue import acquire, apply, configure, load_registry, plan_catalogues
+from catalogue import (acquire, apply, configure, load_registry, plan_catalogues,
+                       recover, inspect_selected, configuration_consistent,
+                       atomic_write, compose_config, PENDING, CONFIG_FILES)
 
 
 class SelfHostingTest(unittest.TestCase):
@@ -266,6 +269,7 @@ print(json.dumps(receipt))
         self.assertEqual(api['environment']['NUTRITION_LOCAL_CATALOG_KIND'], 'public-registry')
         self.assertEqual(api['environment']['OPENGYM_CATALOG_REGISTRY'], '/catalogues/registry.json')
         self.assertEqual(api['environment']['OPENGYM_SELF_HOSTED_CATALOG'], '1')
+        self.assertEqual(api['environment']['OPENGYM_CATALOG_LISTEN_HOST'], '0.0.0.0')
         catalogue_mount = next(item for item in api['volumes'] if item['target'] == '/catalogues')
         self.assertTrue(catalogue_mount['read_only'])
         self.assertFalse(catalogue_mount['bind']['create_host_path'])
@@ -398,6 +402,104 @@ print(json.dumps(receipt))
             return subprocess.CompletedProcess(command, 0)
         apply(instance, runner=runner)
         self.assertEqual(calls, [['config', '--quiet'], ['up', '-d', '--no-build', '--force-recreate', 'api', 'web']])
+
+    @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
+    def test_interrupted_three_file_publication_refuses_apply_and_inspect_until_recovered(self):
+        root, _ = self.public_catalogue()
+        for stop_after in (0, 1, 2, 3):
+            with self.subTest(completed_files=stop_after):
+                instance, _ = self.prepared('interrupted-' + str(stop_after))
+                first = configure(instance, root, guard=lambda *args: None)
+                original_data = (instance / 'data/db.json').read_bytes()
+                snapshot = instance / 'catalogues' / first['catalogues'][0]['directory']
+                original_catalogue = (snapshot / 'catalog.sqlite').read_bytes()
+                original_registry = (instance / CONFIG_FILES[0]).read_bytes()
+                completed = 0
+                def interrupted(path, content):
+                    nonlocal completed
+                    atomic_write(path, content)
+                    relative = path.relative_to(instance).as_posix()
+                    if relative in CONFIG_FILES:
+                        completed += 1
+                    if (stop_after == 0 and relative == PENDING) or (relative in CONFIG_FILES and completed == stop_after):
+                        raise OSError('simulated publication interruption')
+                with patch('catalogue.atomic_write', side_effect=interrupted):
+                    with self.assertRaisesRegex(OSError, 'simulated publication interruption'):
+                        configure(instance, remove='ciqual-2025')
+                self.assertTrue((instance / PENDING).exists())
+                calls = []
+                def runner(command, **kwargs):
+                    calls.append(command)
+                    return subprocess.CompletedProcess(command, 0)
+                for action in (apply, inspect_selected):
+                    with self.assertRaisesRegex(ValueError, 'recover'):
+                        action(instance, runner=runner)
+                self.assertEqual(calls, [])
+                with self.assertRaisesRegex(ValueError, 'recover'):
+                    configure(instance, root, guard=lambda *args: None)
+                selection = recover(instance, runner=runner)
+                self.assertFalse(selection['catalogues'][0]['enabled'])
+                self.assertFalse((instance / PENDING).exists())
+                configuration_consistent(instance)
+                self.assertEqual(calls, [])  # Recovery starts no container/service.
+                self.assertEqual((instance / 'data/db.json').read_bytes(), original_data)
+                self.assertEqual((snapshot / 'catalog.sqlite').read_bytes(), original_catalogue)
+                saved_registry = instance / 'catalogues' / ('registry-' + hashlib.sha256(original_registry).hexdigest() + '.json')
+                self.assertEqual(saved_registry.read_bytes(), original_registry)
+                apply(instance, runner=runner)
+                self.assertEqual(len(calls), 2)
+                self.assertEqual(calls[-1][-6:], ['up', '-d', '--no-build', '--force-recreate', 'api', 'web'])
+
+    @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
+    def test_tampered_recovery_payload_is_rejected_without_publishing(self):
+        instance, _ = self.prepared()
+        root, _ = self.public_catalogue()
+        configure(instance, root, guard=lambda *args: None)
+        def stop(path, content):
+            atomic_write(path, content)
+            if path.name == PENDING:
+                raise OSError('simulated interruption before files')
+        with patch('catalogue.atomic_write', side_effect=stop):
+            with self.assertRaises(OSError):
+                configure(instance, remove='ciqual-2025')
+        before = {name: (instance / name).read_bytes() for name in CONFIG_FILES}
+        journal = json.loads((instance / PENDING).read_text())
+        journal['files']['compose.yaml']['content'] += 'corruption'
+        (instance / PENDING).write_text(json.dumps(journal))
+        with self.assertRaisesRegex(ValueError, 'hash mismatch'):
+            recover(instance)
+        self.assertTrue((instance / PENDING).exists())
+        for name, content in before.items():
+            self.assertEqual((instance / name).read_bytes(), content)
+
+    @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
+    def test_apply_refuses_changes_after_committed_hashes(self):
+        instance, _ = self.prepared()
+        root, _ = self.public_catalogue()
+        configure(instance, root, guard=lambda *args: None)
+        metadata = json.loads((instance / 'instance.json').read_text())
+        metadata['release'] = 'unreviewed-build'
+        (instance / 'instance.json').write_text(json.dumps(metadata))
+        calls = []
+        with self.assertRaisesRegex(ValueError, 'changed after publication'):
+            apply(instance, runner=lambda command, **kwargs: calls.append(command))
+        self.assertEqual(calls, [])
+
+    @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
+    def test_ambient_opengym_environment_does_not_override_reviewed_instance(self):
+        instance, metadata = self.prepared()
+        with patch.dict(os.environ, {'OPENGYM_ORIGIN': 'https://different.example.com',
+                                    'OPENGYM_RP_ID': 'different.example.com', 'OPENGYM_RELEASE': 'unreviewed-build',
+                                    'OPENGYM_SOURCE': '/unreviewed', 'OPENGYM_UID': '0', 'OPENGYM_GID': '0',
+                                    'COMPOSE_PROJECT_NAME': 'unreviewed-project'}):
+            effective = compose_config(instance)
+        api = effective['services']['api']
+        self.assertEqual(api['environment']['ORIGIN'], metadata['origin'])
+        self.assertEqual(api['environment']['RP_ID'], 'gym.example.com')
+        self.assertEqual(api['image'], 'opengym-selfhost-api:' + metadata['release'])
+        self.assertEqual(api['build']['context'], str(instance / 'source'))
+        self.assertEqual(api['user'], str(os.getuid()) + ':' + str(os.getgid()))
+        self.assertEqual(effective['name'], 'opengym-selfhost')
 
     @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
     def test_catalogue_backup_reference_restore_and_disable_preserve_private_data(self):

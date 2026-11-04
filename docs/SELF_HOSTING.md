@@ -128,6 +128,8 @@ A small independent snapshot is retained under `catalogues/ciqual-2025-<hash>/`;
 `catalogues/registry.json` selects active snapshots. The API mounts `catalogues/`
 read-only at `/catalogues`; account data stays separately in `/data`. It uses
 `NODE_ENV=production`, not the historical private-beta configuration.
+Compose explicitly selects `OPENGYM_CATALOG_LISTEN_HOST=0.0.0.0` inside the private
+container network; the API has no host port. Direct host runs default to loopback.
 
 If acquisition or inspection fails, the previous Compose configuration remains
 selected. Read the error, keep the incomplete source files for diagnosis and
@@ -147,7 +149,7 @@ services below. Existing account and Nutrition data are retained.
 ```bash
 dc build api
 dc build web
-dc up -d --no-build
+python3 "$OPENGYM_CHECKOUT/scripts/self-hosting/catalogue.py" apply "$HOME/opengym-instance"
 dc ps
 curl --fail http://127.0.0.1:8080/api/health
 ```
@@ -264,10 +266,25 @@ python3 "$OPENGYM_CHECKOUT/scripts/self-hosting/catalogue.py" use-generation \
   "$HOME/opengym-instance" "$HOME/opengym-previous/catalogues/ciqual-2025-HASH"
 ```
 
-Replace `HASH` with a retained directory name from that installation. Registry
-updates are atomic, and old registry files and generation
-snapshots are retained for recovery. Saved foods, recipes and account documents
+Replace `HASH` with a retained directory name from that installation. Old registry
+files and generation snapshots are retained for recovery. Saved foods, recipes and account documents
 are never migrated or deleted by catalogue selection changes.
+
+The registry, Compose configuration and instance metadata are separate files.
+Each replacement is atomic; the three-file update is protected by a durable
+journal and committed SHA-256 hashes, rather than a single filesystem operation.
+An interrupted update blocks `apply` and `inspect` before any container action.
+To finish the exact prepared update without touching account data:
+
+```bash
+python3 "$OPENGYM_CHECKOUT/scripts/self-hosting/catalogue.py" recover "$HOME/opengym-instance"
+```
+
+Recovery verifies the journal hashes, selected generations and consistency of
+the registry, metadata, reviewed source, origin and Compose configuration. It
+does not start services. Keep the journal if recovery refuses it; do not delete
+the marker or bypass the check with a raw Compose start. Re-run `inspect`, then
+use `apply` when ready. `list` reports `configurationPending` during an update.
 
 To deselect a source, or deselect every source:
 
@@ -372,7 +389,7 @@ review the next commit. Reuse the preparation/restore procedure for an update:
    directory, backup and old image tags/IDs. Re-select the retained read-only
    catalogue with `catalogue.py use NEW_INSTANCE OLD_INSTANCE/catalogues`.
 3. From the new instance, validate Compose, build API then web sequentially,
-   and start with `dc up -d --no-build`. Review logs and verify account/data access.
+   and start with `catalogue.py apply NEW_INSTANCE`. Review logs and verify account/data access.
 4. If validation fails before accepting new writes, stop the new instance and
    start the old Compose configuration. Its previous source, image tags and
    unchanged data directory remain available.
@@ -394,7 +411,8 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
 
 They exercise invitation preparation, source isolation, archive round trips,
 origin checks, corrupt/unsafe archive rejection, backup stop/resume behavior,
-catalogue selection/failure/reuse, registry migration/removal and actual
+catalogue selection/failure/reuse, registry migration/removal, interrupted
+three-file publication and recovery, ambient environment isolation, and actual
 `docker compose config` parsing when
 the CLI is available. Deployment tests use a tiny synthetic catalogue inspector;
 the acquisition/parser and reader have separate tests. No image build,

@@ -153,7 +153,7 @@ def main():
         parser.error('Use the non-root account that will own the instance and run Docker')
     try:
         metadata = prepare(args.directory, args.origin, args.port, args.project, args.restore, catalogues=args.catalogues)
-    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
         parser.exit(1, f'Preparation refused: {error}\n')
     mode = 'public catalogue registry selected' if isinstance(metadata['catalogue'], dict) else 'personal foods only'
     print(f"Prepared {metadata['release']}; {mode}. No service was started.")

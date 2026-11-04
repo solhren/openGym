@@ -8,6 +8,7 @@ services:
     mem_limit: 1g
     environment:
       OPENGYM_SELF_HOSTED_CATALOG: "1"
+      OPENGYM_CATALOG_LISTEN_HOST: 0.0.0.0
       NUTRITION_LOCAL_CATALOG: "1"
       NUTRITION_LOCAL_CATALOG_KIND: public-registry
       OPENGYM_CATALOG_REGISTRY: /catalogues/registry.json
