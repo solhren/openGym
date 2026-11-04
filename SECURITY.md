@@ -38,7 +38,9 @@ upgrading; follow the [self-hosting guide](docs/SELF_HOSTING.md).
   Plain HTTP on a network can expose passwords, pairing codes and session credentials.
   `localhost` development is different from an unsecured LAN hostname or address.
 - **Passkeys do not encrypt journal data.** Their private keys stay with the authenticator, but
-  protecting sign-in does not prevent an operator or compromised host reading server files.
+  protecting sign-in does not prevent an operator or compromised host reading server files. Removing a
+  passkey does not revoke sessions it already created. If a device or key is lost, use
+  **Sign out everywhere** to revoke existing sessions, including paired phones.
 - **Guest data is local.** Clearing browser/site data or uninstalling the app can remove local
   history. Local storage and device-private files are not a substitute for exported backups.
 - **Nutrition uses separate storage and sync.** A regular workout backup or an apparently healthy

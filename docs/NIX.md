@@ -207,7 +207,7 @@ services.opengym = {
 Changing `rpId` later invalidates every registered passkey. On a LAN without certificates,
 plain `http://<ip>` can't do passkeys — use guest mode or put a certificate in front of it.
 The full `RP_ID`/`ORIGIN` troubleshooting guide in
-[`docs/SELF_HOSTING.md`](SELF_HOSTING.md#passkeys-fail-even-though-rpid-looks-right) applies
+[`docs/SELF_HOSTING.md`](SELF_HOSTING.md#3-https-and-the-first-account) applies
 word-for-word.
 
 ## 5. Using the NixOS module

@@ -120,6 +120,7 @@ not universal deployment instructions.
 | --- | --- |
 | Deploy and verify your instance | [Self-hosting](docs/SELF_HOSTING.md) |
 | Understand storage, search or scanning behavior | [FAQ and troubleshooting](docs/FAQ.md) |
+| Build Android for your own server | [Generic Android guide](docs/ANDROID_SELF_HOSTING.md) |
 | Work on the code | [Contributing](CONTRIBUTING.md) |
 | Understand security and reporting availability | [Security policy](SECURITY.md) |
 | Review Nutrition backup behavior | [Backup design and limits](docs/dev/NUTRITION_BACKUP_RESTORE.md) |

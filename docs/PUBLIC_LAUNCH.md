@@ -14,7 +14,8 @@ A separately provisioned local `wger-v1` SQLite catalogue can serve search and b
 without an external food-provider fallback during normal use. This mode is opt-in; older
 provider behavior remains in the code when it is not selected.
 
-The personal Android beta works for its user, and that user tested a real scanner. That is one
+The maintainer reports a working personal Web/Android beta and tested barcode scanning on a
+phone. Changes in this review and the generic build still need device validation. That is one
 setup's evidence. Browser UI screenshots and automated fixture tests support specific UI and
 logic claims; they do not establish all-device, iOS, production security or hardware durability.
 
@@ -88,8 +89,9 @@ Suggested body:
 > no external food-provider fallback during use. You can log personal foods without importing
 > a catalogue; the repository doesn't include a database or automatically download one.
 >
-> This is still a beta. It works in my personal Android setup, including a real scanner test,
-> but I haven't validated every phone or native iOS. Search has no typo correction, some foods
+> This is still a beta. My personal Web/Android beta works and I tested barcode scanning on a
+> phone. The changes in this review and the generic build still need device validation; I
+> haven't validated every phone or native iOS. Search has no typo correction, some foods
 > can't be added because their source data is incomplete or ambiguous, and combined workout +
 > Nutrition restore is currently blocked. Self-hosting also means looking after your backups.
 >

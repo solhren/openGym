@@ -28,6 +28,7 @@ steps live in the self-hosting guide, not in a maintainer's personal deployment 
 | [Food catalogue](dev/NUTRITION_FOOD_CATALOG.md) | Current local mode, source metadata and historical provider experiments |
 | [Catalogue benchmark](dev/NUTRITION_CATALOG_BENCHMARK.md) | Frozen sample methodology and limits of coverage claims |
 | [Nutrition UI](dev/NUTRITION_UI.md) | Interface implementation and bounded validation evidence |
+| [Android with your own server](ANDROID_SELF_HOSTING.md) | Generic paired-server preparation; no public APK is claimed |
 | [Phone app](MOBILE.md) | Inherited Capacitor architecture/build reference; upstream downloads are not this fork's beta |
 | [Importing training data](DATA_IMPORTS.md) | Inherited workout import formats |
 | [AI coach](AI_COACH.md) | Optional integration; availability/network access depends on the deployment profile |
@@ -43,3 +44,15 @@ current self-hosting guide takes priority over inherited deployment examples for
 For support and reporting availability, consult the current fork policy in
 [Contributing](../CONTRIBUTING.md) and [Security](../SECURITY.md); upstream community channels are
 not a support promise for this fork.
+
+## Inherited deployment references
+
+These references describe upstream/earlier deployment options; they are not
+validated installers of this fork's Nutrition/catalogue profile.
+
+- [HTTPS and LAN deployment](SELF_HOSTING_HTTPS.md)
+- [Kubernetes](SELF_HOSTING_KUBERNETES.md)
+- [Nix](NIX.md)
+
+For the source-built profile prepared in this review, start with
+[Self-hosting](SELF_HOSTING.md).

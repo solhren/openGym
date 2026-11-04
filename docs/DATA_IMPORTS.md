@@ -83,7 +83,7 @@ library.
   the phone — or, on Android, choose the sync app's own folder under Settings → Data & backup → **Backup folder**.
 
 If you host openGym yourself, backing up the `./data` folder covers every profile at once; see
-[backups](SELF_HOSTING.md#6-backups).
+[backups](SELF_HOSTING.md#5-back-up-and-test-a-restore).
 
 ## Your own CSV
 
