@@ -61,12 +61,27 @@ because the source supplies no retail identifiers. Existing wger/OFF capabilitie
 keep their scanner behavior. The multi-source picker shows the selected record's
 own provenance and never attributes Ciqual data to wger or Open Food Facts.
 
+## Browser authentication correction
+
+The first integration check found that the ordinary web catalogue transport used
+`credentials: omit` even when the strict local profile required a logged-in
+session. A healthy protected reader consequently appeared unavailable. A new
+regression exercises the default transport and reproduced that refusal. Fixed
+same-origin local requests now carry the existing browser cookie; legacy anonymous
+provider discovery and external-provider transports retain their prior policy.
+Paired Android authentication and its session guards remain unchanged.
+
 ## Validation in progress
 
 The implementation and independent reviews are being completed in isolated
 worktrees. Frontend tests exercise DTO validation and the real React journal with
 synthetic records; they are not a real-food correctness audit or a Docker test.
 Source acquisition and importer tests independently check the official data.
+The bounded real import produced 3,484 rows: 3,006 complete Foods, 473 partial
+Foods and 5 records with no usable values. All 6,968 French/English projections
+passed the existing JavaScript DTO/Food validators and quantity calculations.
+The SQLite is 14,700,544 bytes; source files total 3,123,029 bytes. Partial values
+remain unknown and are not described as complete nutrition.
 
 Docker CLI and Compose are present, but this session cannot connect to
 `unix:///var/run/docker.sock` (permission denied; socket root:docker 0660).

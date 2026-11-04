@@ -161,7 +161,10 @@ export function createFoodCatalog({ transport = directTransport, guard = () => {
   const mobileRelay = MOBILE && !PERSONAL_BETA && !pairedMobile && publicOrigin && originalDefault ? createPublicCatalogRelay(publicOrigin) : null
   let localRelay = false
   let localV1 = localOnlyV1||PERSONAL_BETA, localReady = false
-  const localRead = localTransport ?? accountRead ?? mobileRelay?.localRequest ?? ((path, options) => fetch(path, { signal:options.signal,credentials:'omit',redirect:'error',referrerPolicy:'no-referrer',headers:{Accept:'application/json'} }).then(r=>({status:r.status,headers:r.headers,body:r.body,text:()=>r.text(),catalogRelay:true})))
+  // These are fixed same-origin API paths. Public self-hosting authenticates
+  // catalogue reads too; omitting browser cookies would hide a healthy reader.
+  // External food-provider transports keep their separate anonymous policy.
+  const localRead = localTransport ?? accountRead ?? mobileRelay?.localRequest ?? ((path, options) => fetch(path, { signal:options.signal,credentials:'same-origin',redirect:'error',referrerPolicy:'no-referrer',headers:{Accept:'application/json'} }).then(r=>({status:r.status,headers:r.headers,body:r.body,text:()=>r.text(),catalogRelay:true})))
   if (mobileRelay) transport = (url, options) => localRelay || options.localOnly ? mobileRelay.transport(url, options) : directTransport(url, options)
   if (pairedMobile) transport = (url, options) => {
     if (!localRelay && !options.localOnly) return directTransport(url, options)
@@ -250,7 +253,7 @@ export function createFoodCatalog({ transport = directTransport, guard = () => {
       signal?.addEventListener('abort', abort, { once:true }); if (signal?.aborted) abort()
       const timeout = setTimeout(abort, 3000)
       try {
-        const response = await (capabilitiesTransport ?? accountRead ?? mobileRelay?.capabilities ?? fetch)('/api/nutrition/catalog/capabilities', { signal:controller.signal, credentials:'omit', redirect:'error', referrerPolicy:'no-referrer', headers:{Accept:'application/json'} })
+        const response = await (capabilitiesTransport ?? accountRead ?? mobileRelay?.capabilities ?? fetch)('/api/nutrition/catalog/capabilities', { signal:controller.signal, credentials:localV1?'same-origin':'omit', redirect:'error', referrerPolicy:'no-referrer', headers:{Accept:'application/json'} })
         current(); if (controller.signal.aborted) throw aborted()
         if (response.status !== 200) return unavailable()
         const body = await readJson(response); current(); response.assertSessionCurrent?.(); if (controller.signal.aborted) throw aborted()
