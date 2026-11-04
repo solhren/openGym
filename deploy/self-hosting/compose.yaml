@@ -1,0 +1,88 @@
+name: ${OPENGYM_PROJECT:-opengym-selfhost}
+
+x-sandbox: &sandbox
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  init: true
+  logging:
+    driver: json-file
+    options:
+      max-size: 2m
+      max-file: "3"
+
+services:
+  api:
+    <<: *sandbox
+    image: opengym-selfhost-api:${OPENGYM_RELEASE:?prepare an instance first}
+    build:
+      context: ${OPENGYM_SOURCE:?set source checkout}
+      dockerfile: deploy/self-hosting/Dockerfile.api
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-alpine}
+    user: "${OPENGYM_UID:?}:${OPENGYM_GID:?}"
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    stop_grace_period: 30s
+    tmpfs: ["/tmp:rw,nosuid,nodev,size=64m,mode=1777"]
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=384
+      PORT: "3000"
+      DATA_DIR: /data
+      ORIGIN: ${OPENGYM_ORIGIN:?set browser origin}
+      RP_ID: ${OPENGYM_RP_ID:?set passkey hostname}
+      RP_NAME: openGym
+      FIRST_USER_ADMIN: "1"
+      INVITE_ONLY: "1"
+      ALLOW_GUEST: "0"
+      PASSWORD_LOGIN: "0"
+      TRUST_PROXY: "0"
+      NUTRITION_LOCAL_CATALOG: "0"
+    volumes:
+      - type: bind
+        source: ${OPENGYM_DATA_DIR:?set private data directory}
+        target: /data
+        bind:
+          create_host_path: false
+    networks: [private]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  web:
+    <<: *sandbox
+    image: opengym-selfhost-web:${OPENGYM_RELEASE:?prepare an instance first}
+    build:
+      context: ${OPENGYM_SOURCE:?set source checkout}
+      dockerfile: deploy/self-hosting/Dockerfile.web
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-alpine}
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginxinc/nginx-unprivileged:alpine}
+        APP_BUILD: ${OPENGYM_RELEASE}
+    user: "101:101"
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+    tmpfs: ["/tmp:rw,nosuid,nodev,size=64m,mode=1777"]
+    ports:
+      - "127.0.0.1:${OPENGYM_WEB_PORT:-8080}:8080"
+    networks: [private, edge]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8080/healthz]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  private:
+    internal: true
+  edge: {}

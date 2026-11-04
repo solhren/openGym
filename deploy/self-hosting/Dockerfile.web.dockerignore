@@ -1,0 +1,36 @@
+# A Dockerfile-specific allowlist prevents runtime worktrees, secrets and data
+# from entering the build context. It also overrides the root .dockerignore.
+**
+!api/
+!api/**
+!frontend/
+!frontend/**
+!catalogue/
+!catalogue/media/
+!catalogue/media/**
+!deploy/
+!deploy/self-hosting/
+!deploy/self-hosting/nginx.conf
+!LICENSE
+!NOTICE.md
+**/node_modules
+**/dist
+**/build
+**/android
+**/ios
+**/test
+**/tests
+**/__tests__
+**/*.test.*
+**/*.spec.*
+**/.env*
+**/.git
+**/*.pem
+**/*.key
+**/*.keystore
+**/*.jks
+**/*.sqlite*
+**/*.log
+**/data
+**/artifacts
+**/runtime

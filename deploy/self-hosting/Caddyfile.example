@@ -1,0 +1,5 @@
+# Replace gym.example.com with the same hostname used by prepare.py --origin.
+# Run Caddy on the Docker host, not in an unrelated container.
+gym.example.com {
+    reverse_proxy 127.0.0.1:8080
+}
