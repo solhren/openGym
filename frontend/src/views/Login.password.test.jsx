@@ -100,3 +100,44 @@ describe('Login with password sign-in', () => {
     expect(sheet.querySelector('input[autocomplete="new-password"]')).toBeTruthy()
   })
 })
+
+describe('Login on explicitly managed self-hosted instances', () => {
+  for (const mode of ['personal', 'multi-user']) {
+    it(`${mode} hides registration when the server closes it but keeps existing account access`, () => {
+      mocks.config = { instance_mode: mode, registration_open: false, allow_guest: false }
+      const page = mount(<Login />)
+      expect(buttons(page)).not.toContain('Create new profile')
+      expect(buttons(page)).not.toContain('Continue without account')
+      expect(buttons(page)).toContain('Sign in with passkey')
+      expect(buttons(page)).toContain('Use a code from your other device')
+      expect(mocks.sheets).toHaveLength(0)
+    })
+
+    it(`${mode} fails closed while registration availability is unknown`, () => {
+      mocks.config = { instance_mode: mode, allow_guest: false }
+      expect(buttons(mount(<Login />))).not.toContain('Create new profile')
+    })
+  }
+
+  it('first-owner registration remains invitation protected and disappears after refreshed closure', () => {
+    mocks.config = { instance_mode: 'personal', registration_open: true, invite_only: true, allow_guest: false }
+    const page = mount(<Login />)
+    act(() => button(page, 'Create new profile').click())
+    const sheet = mount(mocks.sheets[0](() => {}))
+    expect(sheet.querySelector('input[aria-label="Your name"]')).toBeTruthy()
+    expect(sheet.querySelector('input[aria-label="Invite code"]')).toBeTruthy()
+    expect(buttons(sheet)).toContain('Create passkey')
+    mocks.config = { ...mocks.config, registration_open: false }
+    act(() => mounted.find(item => item.host === page).root.render(<Login />))
+    expect(buttons(page)).not.toContain('Create new profile')
+  })
+
+  it('an explicitly open multi-user instance keeps profile creation without an invitation field', () => {
+    mocks.config = { instance_mode: 'multi-user', registration_open: true, invite_only: false, allow_guest: false }
+    const page = mount(<Login />)
+    act(() => button(page, 'Create new profile').click())
+    const sheet = mount(mocks.sheets[0](() => {}))
+    expect(sheet.querySelector('input[placeholder="Invite code"]')).toBeNull()
+    expect(buttons(sheet)).toContain('Create passkey')
+  })
+})

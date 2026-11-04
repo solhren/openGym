@@ -29,6 +29,23 @@ explicitly enabled. No public account mode implies public workouts or meals.
 Installer source choices must not claim a working reader or licence verification
 that has not been supplied.
 
+### Managed registration UI
+
+The existing login screen used `registration_open` only for the personal beta;
+it otherwise always offered profile creation. Managed public modes now honor that
+server flag as well, including failing closed when a recognized mode has not yet
+provided availability. Sign-in and device linking remain accessible. Legacy
+instances keep their prior behavior. Registration remains enforced on the API;
+hiding an action is not an authorization boundary.
+
+`Login.password.test.jsx` reproduces closed and unknown availability, first-owner
+invitation setup, closure after refreshed config and explicitly open multi-user
+registration. Five assertions failed before the UI correction. The final targeted
+run with device-link, guest and password-form regressions passed **50/50**, zero
+skips. The real registration sheet now provides translated accessible input names
+using existing locale keys. This does not establish browser passkey or native
+authenticator behavior.
+
 ## Acceptance gates
 
 Mark a gate passed only with the revision, command and evidence scope. Software

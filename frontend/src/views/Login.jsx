@@ -54,10 +54,10 @@ function RegisterSheet({ close }) {
     <h3>{t('Create your profile')}</h3>
     {choose}
     <div className="muted small" style={{ marginBottom: 14 }}>{t('Pick a name, then confirm with {0}. The passkey lives on your device, so no password needed.', bio())}</div>
-    <input ref={ref} className="input" placeholder={t('Your name')} maxLength={40} value={name} onChange={e => setName(e.target.value)} />
+    <input ref={ref} className="input" aria-label={t('Your name')} placeholder={t('Your name')} maxLength={40} value={name} onChange={e => setName(e.target.value)} />
     {inviteOnly && <>
       <div style={{ height: 10 }} />
-      <input className="input" placeholder={t('Invite code')} maxLength={40} value={code}
+      <input className="input" aria-label={t('Invite code')} placeholder={t('Invite code')} maxLength={40} value={code}
         onChange={e => setCode(e.target.value.toUpperCase())} style={{ letterSpacing: '.14em', fontWeight: 600, textAlign: 'center' }} />
       <div className="dim small" style={{ marginTop: 6 }}>{t('This app is invite-only. Enter the code you were given.')}</div>
     </>}
@@ -71,7 +71,10 @@ export default function Login() {
   const config = useStore(s => s.config)
   const canGuest = guestAllowed(config)
   const pwOn = passwordOn(config)
-  const canRegister=(PERSONAL_BETA||config?.personal_beta)?config?.registration_open===true:true
+  // The API closes managed instances after the owner is created or the account
+  // limit is reached. Keep sign-in/device linking available; legacy config stays compatible.
+  const managedRegistration = PERSONAL_BETA || config?.personal_beta || ['personal', 'multi-user'].includes(config?.instance_mode)
+  const canRegister = managedRegistration ? config?.registration_open === true : true
   const register = () => useUI.getState().openSheet(close => <RegisterSheet close={close} />)
   const signIn = async () => {
     try { const u = await passkeyLogin(); setUser(u, { adopt: true }); await adoptProfile(askAddDeviceData); useUI.getState().toast(t('Welcome back, {0}', u.name)) }
