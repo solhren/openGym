@@ -64,6 +64,19 @@ purging retained Nutrition versions or operator backups. The administration page
 remains the existing English-only operator interface; this is a documented locale
 limit, not a claim that all operator messages have been translated.
 
+### Unavailable configuration on first web launch
+
+Browser preparation exposed a legacy fallback: `guestAllowed(null)` permits local
+guest use when the API is unavailable. That behavior is appropriate to old builds,
+but contradicts an explicitly account-required public installation. The public
+web Dockerfile now sets `VITE_OPENGYM_MANAGED_WEB=1`. Only that web profile closes
+the guest entrance even before config arrives, waits for explicit registration
+availability and offers a configuration retry. Native local-only use and legacy
+web defaults remain unchanged. Two new real Login component tests failed before
+the fix; the final six-file login/admin/guest run passed **36/36**, no skips.
+The browser smoke must use this same build flag. This does not replace API access
+checks: an unauthenticated client must still be refused independently of the UI.
+
 ## Acceptance gates
 
 Mark a gate passed only with the revision, command and evidence scope. Software

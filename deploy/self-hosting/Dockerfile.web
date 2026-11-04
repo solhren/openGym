@@ -9,7 +9,7 @@ COPY api/nutrition/core/ /app/api/nutrition/core/
 COPY api/shared/ /app/api/shared/
 COPY frontend/ ./
 # No remote OFF fallback, even when a catalogue is absent or unavailable.
-ENV VITE_NUTRITION_LOCAL_V1=1
+ENV VITE_NUTRITION_LOCAL_V1=1 VITE_OPENGYM_MANAGED_WEB=1
 ARG APP_BUILD
 RUN NODE_OPTIONS=--max-old-space-size=512 APP_BUILD="$APP_BUILD" npm run build
 FROM ${NGINX_IMAGE}

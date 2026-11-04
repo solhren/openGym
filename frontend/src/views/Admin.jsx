@@ -346,7 +346,9 @@ export default function Admin() {
 
     <div className="card">
       <h2 style={{ margin: 0 }}>Users</h2>
-      <div className="adm-lead">Everyone with a profile on this instance. Tap one to see their activity, to disable the account (nothing is deleted) or to delete it with all their data for good.</div>
+      <div className="adm-lead">{accountOnly
+        ? 'Select a profile to manage account access. Private content is not shown. Removing access does not purge retained Nutrition versions or operator backups.'
+        : 'Everyone with a profile on this instance. Tap one to see their activity, to disable the account (nothing is deleted) or to delete it with all their data for good.'}</div>
       <div className="list">
         {(users || []).map(u => <button type="button" key={u.id} className="item" onClick={() => openUser(u.id)} style={{ textAlign: 'start', width: '100%', ...(u.disabled ? { opacity: .55 } : {}) }}>
           <div className="grow"><div className="tt">{u.live && <Icon name="dot" style={{ fontSize: 9, color: 'var(--green)', display: 'inline-block', marginInlineEnd: 5 }} />}{u.name} {u.admin && <span className="adm-pill acc" style={{ marginInlineStart: 4 }}>admin</span>}{u.disabled && <span className="adm-pill bad" style={{ marginInlineStart: 4 }}>disabled</span>}</div>

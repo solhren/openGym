@@ -1,4 +1,5 @@
 import {PERSONAL_BETA} from './personal-beta.js'
+import { MANAGED_WEB } from './managed-web.js'
 
 /**
  * Whether "Continue without account" may be offered, given the public config from /api/config.
@@ -10,10 +11,10 @@ import {PERSONAL_BETA} from './personal-beta.js'
  * so on the next successful boot, and the session is ended then (see useStore.boot).
  *
  * Older servers predate the flag and send no `allow_guest` at all; they mean "allowed".
- * The explicit personal build is the exception: it forbids guests even before
+ * Explicit personal and managed web builds are exceptions: they forbid guests even before
  * config loads or when the API is unavailable. Ordinary offline mode is unchanged.
  *
  * @param {{allow_guest?: boolean}|null|undefined} config Parsed /api/config body, or null.
  * @returns {boolean} true when the guest entrance may be shown and used.
  */
-export const guestAllowed = config => !PERSONAL_BETA && !(config && config.allow_guest === false)
+export const guestAllowed = config => !PERSONAL_BETA && !MANAGED_WEB && !(config && config.allow_guest === false)

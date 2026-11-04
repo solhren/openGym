@@ -12,6 +12,7 @@ import { askAddDeviceData } from '../sheets.jsx'
 import { passwordOn, PasswordRegisterForm, openPasswordSignIn } from '../components/PasswordAuth.jsx'
 import { openDeviceLinkRedeem } from '../components/Passkeys.jsx'
 import {PERSONAL_BETA} from '../lib/personal-beta.js'
+import { MANAGED_WEB } from '../lib/managed-web.js'
 
 function RegisterSheet({ close }) {
   const { setUser, pushState, pullState, loadConfig } = useStore()
@@ -73,7 +74,7 @@ export default function Login() {
   const pwOn = passwordOn(config)
   // The API closes managed instances after the owner is created or the account
   // limit is reached. Keep sign-in/device linking available; legacy config stays compatible.
-  const managedRegistration = PERSONAL_BETA || config?.personal_beta || ['personal', 'multi-user'].includes(config?.instance_mode)
+  const managedRegistration = PERSONAL_BETA || MANAGED_WEB || config?.personal_beta || ['personal', 'multi-user'].includes(config?.instance_mode)
   const canRegister = managedRegistration ? config?.registration_open === true : true
   const register = () => useUI.getState().openSheet(close => <RegisterSheet close={close} />)
   const signIn = async () => {
@@ -105,6 +106,10 @@ export default function Login() {
     <div className="narrow" style={wrap}>
       {head}
       <div className="muted" style={{ marginBottom: 34 }}>{t('Your workouts. Your weights. Your profile.')}</div>
+      {MANAGED_WEB && !config && <div className="card">
+        <p role="alert">{t('Could not load')}</p>
+        <Button onClick={() => useStore.getState().loadConfig()}>{t('Try again')}</Button>
+      </div>}
       {webauthnOK() ? <>
         <Button variant="primary" icon="fingerprint" onClick={signIn}>{t('Sign in with passkey')}</Button>
         <div style={{ height: 10 }} />
