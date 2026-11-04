@@ -92,15 +92,16 @@ def restore(archive_path, target, origin, guard=reserve):
     if len(checksum) < 1 or checksum[0] != actual:
         raise ValueError('Backup checksum mismatch')
     with tarfile.open(archive_path, 'r:gz') as archive:
-        members, seen, total = [], set(), 0
+        members, entry_types, required_directories, total = [], {}, set(), 0
         metadata = None
         for item in archive:
             name = PurePosixPath(item.name)
-            if (item.name in seen or name.is_absolute() or '..' in name.parts or
+            if (item.name in entry_types or name.is_absolute() or '..' in name.parts or
                     '\\' in item.name or not (item.isfile() or item.isdir()) or
                     item.size < 0 or item.name != name.as_posix()):
                 raise ValueError('Unsafe archive entry')
-            seen.add(item.name)
+            entry_types[item.name] = 'file' if item.isfile() else 'directory'
+            required_directories.update(parent.as_posix() for parent in name.parents if parent.parts)
             if item.name == META:
                 if not item.isfile() or item.size > 4096:
                     raise ValueError('Invalid backup metadata')
@@ -110,11 +111,15 @@ def restore(archive_path, target, origin, guard=reserve):
             else:
                 total += item.size
                 members.append(item)
-            if len(seen) > MAX_ENTRIES:
+            if len(entry_types) > MAX_ENTRIES:
                 raise ValueError('Archive entry limit exceeded')
+        # Check the complete path graph before creating the destination. This
+        # catches a file ancestor in either archive order, including implicit dirs.
+        if any(entry_types.get(name) == 'file' for name in required_directories):
+            raise ValueError('Archive path has a file ancestor')
         if (not isinstance(metadata, dict) or metadata.get('format') != 'opengym-selfhost-backup' or
                 metadata.get('version') != 1 or metadata.get('origin') != origin or
-                not {'data/secret', 'data/db.json'} <= seen):
+                any(entry_types.get(name) != 'file' for name in ('data/secret', 'data/db.json'))):
             raise ValueError('Backup metadata/origin/required data mismatch')
         guard(target.parent, total + 1024 ** 2)
         target.mkdir(mode=0o700)

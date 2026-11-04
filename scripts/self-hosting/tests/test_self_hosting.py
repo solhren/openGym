@@ -1,4 +1,5 @@
 import hashlib
+import io
 import json
 from pathlib import Path
 import shutil
@@ -60,6 +61,19 @@ class SelfHostingTest(unittest.TestCase):
         backup(data, output, metadata, guard=lambda *args: None)
         return output, data
 
+    def custom_archive(self, name, entries):
+        output = self.root / (name + '.tar.gz')
+        metadata = json.dumps({'format': 'opengym-selfhost-backup', 'version': 1,
+                               'origin': 'https://gym.example.com', 'release': 'fixture'}).encode()
+        with tarfile.open(output, 'w:gz') as archive:
+            for name, kind, payload in [('opengym-backup.json', 'file', metadata), *entries]:
+                item = tarfile.TarInfo(name)
+                item.type = tarfile.DIRTYPE if kind == 'directory' else tarfile.REGTYPE
+                item.size = len(payload) if kind == 'file' else 0
+                archive.addfile(item, io.BytesIO(payload) if kind == 'file' else None)
+        output.with_name(output.name + '.sha256').write_text(hashlib.sha256(output.read_bytes()).hexdigest())
+        return output
+
     def test_prepare_private_invite_tracked_snapshot_and_repeat_refusal(self):
         instance, metadata = self.prepared()
         self.assertEqual(metadata['catalogue'], 'none')
@@ -103,6 +117,49 @@ class SelfHostingTest(unittest.TestCase):
             restore(archive, self.root / 'different-origin', 'https://other.example.com', guard=lambda *args: None)
         with self.assertRaises(ValueError):
             restore(archive, restored / 'data', 'https://gym.example.com', guard=lambda *args: None)
+
+    def test_numeric_ipv4_spellings_refused_without_rejecting_normal_domains(self):
+        for host in ['127.1', '0177.1', '0x7f.1', '2130706433', '0x7f000001',
+                     '017700000001', '127.0.0.0x1', '0x', 'gym.08', 'gym.0x']:
+            with self.subTest(host=host):
+                target = self.root / ('numeric-' + host)
+                with self.assertRaisesRegex(ValueError, 'IP address'):
+                    prepare(target, 'https://' + host, repo=self.repo, guard=lambda *args: None)
+                self.assertFalse(target.exists())
+        for host in ['gym.example.com', '123.example.com', '001.example.com',
+                     'gym.example123', 'dead.beef', 'gym.0xg']:
+            with self.subTest(host=host):
+                self.assertEqual(browser_origin('https://' + host), host)
+
+    def test_restore_required_state_must_be_regular_files_before_target_creation(self):
+        for index, directories in enumerate([{'data/secret'}, {'data/db.json'}, {'data/secret', 'data/db.json'}]):
+            with self.subTest(directories=directories):
+                entries = [(name, 'directory' if name in directories else 'file', b'fixture')
+                           for name in ['data/secret', 'data/db.json']]
+                archive = self.custom_archive('required-directory-' + str(index), entries)
+                target = self.root / ('required-target-' + str(index))
+                with self.assertRaisesRegex(ValueError, 'required data'):
+                    restore(archive, target, 'https://gym.example.com', guard=lambda *args: None)
+                self.assertFalse(target.exists())
+
+    def test_restore_file_ancestor_conflicts_refused_in_both_archive_orders(self):
+        required = [('data/secret', 'file', b'secret'), ('data/db.json', 'file', b'{}')]
+        conflicts = [('data/a', 'file', b'a'), ('data/a/b', 'file', b'b')]
+        for index, entries in enumerate([conflicts, list(reversed(conflicts))]):
+            with self.subTest(order=index):
+                archive = self.custom_archive('file-ancestor-' + str(index), required + entries)
+                target = self.root / ('conflict-target-' + str(index))
+                with self.assertRaisesRegex(ValueError, 'file ancestor'):
+                    restore(archive, target, 'https://gym.example.com', guard=lambda *args: None)
+                self.assertFalse(target.exists())
+
+    def test_restore_allows_directory_entry_after_its_descendant(self):
+        entries = [('data/secret', 'file', b'secret'), ('data/db.json', 'file', b'{}'),
+                   ('data/a/b', 'file', b'fixture'), ('data/a', 'directory', b'')]
+        archive = self.custom_archive('directory-after-descendant', entries)
+        target = self.root / 'valid-directory-order'
+        restore(archive, target, 'https://gym.example.com', guard=lambda *args: None)
+        self.assertEqual((target / 'a/b').read_bytes(), b'fixture')
 
     def test_corrupt_backup_refused_without_creating_target(self):
         archive, _ = self.archive()

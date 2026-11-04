@@ -127,9 +127,18 @@ stack requires an explicitly reviewed network configuration. Subpath deployment
 is not configured by this profile.
 
 The outer proxy should allow at least 5 MiB request bodies for synchronization,
-48 MiB for `/api/media/` and sufficient time for media uploads. Forward `/api/`
-and `OPTIONS` unchanged; do not add duplicate CORS headers or a login redirect
+48 MiB for `/api/media/` and sufficient time for media uploads.
+
+### Phone app and CORS
+
+Forward `/api/` and `OPTIONS` unchanged; do not add duplicate CORS headers or a login redirect
 in front of API routes. The application supplies its own authentication.
+
+Native app pairing requires a compatible separately built app and an authenticated
+browser account; this guide does not distribute a mobile binary. Pairing and HTTPS
+on a real phone have not been tested for this profile.
+
+### Create the first account
 
 Open `https://gym.example.com` and create a profile using a passkey. When asked
 for an invitation, read it privately on the server:
@@ -149,9 +158,7 @@ it is consumed. Do not send it in a bug report.
 Pick the hostname before registering: passkeys are bound to its `RP_ID`.
 `OPENGYM_ORIGIN` must match the exact browser origin, including a non-default
 port. Changing a hostname does not migrate existing passkeys. Password sign-in
-and guest mode are disabled by this profile. Native app pairing still requires
-a compatible separately built app and an authenticated browser account; this
-guide does not distribute a mobile binary.
+and guest mode are disabled by this profile.
 
 ## 4. Food catalogue: an explicit optional prerequisite
 

@@ -3,7 +3,6 @@
 import argparse
 from datetime import datetime, timezone
 import hashlib
-import ipaddress
 import json
 import os
 from pathlib import Path
@@ -39,14 +38,14 @@ def browser_origin(value):
         raise ValueError('Use the browser-normalized origin: lowercase hostname, no default port')
     if url.hostname != 'localhost':
         labels = url.hostname.split('.')
+        # Browsers interpret a numeric final label as IPv4 notation, including
+        # short, octal, hexadecimal and integer spellings that ipaddress rejects.
+        # Reject that syntax locally instead of resolving a hostname or accepting
+        # an origin that the browser will silently normalize to an IP address.
+        if re.fullmatch(r'(?:[0-9]+|0x[0-9a-f]*)', labels[-1]):
+            raise ValueError('Passkeys require a hostname, not an IP address')
         if len(labels) < 2 or len(url.hostname) > 253 or not all(re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?', label) for label in labels):
             raise ValueError('Use a valid DNS hostname for passkeys')
-        try:
-            ipaddress.ip_address(url.hostname)
-        except ValueError:
-            pass
-        else:
-            raise ValueError('Passkeys require a hostname, not an IP address')
     return url.hostname
 
 
