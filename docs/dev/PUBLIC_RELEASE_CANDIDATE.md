@@ -46,6 +46,24 @@ skips. The real registration sheet now provides translated accessible input name
 using existing locale keys. This does not establish browser passkey or native
 authenticator behavior.
 
+### Managed account administration
+
+The legacy administrator detail response contains workout data. Explicit public
+modes instead return `account_only: true` and account metadata; their API guards
+are tested separately. The real Admin component now handles that shape without
+inventing zero workouts, reading absent arrays or offering a user-data export.
+The account list exposes keyboard-operable buttons, and the personal mode does
+not offer new invitations. Existing legacy/private-beta responses retain their
+original UI path.
+
+Three component regressions failed before this adaptation. The final Admin and
+password-administration run passed **12/12**. A failed account-detail request now
+shows an explicit error instead of an endless loader; its response is ignored
+after navigation. Deletion warnings distinguish removing account access from
+purging retained Nutrition versions or operator backups. The administration page
+remains the existing English-only operator interface; this is a documented locale
+limit, not a claim that all operator messages have been translated.
+
 ## Acceptance gates
 
 Mark a gate passed only with the revision, command and evidence scope. Software

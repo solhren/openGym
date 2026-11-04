@@ -82,9 +82,11 @@ mutate the new account. Closing a view does not discard pending operations.
 Server routes derive the authenticated user from the session rather than trusting
 a user ID supplied in a request body.
 
-Personal/multi-user instance policy is separate from document ownership. An
-administrator's ability to manage invitations does not imply permission to read
-another user's workouts or meals. The host operator remains trusted and can read
+Personal/multi-user instance policy is separate from document ownership. In the
+explicit public modes, an administrator manages accounts and invitations without
+receiving other users' workout or meal content. The legacy administrative API
+predates this restriction and can expose workout data; do not equate its default
+configuration with the explicit public policy. The host operator remains trusted and can read
 the server files; this is not end-to-end encryption. See [SECURITY](../SECURITY.md).
 
 Concurrency belongs at the persistence/publication boundary: conditional revisions,

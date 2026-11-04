@@ -9,7 +9,7 @@ import Admin from './Admin.jsx'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-const mocks = vi.hoisted(() => ({ answers: {}, sheets: [] }))
+const mocks = vi.hoisted(() => ({ answers: {}, sheets: [], config: null }))
 vi.mock('../lib/api.js', () => ({
   api: path => {
     const key = path.split('?')[0]
@@ -17,7 +17,7 @@ vi.mock('../lib/api.js', () => ({
   }
 }))
 vi.mock('../store/useStore.js', () => {
-  const snap = () => ({ user: { id: 'adm', name: 'Admin', admin: true }, S: {} })
+  const snap = () => ({ user: { id: 'adm', name: 'Admin', admin: true }, S: {}, config: mocks.config })
   const useStore = selector => selector ? selector(snap()) : snap()
   useStore.getState = snap
   return { useStore }
@@ -48,6 +48,7 @@ const good = { id: 'w1', name: 'Push day', d: '2026-09-10', start: 1000, end: 61
 beforeEach(() => {
   document.body.innerHTML = ''
   mocks.sheets.length = 0
+  mocks.config = null
   mocks.answers = {
     '/api/admin/users': { users: [{ id: 'u1', name: 'Mallory', workouts: 2, lastSync: null, disabled: false }], invite_only: false },
     '/api/admin/invites': { invites: [] },
@@ -64,6 +65,53 @@ beforeEach(() => {
 afterEach(() => { act(() => { mounted.splice(0).forEach(root => root.unmount()) }) })
 
 describe('Admin user drill-down', () => {
+  it('account-only responses keep management available without fake statistics, private history or export', async () => {
+    mocks.config = { instance_mode: 'multi-user', registration_open: true }
+    const user = { id: 'u1', name: 'Mallory', created: '2026-09-01T00:00:00Z', disabled: false, admin: false }
+    mocks.answers['/api/admin/users'] = { account_only: true, users: [user], invite_only: true }
+    mocks.answers['/api/admin/user'] = { account_only: true, user }
+    const page = render(<Admin />)
+    await settle()
+    expect(page.textContent).not.toContain('Training now')
+    expect(page.textContent).not.toContain('undefined workouts')
+    expect(page.textContent).not.toContain('Active 7 days')
+    const row = [...page.querySelectorAll('.item')].find(el => el.textContent.includes('Mallory'))
+    expect(row.tagName).toBe('BUTTON')
+    act(() => row.click())
+    const sheet = render(mocks.sheets[0](() => {}))
+    await settle()
+    expect(sheet.textContent).toContain('Disable account')
+    expect(sheet.textContent).toContain('Delete account')
+    expect(sheet.textContent).not.toContain('Workout history')
+    expect(sheet.textContent).not.toContain('No workouts logged')
+    expect(sheet.textContent).not.toContain('Download their data')
+    expect(sheet.querySelector('.tiles')).toBeNull()
+    expect(sheet.textContent).toContain('retained Nutrition versions')
+    expect(page.textContent).toContain('New code')
+  })
+
+  it('personal mode does not offer invitation generation', async () => {
+    mocks.config = { instance_mode: 'personal', registration_open: false }
+    mocks.answers['/api/admin/users'] = { account_only: true, users: [{ id: 'adm', name: 'Owner', admin: true }] }
+    const page = render(<Admin />)
+    await settle()
+    expect(page.textContent).toContain('Owner')
+    expect(page.textContent).not.toContain('Invite codes')
+    expect(page.textContent).not.toContain('New code')
+  })
+
+  it('a failed account-detail read reports an error instead of loading forever', async () => {
+    delete mocks.answers['/api/admin/user']
+    const page = render(<Admin />)
+    await settle()
+    act(() => page.querySelector('.item').click())
+    const sheet = render(mocks.sheets[0](() => {}))
+    await settle()
+    expect(sheet.querySelector('[role="alert"]')).toBeTruthy()
+    expect(sheet.textContent).not.toContain('Loading…')
+    expect(sheet.textContent).not.toContain('Delete account')
+  })
+
   it('opens a profile with malformed workout entries and still offers "Disable account"', async () => {
     const page = render(<Admin />)
     await settle()

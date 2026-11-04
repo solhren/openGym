@@ -46,11 +46,24 @@ function ResetCodeSheet({ name, email, code, expires, close }) {
 
 function UserDetail({ id, onChanged, close }) {
   const [d, setD] = useState(null)
+  const [error, setError] = useState(null)
   const toast = useUI(s => s.toast)
   const openSheet = useUI(s => s.openSheet)
-  useEffect(() => { api('/api/admin/user?id=' + encodeURIComponent(id)).then(setD).catch(e => toast(e.message)) }, [id])
+  const managed = useStore(s => ['personal', 'multi-user'].includes(s.config?.instance_mode))
+  useEffect(() => {
+    let active = true
+    setD(null); setError(null)
+    api('/api/admin/user?id=' + encodeURIComponent(id)).then(value => {
+      if (!active) return
+      if (value?.user?.id !== id) throw new Error('The server answered without the requested account.')
+      setD(value)
+    }).catch(e => { if (active) setError(e.message || 'Could not load the account.') })
+    return () => { active = false }
+  }, [id])
+  if (error) return <div role="alert" className="card">Could not load the account. {error}</div>
   if (!d) return <div className="muted small">Loading…</div>
   const u = d.user
+  const accountOnly = managed || d.account_only === true
   // The document comes straight off the user's state file. PUT /api/data drops null and
   // shapeless entries now, but a file written before it did still answers with them, and this
   // sheet renders outside the route's ErrorBoundary: one throw here blanked the whole app and
@@ -59,6 +72,7 @@ function UserDetail({ id, onChanged, close }) {
   const workouts = (d.workouts || []).filter(w => w && Array.isArray(w.entries) && w.entries.every(e => e && Array.isArray(e.sets)))
   // Their whole record as the admin API already returns it — the export the delete sheet offers.
   const exportUser = () => {
+    if (accountOnly) return
     const blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
@@ -100,13 +114,13 @@ function UserDetail({ id, onChanged, close }) {
       {u.resetUntil && <span className="adm-pill acc">reset code until {new Date(u.resetUntil).toLocaleString()}</span>}
       <span className="adm-pill">joined {u.created ? fmtDate(u.created.slice(0, 10)) : '–'}</span>
     </div>
-    <div className="tiles" style={{ textAlign: 'start' }}>
+    {accountOnly ? <p className="adm-lead">Only account access is managed here. This page does not expose the user's workout or Nutrition content.</p> : <div className="tiles" style={{ textAlign: 'start' }}>
       <div className="tile"><div className="l">Workouts</div><div className="v" style={{ fontSize: '1.1rem' }}>{workouts.length}</div></div>
       <div className="tile"><div className="l">Weigh-ins</div><div className="v" style={{ fontSize: '1.1rem' }}>{d.bodyweight.length}</div></div>
       <div className="tile"><div className="l">Measurements</div><div className="v" style={{ fontSize: '1.1rem' }}>{(d.measurements || []).length}</div></div>
       <div className="tile"><div className="l">Routines</div><div className="v" style={{ fontSize: '1.1rem' }}>{d.routines.length}</div></div>
       <div className="tile"><div className="l">Last sync</div><div className="v" style={{ fontSize: '.95rem' }}>{rel(d.lastSync)}</div></div>
-    </div>
+    </div>}
     {!u.admin && <>
       <button className={'btn ' + (u.disabled ? 'primary' : 'danger')} style={{ margin: '12px 0 4px' }}
         onClick={() => u.disabled ? setDisabled(false)
@@ -119,19 +133,21 @@ function UserDetail({ id, onChanged, close }) {
       <button className="btn danger" style={{ margin: '14px 0 4px' }}
         onClick={() => confirmSheet({
           title: 'Delete ' + u.name + '?',
-          message: 'Everything goes: their workouts, weigh-ins, routines, passkeys and notifications. This cannot be undone, and the invite code they joined with stays used. Download their data first if they might want it.',
+          message: accountOnly
+            ? 'Account access and credentials will be deleted. Ask the user to export their own data first. Retained Nutrition versions and server backups are not purged automatically.'
+            : 'Everything goes: their workouts, weigh-ins, routines, passkeys and notifications. This cannot be undone, and the invite code they joined with stays used. Download their data first if they might want it.',
           confirmText: 'Continue',
           danger: true,
           onConfirm: () => confirmSheet({
             title: 'Delete ' + u.name + ' for good?',
-            message: 'Last chance. There’s no undo and no backup of this on the server.',
+            message: accountOnly ? 'This cannot be undone through the application. Confirm you have agreed a recovery plan with the user.' : 'Last chance. There’s no undo and no backup of this on the server.',
             confirmText: 'Delete account',
             danger: true,
             onConfirm: doDelete,
           }),
         })}>Delete account</button>
-      <button className="btn" style={{ marginBottom: 4 }} onClick={exportUser}>Download their data</button>
-      <div className="adm-hint">Deleting removes the account and every trace of its training history from this server.</div>
+      {!accountOnly && <button className="btn" style={{ marginBottom: 4 }} onClick={exportUser}>Download their data</button>}
+      <div className="adm-hint">{accountOnly ? 'Deletion removes account access. Server backups and retained Nutrition versions are not purged automatically.' : 'Deleting removes the account and every trace of its training history from this server.'}</div>
       {pwInstance && <>
         <button className="btn" style={{ margin: '14px 0 4px' }} onClick={resetPassword}>Reset password</button>
         <div className="adm-hint">{u.password
@@ -139,14 +155,14 @@ function UserDetail({ id, onChanged, close }) {
           : 'No password yet. A one-time code lets them set one. That’s the way back in after losing their only passkey.'}</div>
       </>}
     </>}
-    <h4 className="sec">Workout history</h4>
+    {!accountOnly && <><h4 className="sec">Workout history</h4>
     {workouts.length ? <div className="list" style={{ gap: 0 }}>
       {workouts.slice(0, 60).map(w => <div key={w.id} className="row between" style={{ padding: '9px 2px', borderBottom: '1px solid var(--sep)' }}>
         <div><div className="small" style={{ fontWeight: 600 }}>{w.name}</div>
           <div className="dim" style={{ fontSize: '.72rem' }}>{fmtDate(w.d, true)} · {fmtDur((w.end || w.start) - w.start)} · {setsDone(w)} sets{w.prs?.length ? ' · ' + w.prs.length + ' PR' : ''}</div></div>
         <span className="small muted">{fmtVol(w.vol ?? workoutVolume(w), d.unit)}</span>
       </div>)}
-    </div> : <div className="adm-empty">No workouts logged.</div>}
+    </div> : <div className="adm-empty">No workouts logged.</div>}</>}
   </>
 }
 
@@ -254,11 +270,16 @@ function AuditCard({ tick }) {
 export default function Admin() {
   const nav = useNavigate()
   const user = useStore(s => s.user)
+  const instanceMode = useStore(s => s.config?.instance_mode)
+  const managed = ['personal', 'multi-user'].includes(instanceMode)
+  const personal = instanceMode === 'personal'
   const openSheet = useUI(s => s.openSheet)
   const [users, setUsers] = useState(null)
   const [usersErr, setUsersErr] = useState(null)   // why the last load failed, until one succeeds
   const [invites, setInvites] = useState(null)
   const [inviteOnly, setInviteOnly] = useState(false)
+  const [reportedAccountOnly, setReportedAccountOnly] = useState(false)
+  const accountOnly = managed || reportedAccountOnly
   const [tick, setTick] = useState(0)          // the ↻ button; the activity log listens to it
 
   // A failed load, or an answer without a list, used to leave the page on "Loading…" for good —
@@ -268,16 +289,16 @@ export default function Admin() {
   const loadUsers = () => api('/api/admin/users')
     .then(d => {
       if (!Array.isArray(d?.users)) throw new Error('The server answered without a list of users.')
-      setUsers(d.users); setInviteOnly(!!d.invite_only); setUsersErr(null)
+      setUsers(d.users); setInviteOnly(!!d.invite_only); setReportedAccountOnly(d.account_only === true); setUsersErr(null)
     })
     .catch(e => setUsersErr(e.message || 'Failed to load'))
-  const loadInvites = () => api('/api/admin/invites').then(d => setInvites(d.invites)).catch(() => {})
+  const loadInvites = () => personal ? setInvites([]) : api('/api/admin/invites').then(d => setInvites(d.invites)).catch(() => {})
   // poll every 15s so the "training now" section stays live without a manual refresh
   useEffect(() => { if (!user?.admin) return; loadUsers(); loadInvites(); const iv = setInterval(loadUsers, 15000); return () => clearInterval(iv) }, [])
   if (!user?.admin) return null
 
   const openUser = id => openSheet(close => <UserDetail id={id} onChanged={loadUsers} close={close} />)
-  const liveUsers = (users || []).filter(u => u.live)
+  const liveUsers = accountOnly ? [] : (users || []).filter(u => u.live)
   const activeCount = (users || []).filter(u => u.lastSync && Date.now() - u.lastSync < 7 * 86400000).length
   const disabledCount = (users || []).filter(u => u.disabled).length
 
@@ -285,11 +306,11 @@ export default function Admin() {
     <div className="hdr">
       <button className="iconbtn" onClick={() => nav('/settings/account')} aria-label="Back"><Icon name="chevronLeft" /></button>
       <div style={{ flex: 1, marginInlineStart: 8 }}><h1 style={{ margin: 0 }}>Admin</h1>
-        <div className="sub">{users ? users.length + ' users · ' + activeCount + ' active this week' : usersErr ? 'Could not load' : 'Loading…'}</div></div>
+        <div className="sub">{users ? users.length + ' users' + (accountOnly ? '' : ' · ' + activeCount + ' active this week') : usersErr ? 'Could not load' : 'Loading…'}</div></div>
       <button className="iconbtn" onClick={() => { loadUsers(); loadInvites(); setTick(n => n + 1) }} aria-label="refresh">↻</button>
     </div>
     <div className="adm-intro">
-      Everything about running this instance: who uses it, how they get in, the AI Coach, and what has happened on it. Nothing here shows anyone's training data beyond counts.
+      {accountOnly ? 'Manage account access and invitations. Workout and Nutrition content is private and is not shown here.' : 'Everything about running this instance: who uses it, how they get in, the AI Coach, and what has happened on it. Nothing here shows anyone’s training data beyond counts.'}
     </div>
 
     {usersErr && <div className="card" role="alert" style={{ borderColor: 'var(--red)' }}>
@@ -302,8 +323,8 @@ export default function Admin() {
 
     <div className="tiles" style={{ marginBottom: 12 }}>
       <div className="tile"><div className="l">Users</div><div className="v">{users ? users.length : '–'}</div></div>
-      <div className="tile"><div className="l">Training now</div><div className="v" style={{ color: liveUsers.length ? 'var(--acc)' : undefined }}>{users ? liveUsers.length : '–'}</div></div>
-      <div className="tile"><div className="l">Active 7 days</div><div className="v">{users ? activeCount : '–'}</div></div>
+      {!accountOnly && <><div className="tile"><div className="l">Training now</div><div className="v" style={{ color: liveUsers.length ? 'var(--acc)' : undefined }}>{users ? liveUsers.length : '–'}</div></div>
+      <div className="tile"><div className="l">Active 7 days</div><div className="v">{users ? activeCount : '–'}</div></div></>}
       <div className="tile"><div className="l">Disabled</div><div className="v">{users ? disabledCount : '–'}</div></div>
     </div>
 
@@ -321,18 +342,18 @@ export default function Admin() {
         page on a box that never enabled it is byte-for-byte the page it was before. */}
     <AdminCoach />
 
-    <InvitesCard invites={invites} reload={loadInvites} inviteOnly={inviteOnly} />
+    {!personal && <InvitesCard invites={invites} reload={loadInvites} inviteOnly={inviteOnly} />}
 
     <div className="card">
       <h2 style={{ margin: 0 }}>Users</h2>
       <div className="adm-lead">Everyone with a profile on this instance. Tap one to see their activity, to disable the account (nothing is deleted) or to delete it with all their data for good.</div>
       <div className="list">
-        {(users || []).map(u => <div key={u.id} className="item" onClick={() => openUser(u.id)} style={u.disabled ? { opacity: .55 } : null}>
+        {(users || []).map(u => <button type="button" key={u.id} className="item" onClick={() => openUser(u.id)} style={{ textAlign: 'start', width: '100%', ...(u.disabled ? { opacity: .55 } : {}) }}>
           <div className="grow"><div className="tt">{u.live && <Icon name="dot" style={{ fontSize: 9, color: 'var(--green)', display: 'inline-block', marginInlineEnd: 5 }} />}{u.name} {u.admin && <span className="adm-pill acc" style={{ marginInlineStart: 4 }}>admin</span>}{u.disabled && <span className="adm-pill bad" style={{ marginInlineStart: 4 }}>disabled</span>}</div>
-            <div className="ss">{u.live ? 'training now · ' + u.live.name : u.workouts + ' workouts' + (u.lastWorkout ? ' · last ' + fmtDate(u.lastWorkout) : '') + ' · last sync ' + rel(u.lastSync)}</div>
+            {accountOnly ? <div className="ss">Account access{u.created ? ' · joined ' + fmtDate(u.created.slice(0, 10)) : ''}</div> : <div className="ss">{u.live ? 'training now · ' + u.live.name : u.workouts + ' workouts' + (u.lastWorkout ? ' · last ' + fmtDate(u.lastWorkout) : '') + ' · last sync ' + rel(u.lastSync)}</div>}
             {u.email && <div className="ss" title="sign-in e-mail">{u.email}</div>}</div>
           {u.hasPush && <Icon name="bell" title="push notifications on" style={{ fontSize: 15, color: 'var(--label-3)' }} />}<Icon name="chevronRight" className="chev" />
-        </div>)}
+        </button>)}
         {users && !users.length && <div className="adm-empty">No users yet.</div>}
       </div>
     </div>
