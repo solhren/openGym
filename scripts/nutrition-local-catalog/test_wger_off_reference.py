@@ -72,6 +72,12 @@ class CombinedReferenceTests(unittest.TestCase):
   original=(self.root/'normalized'/'current.json').read_bytes()
   with self.assertRaisesRegex(Exception,'simulated-index-interruption'):self.build(fail_after=1)
   self.assertFalse((self.root/'index'/'current.json').exists());self.assertEqual((self.root/'normalized'/'current.json').read_bytes(),original)
+ def test_bulk_import_disk_headroom_guard_remains_required_for_small_fixtures(self):
+  original={path:path.read_bytes()for path in [self.base/'current.json',self.q/'current.json',self.root/'normalized'/'current.json']}
+  with patch.object(m,'resources',return_value={'freeDiskBytes':22*1024**3-1,'availableMemoryBytes':4*1024**3}):
+   with self.assertRaisesRegex(m.quality.wger.CatalogError,'insufficient-search-index-headroom'):self.build()
+  self.assertFalse((self.root/'index'/'current.json').exists());self.assertEqual(list((self.root/'index').glob('*.sqlite')),[])
+  for path,content in original.items():self.assertEqual(path.read_bytes(),content)
  def test_corrupt_or_mismatched_index_refuses_reader(self):
   self.build();file=self.root/'index'/'current.json';p=json.loads(file.read_text());p['referenceSha256']='a'*64;file.write_text(json.dumps(p))
   with self.assertRaisesRegex(Exception,'search-source-mismatch'):self.reader()
