@@ -162,7 +162,7 @@ export default function Settings({ page = null, find = null, via = null }) {
     // from even asking (and from calling GitHub on every Settings visit). Only the pages
     // that show it ask: the root (for nothing but `android`) skips the release check.
     if (!MOBILE) return
-    isAndroid().then(ok => { setAndroid(ok); if (ok && page === 'about') checkForUpdate().then(setUpdateInfo).catch(() => {}) })
+    isAndroid().then(ok => { setAndroid(ok); if (ok && AUTOMATIC_UPDATES && page === 'about') checkForUpdate().then(setUpdateInfo).catch(() => {}) })
   }, [page])
 
   // A search hit: scroll its row (or button) into view and flash it once. A row that shows only

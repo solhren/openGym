@@ -19,6 +19,14 @@ test('accepts canonical HTTPS hostnames and refuses credential/path/scheme ambig
   expect(normalizeServerUrl('https://my-gym.example:8443')).toBe(base+':8443')
   for(const value of ['http://my-gym.example','ftp://my-gym.example','https://user:pass@my-gym.example','https://my-gym.example/app','https://my-gym.example/#x','https://my-gym.example/?x=1','https://my-gym.example\\evil','https://my-gym.example\n',null,{},''])expect(normalizeServerUrl(value)).toBeNull()
 })
+test('the generic profile has no personal server default even with a stale host override',async()=>{
+  vi.stubEnv('VITE_NUTRITION_CATALOG_ORIGIN','https://personal.example')
+  const config=await import('./personal-beta.js')
+  expect(config.PERSONAL_BETA).toBe(false);expect(config.PERSONAL_ORIGIN).toBe('')
+  const remote=await import('./remote.js')
+  expect(await remote.loadRemote()).toBeNull()
+  expect(files.loadRemoteFile).not.toHaveBeenCalled()
+})
 test('invalid HTTPS pairing does not send a code or touch persistence',async()=>{
   const fetch=vi.fn();vi.stubGlobal('fetch',fetch);const {connect}=await import('./remote.js'),{pairRedeem}=await import('./api.js')
   await expect(connect('http://my-gym.example','12345678')).rejects.toThrow()

@@ -12,7 +12,7 @@ import { clearCfAccess } from './cf-access.js'
 import {PERSONAL_BETA,PERSONAL_ORIGIN} from './personal-beta.js'
 import {durableSecureGet,durableSecureSet,durableSecureRemove} from './coach-secrets.js'
 import {PUBLIC_ANDROID,publicServerOrigin} from './public-android.js'
-const PERSONAL_SESSION='opengym.personal.session.'+new URL(PERSONAL_ORIGIN).hostname
+const PERSONAL_SESSION=PERSONAL_BETA?'opengym.personal.session.'+new URL(PERSONAL_ORIGIN).hostname:null
 const PUBLIC_SESSION='opengym.selfhosted.session.v1'
 let publicSession=null,publicTransition=false,publicSessionUncertain=false
 const uncertainSession=()=>Object.assign(new Error('secure-session-restart-required'),{code:'secure-session-restart-required'})

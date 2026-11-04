@@ -11,7 +11,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 // flips the two gates (MOBILE flag, Capacitor platform) and watches whether Settings even
 // asks gitlab.com for the latest release.
 const mocks = vi.hoisted(() => {
-  const state = { S: null, MOBILE: false, android: false }
+  const state = { S: null, MOBILE: false, android: false, automaticUpdates: true }
   state.snapshot = () => ({
     S: state.S,
     user: null,
@@ -51,6 +51,7 @@ vi.mock('../lib/mobile.js', () => ({
   shareExport: vi.fn(), syncReminder: vi.fn(),
 }))
 vi.mock('../lib/update.js', () => ({
+  get AUTOMATIC_UPDATES() { return mocks.automaticUpdates },
   checkForUpdate: (...a) => mocks.checkForUpdate(...a),
   downloadAndInstall: vi.fn(),
 }))
@@ -70,6 +71,7 @@ beforeEach(() => {
   }
   mocks.MOBILE = false
   mocks.android = false
+  mocks.automaticUpdates = true
   mocks.checkForUpdate.mockClear()
   mocks.confirmSheet.mockClear()
   host = document.createElement('div')
@@ -101,6 +103,17 @@ describe('Settings — in-app update check', () => {
 
   it('mobile build on iOS: no check, no row, no section', async () => {
     mocks.MOBILE = true
+    await mount()
+    expect(mocks.checkForUpdate).not.toHaveBeenCalled()
+    expect(updateRow()).toBeUndefined()
+    expect(checkRow()).toBeUndefined()
+    expect(webRow()).toBeUndefined()
+  })
+
+  it('generic Android: does not query or offer another distribution update', async () => {
+    mocks.MOBILE = true
+    mocks.android = true
+    mocks.automaticUpdates = false
     await mount()
     expect(mocks.checkForUpdate).not.toHaveBeenCalled()
     expect(updateRow()).toBeUndefined()
