@@ -1,0 +1,28 @@
+# Opt-in override, resolved by scripts/self-hosting/catalogue.py after validation.
+# Keep the base account volume, internal network and loopback publication.
+services:
+  api:
+    image: opengym-selfhost-api:${OPENGYM_RELEASE:?}-ciqual
+    build:
+      target: catalogue
+    mem_limit: 1g
+    environment:
+      OPENGYM_SELF_HOSTED_CATALOG: "1"
+      NUTRITION_LOCAL_CATALOG: "1"
+      NUTRITION_LOCAL_CATALOG_KIND: public-registry
+      OPENGYM_CATALOG_REGISTRY: /catalogues/registry.json
+    volumes:
+      - type: bind
+        source: ${OPENGYM_CATALOGUE_ROOT:?select a verified catalogue first}
+        target: /catalogues
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: [CMD, node, /app/scripts/self-hosting/health.mjs]
+      start_period: 60s
+  web:
+    image: opengym-selfhost-web:${OPENGYM_RELEASE:?}-ciqual
+    build:
+      args:
+        NGINX_CONFIG: nginx.catalogue.conf

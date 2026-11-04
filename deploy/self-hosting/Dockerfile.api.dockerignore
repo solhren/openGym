@@ -5,6 +5,11 @@
 !api/**
 !frontend/
 !frontend/**
+!scripts/
+!scripts/nutrition-local-catalog/
+!scripts/nutrition-local-catalog/**
+!scripts/self-hosting/
+!scripts/self-hosting/health.mjs
 !catalogue/
 !catalogue/media/
 !catalogue/media/**
@@ -23,6 +28,7 @@
 **/__tests__
 **/*.test.*
 **/*.spec.*
+**/test_*
 **/.env*
 **/.git
 **/*.pem

@@ -1,8 +1,10 @@
 import hashlib
 import io
 import json
+from contextlib import closing
 from pathlib import Path
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tarfile
@@ -16,6 +18,7 @@ sys.path.insert(0, str(TOOLS))
 from prepare import browser_origin, prepare
 from state import backup, restore
 from backup import offline_backup
+from catalogue import acquire, apply, configure, load_registry, plan_catalogues
 
 
 class SelfHostingTest(unittest.TestCase):
@@ -32,6 +35,27 @@ class SelfHostingTest(unittest.TestCase):
         (self.repo / 'api/test/fixture.json').write_text('{}')
         (self.repo / 'frontend').mkdir()
         (self.repo / 'frontend/package.json').write_text('{}')
+        public_tools = self.repo / 'scripts/nutrition-local-catalog'
+        public_tools.mkdir(parents=True)
+        # A tiny offline inspector for deployment tests. The real bootstrap has
+        # its own source/licence/parser tests in scripts/nutrition-local-catalog.
+        (public_tools / 'public-bootstrap.py').write_text('''import hashlib,json,sys
+from pathlib import Path
+root=Path(sys.argv[2]) if sys.argv[1]=='inspect-generation' else Path(sys.argv[2])/'ciqual-2025'
+receipt=json.loads((root/'receipt.json').read_text())
+with (root/'catalog.sqlite').open('rb') as source:
+ if hashlib.file_digest(source,'sha256').hexdigest()!=receipt['catalogueSha256']:sys.exit(1)
+print(json.dumps(receipt))
+''')
+        (public_tools / 'public-catalog-sources.json').write_text(json.dumps({
+            'format': 'opengym-public-catalogue-sources', 'version': 1,
+            'recommended': ['ciqual-2025'], 'sources': [
+                {'id': 'ciqual-2025', 'kind': 'ciqual-local', 'available': True},
+                {'id': 'off', 'available': False}, {'id': 'wger', 'available': False}]}))
+        (public_tools / 'test_fixture.py').write_text('DO_NOT_COPY = True\n')
+        health = self.repo / 'scripts/self-hosting'
+        health.mkdir()
+        shutil.copyfile(TOOLS / 'health.mjs', health / 'health.mjs')
         (self.repo / 'LICENSE').write_text('fixture license')
         subprocess.run(['git', 'init', '-q', str(self.repo)], check=True)
         subprocess.run(['git', '-C', str(self.repo), 'add', '.'], check=True)
@@ -74,6 +98,20 @@ class SelfHostingTest(unittest.TestCase):
         output.with_name(output.name + '.sha256').write_text(hashlib.sha256(output.read_bytes()).hexdigest())
         return output
 
+    def public_catalogue(self):
+        root = self.root / 'public catalogue'
+        generation = root / 'ciqual-2025'
+        generation.mkdir(parents=True)
+        with closing(sqlite3.connect(generation / 'catalog.sqlite')) as connection:
+            connection.execute('CREATE TABLE foods(id TEXT PRIMARY KEY, name TEXT)')
+            connection.execute('INSERT INTO foods VALUES(?,?)', ('ciqual:1', 'Synthetic rice'))
+            connection.commit()
+        receipt = {'kind': 'ciqual-local', 'workspace': 'ciqual-2025', 'rows': 1,
+                   'usableFoodCount': 1, 'completeFoodCount': 1,
+                   'catalogueSha256': hashlib.sha256((generation / 'catalog.sqlite').read_bytes()).hexdigest()}
+        (generation / 'receipt.json').write_text(json.dumps(receipt))
+        return root, receipt
+
     def test_prepare_private_invite_tracked_snapshot_and_repeat_refusal(self):
         instance, metadata = self.prepared()
         self.assertEqual(metadata['catalogue'], 'none')
@@ -88,6 +126,9 @@ class SelfHostingTest(unittest.TestCase):
         self.assertTrue((instance / 'source/api/server.js').exists())
         self.assertFalse((instance / 'source/api/.env').exists())
         self.assertFalse((instance / 'source/api/test').exists())
+        self.assertTrue((instance / 'source/scripts/nutrition-local-catalog/public-bootstrap.py').exists())
+        self.assertTrue((instance / 'source/scripts/self-hosting/health.mjs').exists())
+        self.assertFalse((instance / 'source/scripts/nutrition-local-catalog/test_fixture.py').exists())
         (self.repo / 'api/server.js').write_text('changed checkout')
         self.assertNotEqual((instance / 'source/api/server.js').read_text(), 'changed checkout')
         with self.assertRaises(ValueError):
@@ -211,6 +252,190 @@ class SelfHostingTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'mount differs'):
             offline_backup(instance, self.root / 'wrong.tar.gz', runner=runner)
         self.assertNotIn(['stop', 'api'], calls)
+
+    @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
+    def test_catalogue_profile_uses_readonly_data_and_keeps_account_network_boundaries(self):
+        instance, _ = self.prepared()
+        root, receipt = self.public_catalogue()
+        original = (instance / 'data/db.json').read_bytes()
+        selection = configure(instance, root, guard=lambda *args: None)
+        effective = json.loads((instance / 'compose.yaml').read_text())
+        api, web = effective['services']['api'], effective['services']['web']
+        self.assertEqual(selection['catalogues'][0]['catalogueSha256'], receipt['catalogueSha256'])
+        self.assertEqual(api['build']['target'], 'catalogue')
+        self.assertEqual(api['environment']['NUTRITION_LOCAL_CATALOG_KIND'], 'public-registry')
+        self.assertEqual(api['environment']['OPENGYM_CATALOG_REGISTRY'], '/catalogues/registry.json')
+        self.assertEqual(api['environment']['OPENGYM_SELF_HOSTED_CATALOG'], '1')
+        catalogue_mount = next(item for item in api['volumes'] if item['target'] == '/catalogues')
+        self.assertTrue(catalogue_mount['read_only'])
+        self.assertFalse(catalogue_mount['bind']['create_host_path'])
+        self.assertEqual(set(api['networks']), {'private'})
+        self.assertTrue(effective['networks']['private']['internal'])
+        self.assertNotIn('ports', api)
+        self.assertEqual(web['ports'][0]['host_ip'], '127.0.0.1')
+        self.assertEqual(web['build']['args']['NGINX_CONFIG'], 'nginx.catalogue.conf')
+        self.assertEqual(api['healthcheck']['test'], ['CMD', 'node', '/app/scripts/self-hosting/health.mjs'])
+        self.assertEqual((instance / 'data/db.json').read_bytes(), original)
+        for service in (api, web):
+            self.assertTrue(service['read_only'])
+            self.assertEqual(service['cap_drop'], ['ALL'])
+            self.assertEqual(service['security_opt'], ['no-new-privileges:true'])
+
+    @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
+    def test_failed_catalogue_inspection_preserves_selected_configuration(self):
+        instance, _ = self.prepared()
+        root, _ = self.public_catalogue()
+        configure(instance, root, guard=lambda *args: None)
+        before = {name: (instance / name).read_bytes() for name in ('compose.yaml', 'instance.json')}
+        with open(root / 'ciqual-2025/catalog.sqlite', 'ab') as stream:
+            stream.write(b'corruption')
+        with self.assertRaises(subprocess.CalledProcessError):
+            configure(instance, root, guard=lambda *args: None)
+        for name, payload in before.items():
+            self.assertEqual((instance / name).read_bytes(), payload)
+
+    def test_failed_acquisition_leaves_existing_mode_unchanged(self):
+        instance, _ = self.prepared()
+        before = {name: (instance / name).read_bytes() for name in ('compose.yaml', 'instance.json', 'data/db.json')}
+        calls = []
+        def fail(command, **kwargs):
+            calls.append(command)
+            raise subprocess.CalledProcessError(1, command)
+        with self.assertRaises(subprocess.CalledProcessError):
+            acquire(instance, runner=fail, guard=lambda *args: None)
+        self.assertEqual(len(calls), 1)
+        self.assertIn('acquire', calls[0])
+        self.assertNotIn('docker', calls[0])
+        for name, payload in before.items():
+            self.assertEqual((instance / name).read_bytes(), payload)
+
+    def test_catalogue_choices_reject_unavailable_sources_before_creating_instance(self):
+        self.assertEqual(plan_catalogues(self.repo, 'recommended'), ['ciqual-2025'])
+        self.assertEqual(plan_catalogues(self.repo, 'ciqual,ciqual-2025'), ['ciqual-2025'])
+        self.assertEqual(plan_catalogues(self.repo, 'none'), [])
+        for choice in ('off', 'wger', 'ciqual,off', 'unknown'):
+            with self.subTest(choice=choice):
+                target = self.root / ('unavailable-' + choice)
+                with self.assertRaisesRegex(ValueError, 'unavailable'):
+                    prepare(target, 'https://gym.example.com', repo=self.repo,
+                            guard=lambda *args: None, catalogues=choice)
+                self.assertFalse(target.exists())
+
+    @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
+    def test_prepare_recommended_selects_registry_after_explicit_acquisition(self):
+        root, _ = self.public_catalogue()
+        instance = self.root / 'recommended-instance'
+        def fixture_acquisition(target, guard):
+            return configure(target, root, guard=guard)
+        with patch('catalogue.acquire', side_effect=fixture_acquisition) as acquisition:
+            metadata = prepare(instance, 'https://gym.example.com', repo=self.repo,
+                               guard=lambda *args: None, catalogues='recommended')
+        self.assertEqual(acquisition.call_count, 1)
+        self.assertEqual(metadata['catalogue']['kind'], 'public-registry')
+        self.assertEqual(metadata['catalogue']['catalogues'][0]['id'], 'ciqual-2025')
+        self.assertEqual(json.loads((instance / 'compose.yaml').read_text())['services']['api']['environment']['OPENGYM_SELF_HOSTED_CATALOG'], '1')
+
+    def test_catalogue_resource_reserve_refuses_snapshot_before_configuration_change(self):
+        from types import SimpleNamespace
+        instance, _ = self.prepared()
+        root, _ = self.public_catalogue()
+        before = (instance / 'compose.yaml').read_bytes()
+        with patch('state.shutil.disk_usage', return_value=SimpleNamespace(free=20 * 1024 ** 3 - 1)):
+            with self.assertRaisesRegex(ValueError, '20 GiB'):
+                configure(instance, root)
+        self.assertEqual((instance / 'compose.yaml').read_bytes(), before)
+        self.assertFalse((instance / 'catalogues/registry.json').exists())
+
+    @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
+    def test_registry_migrates_single_selection_and_retains_previous_generations_on_remove(self):
+        instance, metadata = self.prepared()
+        root, receipt = self.public_catalogue()
+        metadata['catalogue'] = {**receipt, 'root': str(root)}
+        (instance / 'instance.json').write_text(json.dumps(metadata))
+        private_state = (instance / 'data/db.json').read_bytes()
+        first = configure(instance, root, guard=lambda *args: None)
+        old_directory = instance / 'catalogues' / first['catalogues'][0]['directory']
+        old_bytes = (old_directory / 'catalog.sqlite').read_bytes()
+        with closing(sqlite3.connect(root / 'ciqual-2025/catalog.sqlite')) as connection:
+            connection.execute('INSERT INTO foods VALUES(?,?)', ('ciqual:2', 'Another synthetic food'))
+            connection.commit()
+        receipt.update(rows=2, usableFoodCount=2, completeFoodCount=2,
+                       catalogueSha256=hashlib.sha256((root / 'ciqual-2025/catalog.sqlite').read_bytes()).hexdigest())
+        (root / 'ciqual-2025/receipt.json').write_text(json.dumps(receipt))
+        second = configure(instance, root, guard=lambda *args: None)
+        self.assertNotEqual(first['catalogues'][0]['directory'], second['catalogues'][0]['directory'])
+        self.assertEqual((old_directory / 'catalog.sqlite').read_bytes(), old_bytes)
+        self.assertTrue(list((instance / 'catalogues').glob('registry-*.json')))
+        configure(instance, remove='ciqual-2025')
+        registry = load_registry(instance)
+        self.assertFalse(registry['catalogues'][0]['enabled'])
+        self.assertTrue(old_directory.exists())
+        self.assertTrue((instance / 'catalogues' / second['catalogues'][0]['directory']).exists())
+        self.assertEqual((instance / 'data/db.json').read_bytes(), private_state)
+        effective = json.loads((instance / 'compose.yaml').read_text())
+        self.assertEqual(effective['services']['api']['environment']['NUTRITION_LOCAL_CATALOG'], '1')
+        self.assertEqual(effective['services']['api']['environment']['NUTRITION_LOCAL_CATALOG_KIND'], 'public-registry')
+        restored = configure(instance, old_directory, generation=True, guard=lambda *args: None)
+        self.assertEqual(restored['catalogues'][0]['catalogueSha256'], first['catalogues'][0]['catalogueSha256'])
+        self.assertEqual((old_directory / 'catalog.sqlite').read_bytes(), old_bytes)
+
+    def test_registry_rejects_unsafe_directory_and_unknown_schema(self):
+        instance, _ = self.prepared()
+        (instance / 'catalogues').mkdir()
+        for value in [[], {'format': 'wrong', 'version': 1, 'catalogues': []},
+                      {'format': 'opengym-public-catalogue-registry', 'version': 1, 'catalogues': [
+                          {'id': 'escape', 'kind': 'ciqual-local', 'directory': '../data', 'enabled': True, 'catalogueSha256': 'a' * 64}]}]:
+            with self.subTest(value=value):
+                (instance / 'catalogues/registry.json').write_text(json.dumps(value))
+                with self.assertRaises(ValueError):
+                    load_registry(instance)
+
+    def test_apply_is_an_explicit_operator_action_with_no_image_build(self):
+        instance, _ = self.prepared()
+        calls = []
+        def runner(command, **kwargs):
+            calls.append(command[6:])
+            return subprocess.CompletedProcess(command, 0)
+        apply(instance, runner=runner)
+        self.assertEqual(calls, [['config', '--quiet'], ['up', '-d', '--no-build', '--force-recreate', 'api', 'web']])
+
+    @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
+    def test_catalogue_backup_reference_restore_and_disable_preserve_private_data(self):
+        instance, _ = self.prepared()
+        root, receipt = self.public_catalogue()
+        configure(instance, root, guard=lambda *args: None)
+        data = self.data(instance)
+        archive = self.root / 'catalogue-account-backup.tar.gz'
+        metadata = json.loads((instance / 'instance.json').read_text())
+        backup(data, archive, metadata, guard=lambda *args: None)
+        with tarfile.open(archive) as saved:
+            provenance = json.load(saved.extractfile('opengym-backup.json'))
+            self.assertEqual(provenance['catalogue']['catalogues'][0]['catalogueSha256'], receipt['catalogueSha256'])
+            self.assertFalse(any('catalog.sqlite' in name for name in saved.getnames()))
+        restored, restored_meta = self.prepared('restored-ciqual', archive=archive)
+        self.assertEqual(restored_meta['restoredCatalogue']['catalogues'][0]['catalogueSha256'], receipt['catalogueSha256'])
+        self.assertEqual(restored_meta['catalogue'], 'none')
+        configure(restored, root, guard=lambda *args: None)
+        before = (restored / 'data/db.json').read_bytes()
+        configure(restored)
+        effective = json.loads((restored / 'compose.yaml').read_text())
+        self.assertEqual(effective['services']['api']['environment']['NUTRITION_LOCAL_CATALOG'], '1')
+        self.assertEqual(effective['services']['api']['environment']['NUTRITION_LOCAL_CATALOG_KIND'], 'public-registry')
+        self.assertTrue(any(item['target'] == '/catalogues' and item['read_only'] for item in effective['services']['api']['volumes']))
+        self.assertTrue(all(not item['enabled'] for item in load_registry(restored)['catalogues']))
+        self.assertEqual((restored / 'data/db.json').read_bytes(), before)
+        self.assertTrue((root / 'ciqual-2025/catalog.sqlite').exists())
+
+    @unittest.skipUnless(shutil.which('node'), 'Node unavailable for readiness probe test')
+    def test_catalogue_health_probe_requires_storage_account_policy_and_authentication(self):
+        for status, writable, invite_only, expected in [(401, True, True, 0), (200, True, True, 1), (503, True, True, 1), (401, False, True, 1), (401, True, False, 1)]:
+            with self.subTest(catalogue_status=status, writable=writable, invite_only=invite_only):
+                program = '''globalThis.fetch = async url => ({
+status: url.endsWith('/capabilities') ? Number(process.argv[1]) : 200,
+json: async () => url.endsWith('/health') ? {writable:process.argv[3]==='true'} : {allow_guest:false,invite_only:process.argv[4]==='true'}
+}); await import(process.argv[2]);'''
+                result = subprocess.run(['node', '--input-type=module', '-e', program, str(status), (TOOLS / 'health.mjs').as_uri(), str(writable).lower(), str(invite_only).lower()], capture_output=True, text=True)
+                self.assertEqual(result.returncode, expected, result.stderr)
 
     @unittest.skipUnless(shutil.which('docker'), 'Docker CLI unavailable')
     def test_real_compose_parser_and_network_resource_boundaries(self):

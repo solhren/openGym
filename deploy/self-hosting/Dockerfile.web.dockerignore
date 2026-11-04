@@ -11,6 +11,7 @@
 !deploy/
 !deploy/self-hosting/
 !deploy/self-hosting/nginx.conf
+!deploy/self-hosting/nginx.catalogue.conf
 !LICENSE
 !NOTICE.md
 **/node_modules

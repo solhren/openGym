@@ -5,18 +5,24 @@ Compose. It does not require the author's server, domain, private keys or food
 databases. The API and web images are built locally; upstream images from
 `DuarteSantos8` do **not** represent this fork's Nutrition changes.
 
-The supplied profile runs workout tracking, accounts, personal foods and recipes,
-and Nutrition synchronization. **No food catalogue is included or downloaded.**
-Public food search and barcode lookup are unavailable. In Nutrition, choose
-**Aliments et recettes locaux** to create or reuse your own foods. The catalogue
-screen can report an unavailable catalogue; this does not provide a replacement
-food database.
+The installation runs workout tracking, accounts, personal foods, recipes and
+Nutrition synchronization. To add a searchable public food database, follow the
+explicit Ciqual acquisition step below. **No database is bundled in Git or
+silently downloaded at startup.** The sources are acquired from their public
+publisher, independently of any private openGym server.
+
+Ciqual 2025 covers about 3,484 generic foods in the French food supply. Official
+French and English names support search; users can keep their own application
+language. This is not a global product database: it has no packaged-brand or
+barcode coverage. References are per 100 g, including drinks; no density or
+100 ml conversion is invented. The inspector reports how many foods have usable
+or complete nutrition; unavailable nutrients remain unknown.
 
 The API runs on a Docker network without internet access. This also disables
 outgoing push notifications, AI Coach providers and other API features requiring
-external services. The web profile forces local food lookup and refuses catalogue
-routes, so it cannot silently fall back to a food provider. This is a minimal
-self-hosting profile, not a claim that every upstream feature is enabled.
+external services. Both web profiles force local food lookup: the personal-foods
+profile refuses catalogue routes, while the Ciqual profile uses an authenticated
+local reader. Neither falls back to a remote food API.
 
 ## Requirements and resource budget
 
@@ -29,31 +35,46 @@ Use a non-root Linux account that can run Docker, with:
   during preparation and backups, plus space for the source copy and archives.
   Allow additional space and memory for image builds. Check the Docker data disk
   too if it differs from your home directory: `docker info --format '{{.DockerRootDir}}'`.
-- Network access during cloning and building (image registry, Alpine packages and
-  npm). Runtime food lookup does not use these services.
+- Network access during cloning/building (registries, Alpine and npm), and during
+  the explicit Ciqual acquisition (Anses public sources, under 4 MiB compressed
+  in total). The bootstrap uses Python's standard library, with bounded download,
+  parsing and database sizes. Runtime food lookup has no provider connection.
 - For phones or remote access: a hostname you control, DNS pointing to the
   server, and a reverse proxy providing a browser-trusted HTTPS certificate.
   Passkeys work on `http://localhost`; a plain HTTP LAN IP does not support them.
 
-The API container is limited to 512 MiB RAM and one CPU; the web container to
-128 MiB and half a CPU. Builds are separate and not constrained by these runtime
-limits. Build one image at a time, watch `free -h` and `df -h`, and stop if the
+The API container is limited to 1 GiB RAM with Ciqual, or 512 MiB without a public
+catalogue, and one CPU. The web container uses 128 MiB and half a CPU. An empty
+registry retains the 1 GiB reader profile so removing a source cannot enable a
+remote relay. Builds are separate and not constrained by these runtime limits. Build one image at a time, watch `free -h` and `df -h`, and stop if the
 reserve is at risk. These limits are intended for a small personal installation;
 no multi-user capacity benchmark is supplied.
 
 ## 1. Prepare a new instance
 
-Clone this fork, then select a reviewed commit or release containing these tools.
-The branch below is the current development source, not an immutable release:
+Use a reviewed checkout or future tagged release **containing these tools**.
+These changes are currently prepared locally, not published as a release; a clone
+of `feature/nutrition` may not contain them. Obtain the validated checkout before
+running this guide. Upstream images and the root Compose file are not substitutes.
+
+Set the path to that checkout (keep this variable in your terminal):
 
 ```bash
-git clone --branch feature/nutrition https://github.com/solhren/openGym.git "$HOME/openGym"
-cd "$HOME/openGym"
+OPENGYM_CHECKOUT="/path/to/reviewed/openGym"
+cd "$OPENGYM_CHECKOUT"
+test -f scripts/self-hosting/catalogue.py
 git rev-parse HEAD
 python3 scripts/self-hosting/prepare.py "$HOME/opengym-instance" \
-  --origin https://gym.example.com
+  --origin https://gym.example.com --catalogues recommended
 cd "$HOME/opengym-instance"
 ```
+
+`--catalogues recommended` explicitly acquires the currently recommended public
+source, Ciqual 2025. `--catalogues ciqual` is equivalent. A comma-separated list is
+accepted only for sources marked available in the supplied descriptors; currently
+OFF and wger remain experimental/unavailable. They are not silently downloaded or
+accepted as working BYO installations. Omit `--catalogues` or use `none` for only
+personal foods and recipes.
 
 Replace `gym.example.com` with your hostname **before** preparing. For a test in
 a browser on the Docker host itself, use `--origin http://localhost:8080` instead.
@@ -65,9 +86,13 @@ Preparation only writes a new directory. It copies tracked source files into
 `source/`, excluding credentials, environment files, dependencies, test fixtures,
 mobile build trees and runtime/catalogue artifacts. The instance includes a source
 inventory, source commit and content hash. It never starts Docker, creates a
-certificate, opens a port or calls a registry. Existing instance directories are
-refused. If preparation fails, keep the partial directory for diagnosis and
-choose a fresh name; do not treat a partial result as an initialized instance.
+certificate or opens a port. Without `--catalogues`, it performs no download;
+with an explicit catalogue choice, it acquires and verifies that public source
+and validates Compose using the Docker client, without contacting the daemon.
+Existing instance directories are refused. If preparation fails, keep the partial directory for diagnosis and
+choose a fresh name if source preparation was incomplete. If only acquisition
+failed after `instance.json` and `instance.env` were written, retry `catalogue.py
+add INSTANCE ciqual`; do not recreate or overwrite account data.
 
 The instance directory is private (0700); `instance.env` and account files use
 0600. `data/` is a bind mount owned by the same non-root account that prepared the
@@ -85,7 +110,39 @@ dc config --quiet
 Do not use the repository's root `docker-compose.yml` or the private-beta scripts
 for this procedure. Those are different deployment profiles.
 
-## 2. Build, start and inspect
+## 2. Choose Nutrition mode, build and start
+
+If you prepared with `--catalogues recommended`, Ciqual is already selected.
+Otherwise, add searchable generic foods explicitly before building:
+
+```bash
+python3 "$OPENGYM_CHECKOUT/scripts/self-hosting/catalogue.py" add "$HOME/opengym-instance" ciqual
+dc config --quiet
+```
+
+This command runs the bootstrap from the instance's frozen `source/` snapshot,
+verifies it offline, then prepares the catalogue Compose configuration. It does
+not start Docker services. The downloaded cache and first generation live in
+`catalogues/ciqual-2025/`.
+A small independent snapshot is retained under `catalogues/ciqual-2025-<hash>/`;
+`catalogues/registry.json` selects active snapshots. The API mounts `catalogues/`
+read-only at `/catalogues`; account data stays separately in `/data`. It uses
+`NODE_ENV=production`, not the historical private-beta configuration.
+
+If acquisition or inspection fails, the previous Compose configuration remains
+selected. Read the error, keep the incomplete source files for diagnosis and
+retry `catalogue.py add INSTANCE ciqual` after resolving the cause. If the server
+cannot resume a partial download or the build was interrupted, use `add INSTANCE
+ciqual --restart`; this discards only unpublished partial work. A partial download
+or database is never a usable catalogue. No private snapshot or upstream API key
+is needed. Do not bypass a checksum or licence error.
+
+To run with **personal foods and recipes only**, prepare without `--catalogues`
+and skip acquisition. In Nutrition,
+choose **Aliments et recettes locaux** (or its translated label). Public food
+search will report an unavailable catalogue and barcode lookup is unavailable.
+You can add Ciqual later with the command above, then rebuild/recreate both
+services below. Existing account and Nutrition data are retained.
 
 ```bash
 dc build api
@@ -160,34 +217,93 @@ Pick the hostname before registering: passkeys are bound to its `RP_ID`.
 port. Changing a hostname does not migrate existing passkeys. Password sign-in
 and guest mode are disabled by this profile.
 
-## 4. Food catalogue: an explicit optional prerequisite
+## 4. Manage catalogue selections
 
-You can log Nutrition using personal foods and recipes without a public database.
-There is currently **no supported one-command portable installation of the full
-local catalogue**. Enabling a flag or mounting an empty directory does not install
-one. Do not substitute upstream images or enable the remote relay to simulate a
-local catalogue.
+List public sources and your selections, or verify selected generations offline:
 
-A future/advanced local-catalogue deployment needs all of the following:
+```bash
+python3 "$OPENGYM_CHECKOUT/scripts/self-hosting/catalogue.py" list "$HOME/opengym-instance"
+python3 "$OPENGYM_CHECKOUT/scripts/self-hosting/catalogue.py" inspect "$HOME/opengym-instance"
+```
 
-1. Lawfully obtained SQLite generations with their original licence, source and
-   attribution metadata; complete manifests; and verified byte counts and SHA-256
-   digests. Do not copy someone else's personal deployment hashes as defaults.
-2. A reader image containing the matching Python/SQLite FTS5 runtime, worker and
-   adapter sources, and a compatible server configuration that listens on the
-   container network. The minimal API image here intentionally lacks that reader.
-3. Read-only mounts of verified generations, sufficient disk/RAM and measured
-   startup/search behavior under the intended resource limits. Query results
-   must preserve provenance and the 20-result search limit.
-4. Consistent strict-local configuration in API, web and any native build, with
-   no external food-provider fallback on missing/corrupt data or reader failure.
+Source descriptors report geography, languages, search/barcode features, download
+and workspace budgets, licence and availability. Ciqual is available by a direct,
+pinned publisher download. OFF and wger are explicitly experimental/unavailable
+in this installer; large imports or private snapshot hashes are not a portable
+installation method. The registry format supports up to eight selected sources,
+but this does not imply that eight downloadable datasets are provided today.
 
-The [local catalogue prototype](dev/NUTRITION_LOCAL_CATALOG_PROTOTYPE.md) and
-[private Docker beta notes](dev/PERSONAL_BETA_DOCKER.md) describe development work,
-not portable installation instructions. The beta assumes pre-existing snapshots
-and a personal deployment. This missing portable catalogue path remains a public
-launch limitation; this guide does not claim a database of usable products ships
-with the repository. No catalogue is reconstructed or downloaded by these tools.
+Inspection reports the generation SHA-256, row count, usable/complete food counts,
+languages and licence. The bootstrap retains source information and attribution
+in the manifest, receipt and `NOTICE.txt`. Keep these with the database. Ciqual
+uses **Licence Ouverte / Open Licence Etalab 2.0**; it is an Anses dataset, not an
+openGym-owned or manufacturer-verified corpus.
+
+An enabled source that is missing, corrupt or unsupported prevents the strict API
+profile from starting; it never activates only part of a requested selection.
+Reader failures return local-unavailable errors without calling a provider.
+The readiness probe checks writable account storage, invitation policy and
+catalogue authentication; an anonymous catalogue request must return 401. After
+first login, search for a generic food such as `rice` or `riz`, inspect its
+reference, add an amount, save it and verify it persists after reloading. This
+signed-in check is separate from container readiness.
+
+To reuse a retained, independently acquired Ciqual generation:
+
+```bash
+python3 "$OPENGYM_CHECKOUT/scripts/self-hosting/catalogue.py" use \
+  "$HOME/opengym-instance" "$HOME/opengym-previous/catalogues"
+```
+
+`use` verifies the input and retains an independent snapshot of the small Ciqual
+generation, capped at 64 MiB. It preserves the original directory. To restore an
+exact retained hashed snapshot, use this command instead:
+
+```bash
+python3 "$OPENGYM_CHECKOUT/scripts/self-hosting/catalogue.py" use-generation \
+  "$HOME/opengym-instance" "$HOME/opengym-previous/catalogues/ciqual-2025-HASH"
+```
+
+Replace `HASH` with a retained directory name from that installation. Registry
+updates are atomic, and old registry files and generation
+snapshots are retained for recovery. Saved foods, recipes and account documents
+are never migrated or deleted by catalogue selection changes.
+
+To deselect a source, or deselect every source:
+
+```bash
+python3 "$OPENGYM_CHECKOUT/scripts/self-hosting/catalogue.py" remove "$HOME/opengym-instance" ciqual
+# Alternative: deselect every registered source.
+python3 "$OPENGYM_CHECKOUT/scripts/self-hosting/catalogue.py" disable "$HOME/opengym-instance"
+```
+
+Removal records a disabled entry and keeps its files. An empty/disabled registry
+stays in strict local mode: catalogue reads are unavailable and there is no remote
+fallback. Personal foods and recipes remain available. An old single-Ciqual
+selection is converted to a registry by `use` or `add`; account data needs no
+migration.
+
+These operations prepare configuration without changing running services. From
+the instance directory, build the selected images separately, then explicitly
+apply the selection (this recreates API and web):
+
+```bash
+dc build api
+dc build web
+python3 "$OPENGYM_CHECKOUT/scripts/self-hosting/catalogue.py" apply "$HOME/opengym-instance"
+dc ps
+```
+
+Configuration is resolved into `compose.yaml`. After changing base-image pins or
+other environment settings, re-run the selection operation before building.
+There is no scheduled update or automatic image build. Keep old directories,
+registry snapshots, image tags and IDs for rollback; do not prune them while they
+are your recovery plan.
+
+The [wger/OFF prototype](dev/NUTRITION_LOCAL_CATALOG_PROTOTYPE.md) and
+[private Docker beta notes](dev/PERSONAL_BETA_DOCKER.md) describe a separate,
+advanced corpus. This installer does not download millions of branded products,
+reconstruct the author's databases, or claim global branded/barcode coverage.
 
 ## 5. Back up and test a restore
 
@@ -195,13 +311,15 @@ Back up the **whole** `data/` directory, not only `db.json`: it includes account
 passkeys, the session secret, workout data, Nutrition publications/partitions,
 media and audit records. Guest/browser-only data is not a server backup. Source
 snapshots, `instance.env`, `instance.json`, the inventory and final images should
-be retained separately for recovery. A catalogue, if installed in an advanced
-profile, needs its own manifests, licensed generations and recovery plan.
+be retained separately for recovery. The account archive records the selected
+registry entries and generation hashes, but does not copy public databases. Preserve
+the whole `catalogues/` directory separately, including registry snapshots,
+sources, manifests, receipts and licence notices, for catalogue rollback.
 
 From the checkout or any directory:
 
 ```bash
-python3 "$HOME/openGym/scripts/self-hosting/backup.py" \
+python3 "$OPENGYM_CHECKOUT/scripts/self-hosting/backup.py" \
   "$HOME/opengym-instance" \
   "$HOME/opengym-instance/backups/instance-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
 ```
@@ -217,7 +335,7 @@ Do not place backups under `data/`. Archives are not encrypted by this tool.
 Test recovery into a new directory with the **same origin**:
 
 ```bash
-cd "$HOME/openGym"
+cd "$OPENGYM_CHECKOUT"
 python3 scripts/self-hosting/prepare.py "$HOME/opengym-restore" \
   --origin https://gym.example.com \
   --restore "$HOME/opengym-instance/backups/CHOSEN-BACKUP.tar.gz"
@@ -227,6 +345,11 @@ Restore checks the checksum, metadata, origin and archive paths before extractio
 links and special files are refused. It never overwrites an existing directory.
 It preserves data bytes but assigns private permissions to the current instance
 owner. Use a compatible source revision and retain the old installation intact.
+The new instance starts in personal-foods-only mode; `instance.json` records the
+backup's catalogue selection under `restoredCatalogue`. Before building, run
+`catalogue.py use` with your retained catalogue root, or acquire Ciqual again and
+compare its generation hash with the backup. Acquiring the latest source is not
+an exact recovery of an older generation.
 
 Stop the old stack before starting the recovered one with the same project name
 and port. In the new directory, redefine `dc` as above, validate, build and start.
@@ -246,7 +369,8 @@ review the next commit. Reuse the preparation/restore procedure for an update:
    backup with `backup.py`; because the API is stopped, it remains stopped.
 2. From the updated checkout, prepare a **new** instance directory with the same
    origin, project name and port and `--restore` that fresh archive. Keep the old
-   directory, backup and old image tags/IDs.
+   directory, backup and old image tags/IDs. Re-select the retained read-only
+   catalogue with `catalogue.py use NEW_INSTANCE OLD_INSTANCE/catalogues`.
 3. From the new instance, validate Compose, build API then web sequentially,
    and start with `dc up -d --no-build`. Review logs and verify account/data access.
 4. If validation fails before accepting new writes, stop the new instance and
@@ -269,8 +393,14 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover \
 ```
 
 They exercise invitation preparation, source isolation, archive round trips,
-origin checks, corrupt/unsafe archive rejection, backup stop/resume behavior and
-actual `docker compose config` parsing when the CLI is available. No image build,
+origin checks, corrupt/unsafe archive rejection, backup stop/resume behavior,
+catalogue selection/failure/reuse, registry migration/removal and actual
+`docker compose config` parsing when
+the CLI is available. Deployment tests use a tiny synthetic catalogue inspector;
+the acquisition/parser and reader have separate tests. No image build,
 container startup, live passkey ceremony or reverse proxy was run as part of this
-preparation. Validate those steps on your own isolated installation before relying
-on it for important data or opening access to others.
+preparation: the Docker client is available, but the local daemon socket refused
+access. The build/start/HTTPS/login commands above are the outstanding checks
+for a Docker-enabled administrator, not recorded successful deployments. Validate
+those steps on an isolated installation before relying on it for important data
+or opening access to others.

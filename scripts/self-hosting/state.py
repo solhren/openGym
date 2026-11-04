@@ -60,7 +60,8 @@ def backup(data, output, metadata, guard=reserve):
     with open(os.open(partial, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as stream:
         with tarfile.open(fileobj=stream, mode='w:gz', dereference=False) as archive:
             payload = json.dumps({'format': 'opengym-selfhost-backup', 'version': 1,
-                                  'origin': metadata['origin'], 'release': metadata['release']}).encode()
+                                  'origin': metadata['origin'], 'release': metadata['release'],
+                                  'catalogue': metadata.get('catalogue', 'none')}).encode()
             item = tarfile.TarInfo(META)
             item.size, item.mode = len(payload), 0o600
             archive.addfile(item, io.BytesIO(payload))

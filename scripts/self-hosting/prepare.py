@@ -55,6 +55,8 @@ def allowed_source(name):
         return False
     if any(c in name for c in '\r\n\0') or re.search(r'\.(?:test|spec)\.', name) or path.suffix in {'.pem', '.key', '.jks', '.keystore', '.sqlite', '.log'}:
         return False
+    if name.startswith(('scripts/nutrition-local-catalog/', 'scripts/self-hosting/')):
+        return len(path.parts) == 3 and path.suffix in {'.py', '.mjs', '.js', '.json'} and not path.name.startswith('test_')
     return name in {'LICENSE', 'NOTICE.md'} or name.startswith(('api/', 'frontend/', 'catalogue/media/', 'deploy/self-hosting/'))
 
 
@@ -66,8 +68,10 @@ def env_value(value):
     return "'" + value + "'"
 
 
-def prepare(directory, origin, port=8080, project='opengym-selfhost', archive=None, repo=REPO, guard=reserve):
+def prepare(directory, origin, port=8080, project='opengym-selfhost', archive=None, repo=REPO, guard=reserve, catalogues=None):
     host = browser_origin(origin)
+    from catalogue import plan_catalogues
+    requested = plan_catalogues(repo, catalogues)
     if not re.fullmatch(r'[a-z][a-z0-9-]{0,39}', project) or not 1024 <= port <= 65535:
         raise ValueError('Use a lowercase project name and a port from 1024 to 65535')
     target = Path(directory).absolute()
@@ -106,8 +110,9 @@ def prepare(directory, origin, port=8080, project='opengym-selfhost', archive=No
     for name in ('compose.yaml', 'Caddyfile.example'):
         shutil.copyfile(source_dir / 'deploy/self-hosting' / name, target / name)
     data = target / 'data'
+    restored = None
     if archive:
-        restore(archive, data, origin, guard=guard)
+        restored = restore(archive, data, origin, guard=guard)
     else:
         data.mkdir(mode=0o700)
         code = secrets.token_hex(16).upper()
@@ -118,6 +123,8 @@ def prepare(directory, origin, port=8080, project='opengym-selfhost', archive=No
     metadata = {'format': 'opengym-selfhost-instance', 'version': 1, 'origin': origin,
                 'release': release, 'sourceCommit': subprocess.check_output(['git', '-C', str(repo), 'rev-parse', 'HEAD']).decode().strip(),
                 'sourceSha256': source_hash, 'catalogue': 'none', 'apiEgress': False}
+    if restored is not None:
+        metadata['restoredCatalogue'] = restored.get('catalogue', 'none')
     values = {'OPENGYM_PROJECT': project, 'OPENGYM_RELEASE': release, 'OPENGYM_SOURCE': source_dir,
               'OPENGYM_DATA_DIR': data, 'OPENGYM_ORIGIN': origin, 'OPENGYM_RP_ID': host,
               'OPENGYM_WEB_PORT': port, 'OPENGYM_UID': os.getuid(), 'OPENGYM_GID': os.getgid()}
@@ -126,6 +133,10 @@ def prepare(directory, origin, port=8080, project='opengym-selfhost', archive=No
     private_write(target / 'source-inventory.json', (json.dumps(inventory, indent=2) + '\n').encode())
     (target / 'backups').mkdir(mode=0o700)
     guard(target)
+    if requested:
+        from catalogue import acquire
+        acquire(target, guard=guard)
+        metadata = json.loads((target / 'instance.json').read_text())
     return metadata
 
 
@@ -136,14 +147,16 @@ def main():
     parser.add_argument('--port', type=int, default=8080)
     parser.add_argument('--project', default='opengym-selfhost')
     parser.add_argument('--restore', help='Restore a verified offline backup into this new instance')
+    parser.add_argument('--catalogues', help='Explicit downloads: recommended or ciqual; default none. List other sources with catalogue.py list')
     args = parser.parse_args()
     if os.getuid() == 0:
         parser.error('Use the non-root account that will own the instance and run Docker')
     try:
-        metadata = prepare(args.directory, args.origin, args.port, args.project, args.restore)
+        metadata = prepare(args.directory, args.origin, args.port, args.project, args.restore, catalogues=args.catalogues)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         parser.exit(1, f'Preparation refused: {error}\n')
-    print(f"Prepared {metadata['release']}; no Docker command was run. No food catalogue installed.")
+    mode = 'public catalogue registry selected' if isinstance(metadata['catalogue'], dict) else 'personal foods only'
+    print(f"Prepared {metadata['release']}; {mode}. No service was started.")
     print('Invitation: data/bootstrap-invite.txt inside the private instance directory (not printed).')
 
 
