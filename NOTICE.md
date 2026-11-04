@@ -3,6 +3,48 @@
 openGym — Copyright (C) 2026 Duarte Santos.
 openGym's own code is licensed under the **GNU AGPL v3.0** (see [LICENSE](LICENSE)).
 
+## Optional food catalogues
+
+The application's code licence does not relicense food databases, individual
+records or product images. No generated food SQLite or publisher source archive
+is bundled in this source checkout. The self-hosting tools acquire only a source
+explicitly selected by the operator and retain its notice, version and provenance.
+
+### Anses Ciqual 2025
+
+The optional portable starter uses **Anses. 2025. Table de composition nutritionnelle
+des aliments Ciqual 2025**, data dated 2025-11-03, published at
+[doi:10.57745/RDMHWY](https://doi.org/10.57745/RDMHWY), under
+[Licence Ouverte / Open Licence Etalab 2.0](https://www.data.gouv.fr/pages/legal/licences/etalab-2-0).
+The licence requires attribution of the source and update date; it does not imply
+Anses endorsement of this application or independent verification of its derived
+records. Keep the generated `NOTICE.txt`, acquisition receipt and manifest with
+the catalogue, and preserve record attribution in saved foods and snapshots.
+
+The importer selects four nutritional fields and official French/English food
+names. Missing or qualified values remain unknown; all source references are
+100 g of edible portion, including drinks. These transformations are described in
+[the installation evidence](docs/dev/PUBLIC_CATALOG_INSTALLATION.md). No Ciqual
+images are acquired or redistributed.
+
+### Open Food Facts and wger
+
+Open Food Facts distinguishes the database under ODbL, individual contents under
+DbCL, and product images under CC BY-SA with possible additional rights. See its
+[official licensing guide](https://openfoodfacts.github.io/openfoodfacts-server/api/tutorials/license-be-on-the-legal-side/).
+wger records can have different original sources and licences; the wger software
+licence is not a universal licence for every ingredient or imported image.
+Preserve the original record's source, licence and attribution rather than treating
+all records as openGym-owned data.
+
+The historical wger/OFF integration is separate from the portable starter.
+Its existence does not establish permission to redistribute a composed database.
+Retaining provenance and separating account data are technical safeguards, not
+a determination that every combination is legally redistributable. See the
+[source availability and limitations](docs/SELF_HOSTING.md#4-manage-catalogue-selections)
+before acquiring or distributing these sources. No licence permission is inferred
+for a missing or unresolved record licence.
+
 ## App store exception
 
 As an additional permission under section 7 of the AGPL v3.0, the copyright holder permits
