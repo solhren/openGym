@@ -2,6 +2,34 @@ name: Bug report
 description: Something in openGym is broken or not working as expected
 labels: ["bug"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        This is a **public** issue for solhren/openGym. For vulnerabilities, read [SECURITY.md](https://github.com/solhren/openGym/security/policy) instead.
+        Do not attach .env files, backups, private logs, tokens, pairing codes or personal histories. Use synthetic examples and redact screenshots.
+  - type: input
+    id: revision
+    attributes:
+      label: Commit or build identifier
+      description: An upstream package version alone does not identify this fork's build.
+    validations:
+      required: true
+  - type: dropdown
+    id: account-mode
+    attributes:
+      label: Account mode
+      options:
+        - Personal
+        - Multi-user with invitations
+        - Multi-user with public signup
+        - Legacy or unknown
+    validations:
+      required: true
+  - type: input
+    id: food-source
+    attributes:
+      label: Nutrition source (if relevant)
+      placeholder: Personal foods only, Ciqual 2025, or a separately provisioned catalogue
   - type: textarea
     id: what-happened
     attributes:
@@ -25,7 +53,7 @@ body:
     id: actual
     attributes:
       label: What happened instead?
-      description: Include error messages, console output, or screenshots if you have them.
+      description: Include only redacted errors or synthetic screenshots; preserve the original local data.
     validations:
       required: true
 
@@ -36,6 +64,7 @@ body:
       options:
         - Self-hosted (docker compose)
         - Frontend dev server (npm run dev)
+        - Android source build
         - Other / not sure
     validations:
       required: true
@@ -55,6 +84,6 @@ body:
       description: >
         Most login issues are an `RP_ID`/`ORIGIN` mismatch — check your `.env` against the
         domain you're accessing openGym from before reporting. See the
-        [self-hosting guide](../../docs/SELF_HOSTING.md).
+        [self-hosting guide](https://github.com/solhren/openGym/blob/HEAD/docs/SELF_HOSTING.md).
       options:
         - label: Yes, this is a login/passkey issue and I've already checked RP_ID/ORIGIN

@@ -1,14 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Question or self-hosting help
-    url: https://github.com/DuarteSantos8/openGym/discussions/categories/q-a
-    about: Login/passkey trouble, reverse proxies, Docker, "how do I…" — ask in Q&A, not in an issue.
-  - name: Idea or feature request to talk through
-    url: https://github.com/DuarteSantos8/openGym/discussions/categories/ideas
-    about: Not sure it belongs in the app yet? Float it in Ideas first — issues are for agreed work.
-  - name: Show your setup
-    url: https://github.com/DuarteSantos8/openGym/discussions/categories/show-and-tell
-    about: Running openGym somewhere interesting, or built something on top of it? Show it off.
+  - name: Security vulnerability (private reporting)
+    url: https://github.com/solhren/openGym/security/policy
+    about: Read the current private reporting instructions; never post secrets or exploit details in a public issue.
+  - name: Installation help and troubleshooting
+    url: https://github.com/solhren/openGym/blob/HEAD/docs/FAQ.md
+    about: Check the FAQ and self-hosting guide before reporting an installation problem.
   - name: Contributing guide
-    url: https://github.com/DuarteSantos8/openGym/blob/main/CONTRIBUTING.md
-    about: Project layout, dev setup and guidelines before you open a PR.
+    url: https://github.com/solhren/openGym/blob/HEAD/CONTRIBUTING.md
+    about: This fork has its own review process; upstream maintainers do not provide support for it.

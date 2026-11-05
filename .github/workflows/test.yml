@@ -15,7 +15,7 @@ on:
       - 'api/coach/prompts/**'
       - '.github/workflows/test.yml'
   push:
-    branches: [main, coach]
+    branches: [main, coach, review/public-readiness]
     paths:
       - 'frontend/**'
       - 'api/**'
@@ -65,9 +65,11 @@ jobs:
     if: inputs.android_release_run == ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # node:22-alpine in web/Dockerfile and api/Dockerfile — CI must match production.
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -96,8 +98,10 @@ jobs:
     if: inputs.android_release_run == ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -114,11 +118,15 @@ jobs:
         working-directory: mcp
 
   api:
+    env:
+      NUTRITION_REQUIRE_HTTP_TESTS: '1'
     if: inputs.android_release_run == ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -146,10 +154,13 @@ jobs:
   # resolves the Agent SDK's per-platform runtime (musl on this base), which is the one thing
   # that cannot be checked from the source tree.
   api-image:
+    # These inherited image checks do not validate the new deploy/self-hosting stack.
     if: inputs.android_release_run == ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - run: docker build --target default -t opengym-api:default ./api
       - run: docker build --target coach   -t opengym-api:coach   ./api

@@ -2,6 +2,9 @@ name: Feature request
 description: Suggest an idea or improvement for openGym
 labels: ["enhancement"]
 body:
+  - type: markdown
+    attributes:
+      value: Please describe the user need without sharing private records. For a proposed data source, link its official licence and provenance; do not upload a catalogue.
   - type: textarea
     id: problem
     attributes:
@@ -24,6 +27,6 @@ body:
       label: Dependencies
       description: >
         openGym is intentionally dependency-light — new packages (front or back) are a hard
-        sell. See [CONTRIBUTING.md](../../CONTRIBUTING.md).
+        sell. See [CONTRIBUTING.md](https://github.com/solhren/openGym/blob/HEAD/CONTRIBUTING.md).
       options:
         - label: This doesn't require adding a new dependency
