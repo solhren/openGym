@@ -120,6 +120,7 @@
   font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:600;letter-spacing:.08em;
   background:var(--surface-2);padding:4px 9px;border-radius:8px;font-size:14px
 }
+.adm-code-field{min-width:0;width:24ch;max-width:100%;border:1px solid var(--sep);box-sizing:border-box}
 .adm-iconbtn{width:44px;height:44px;border-radius:12px;font-size:17px}
 .adm-empty{color:var(--label-3);font-size:13.5px;padding:10px 2px}
 

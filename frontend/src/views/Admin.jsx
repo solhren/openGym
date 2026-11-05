@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
@@ -166,35 +166,54 @@ function UserDetail({ id, onChanged, close }) {
   </>
 }
 
-function InvitesCard({ invites, reload, inviteOnly }) {
+function InvitesCard({ invites, reload, inviteOnly, error }) {
   const toast = useUI(s => s.toast)
-  const gen = () => api('/api/admin/invites/new', { method: 'POST', body: '{}' })
-    .then(({ invite }) => { navigator.clipboard?.writeText(invite.code).catch(() => {}); toast('Code ' + invite.code + ' created & copied'); reload() })
-    .catch(e => toast(e.message))
+  const [busy, setBusy] = useState(false), pending = useRef(false)
+  const [notice, setNotice] = useState(''), [createdCode, setCreatedCode] = useState('')
+  const copy = async code => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable')
+      await navigator.clipboard.writeText(code)
+      setNotice('Code copied. Share it privately; each invitation works once.')
+    } catch {
+      setNotice('Could not copy automatically. Select the code field to copy it manually.')
+    }
+  }
+  const gen = async () => {
+    if (pending.current) return
+    pending.current = true; setBusy(true); setNotice(''); setCreatedCode('')
+    try {
+      const { invite } = await api('/api/admin/invites/new', { method: 'POST', body: '{}' })
+      if (typeof invite?.code !== 'string' || !invite.code) throw new Error('Invalid invitation response')
+      setCreatedCode(invite.code)
+      await reload()
+      await copy(invite.code)
+    } catch (e) { setNotice('Could not confirm the new invitation. Refresh the list before trying again. ' + (e.message || '')) }
+    finally { pending.current = false; setBusy(false) }
+  }
   const revoke = code => confirmSheet({
     title: 'Revoke code ' + code + '?', message: 'Anyone who has it can no longer use it. People who already signed up with it are not affected.',
     confirmText: 'Revoke', danger: true,
     onConfirm: () => api('/api/admin/invites/revoke', { method: 'POST', body: JSON.stringify({ code }) })
       .then(() => { toast('Code revoked'); reload() }).catch(e => toast(e.message))
   })
-  const copy = code => { navigator.clipboard?.writeText(code).catch(() => {}); toast('Copied ' + code) }
   const open = (invites || []).filter(i => !i.usedBy)
   const used = (invites || []).filter(i => i.usedBy)
   return <div className="card">
     <div className="row between"><h2 style={{ margin: 0 }}>Invite codes</h2>
-      <Button variant="primary" size="sm" onClick={gen} icon="plus">New code</Button></div>
+      <Button variant="primary" size="sm" onClick={gen} icon="plus" disabled={busy || invites === null || !!error || inviteOnly === null}>{busy ? 'Creating…' : 'New code'}</Button></div>
     <div className="adm-lead">
-      {inviteOnly
+      {inviteOnly === null ? 'Registration policy has not loaded yet.' : inviteOnly
         ? 'Sign-up is invite-only: someone needs one of these codes to create a profile. Each code works once.'
         : 'Sign-up is open, so codes are optional here. They only record who invited whom.'}
     </div>
     {open.length ? <>
-      <div className="adm-group-t">Unused · tap to copy</div>
+      <div className="adm-group-t">Unused · select a code or use Copy</div>
       {open.map(i => <div key={i.code} className="row between" style={{ padding: '6px 0', borderBottom: 'var(--hair) solid var(--sep)' }}>
-        <button className="adm-code" onClick={() => copy(i.code)} aria-label={'copy ' + i.code}>{i.code}</button>
+        <input className="adm-code adm-code-field" readOnly value={i.code} onFocus={event => event.target.select()} aria-label={'Invitation code ' + i.code} />
         <div className="row" style={{ gap: 4 }}>
-          <button className="iconbtn adm-iconbtn" onClick={() => copy(i.code)} aria-label="copy"><Icon name="copy" /></button>
-          <button className="iconbtn adm-iconbtn" style={{ color: 'var(--red)' }} onClick={() => revoke(i.code)} aria-label="revoke"><Icon name="trash" /></button>
+          <button className="iconbtn adm-iconbtn" onClick={() => copy(i.code)} aria-label={'Copy invitation ' + i.code}><Icon name="copy" /></button>
+          <button className="iconbtn adm-iconbtn" style={{ color: 'var(--red)' }} onClick={() => revoke(i.code)} aria-label={'Revoke invitation ' + i.code}><Icon name="trash" /></button>
         </div>
       </div>)}
     </> : null}
@@ -204,7 +223,11 @@ function InvitesCard({ invites, reload, inviteOnly }) {
         <span style={{ fontFamily: 'ui-monospace,SFMono-Regular,Menlo,monospace', letterSpacing: '.06em' }}>{i.code}</span><span>→ {i.usedByName || 'used'}</span>
       </div>)}
     </> : null}
-    {!open.length && !used.length && <div className="adm-empty">No codes yet. "New code" makes one and copies it to your clipboard.</div>}
+    {error && <div role="alert"><p>Could not load invitations. Existing codes were not removed.</p><Button size="sm" onClick={reload}>Retry invitations</Button></div>}
+    {invites === null && !error && <p role="status">Loading invitations…</p>}
+    {invites !== null && !error && !open.length && !used.length && <div className="adm-empty">No codes yet. Create a code, then share it privately with one person.</div>}
+    {createdCode && error && !open.some(i => i.code === createdCode) && <label>New code: <input className="adm-code adm-code-field" readOnly value={createdCode} onFocus={event => event.target.select()} /></label>}
+    {notice && <p role="status">{notice}</p>}
   </div>
 }
 
@@ -270,14 +293,16 @@ function AuditCard({ tick }) {
 export default function Admin() {
   const nav = useNavigate()
   const user = useStore(s => s.user)
-  const instanceMode = useStore(s => s.config?.instance_mode)
+  const config = useStore(s => s.config)
+  const instanceMode = config?.instance_mode
   const managed = ['personal', 'multi-user'].includes(instanceMode)
   const personal = instanceMode === 'personal'
   const openSheet = useUI(s => s.openSheet)
   const [users, setUsers] = useState(null)
   const [usersErr, setUsersErr] = useState(null)   // why the last load failed, until one succeeds
   const [invites, setInvites] = useState(null)
-  const [inviteOnly, setInviteOnly] = useState(false)
+  const [inviteOnly, setInviteOnly] = useState(null)
+  const [invitesErr, setInvitesErr] = useState(null)
   const [reportedAccountOnly, setReportedAccountOnly] = useState(false)
   const accountOnly = managed || reportedAccountOnly
   const [tick, setTick] = useState(0)          // the ↻ button; the activity log listens to it
@@ -292,7 +317,10 @@ export default function Admin() {
       setUsers(d.users); setInviteOnly(!!d.invite_only); setReportedAccountOnly(d.account_only === true); setUsersErr(null)
     })
     .catch(e => setUsersErr(e.message || 'Failed to load'))
-  const loadInvites = () => personal ? setInvites([]) : api('/api/admin/invites').then(d => setInvites(d.invites)).catch(() => {})
+  const loadInvites = () => personal ? setInvites([]) : api('/api/admin/invites').then(d => {
+    if (!Array.isArray(d?.invites)) throw new Error('Invalid invitation list')
+    setInvites(d.invites); setInvitesErr(null)
+  }).catch(() => setInvitesErr('Could not load invitations'))
   // poll every 15s so the "training now" section stays live without a manual refresh
   useEffect(() => { if (!user?.admin) return; loadUsers(); loadInvites(); const iv = setInterval(loadUsers, 15000); return () => clearInterval(iv) }, [])
   if (!user?.admin) return null
@@ -312,6 +340,13 @@ export default function Admin() {
     <div className="adm-intro">
       {accountOnly ? 'Manage account access and invitations. Workout and Nutrition content is private and is not shown here.' : 'Everything about running this instance: who uses it, how they get in, the AI Coach, and what has happened on it. Nothing here shows anyone’s training data beyond counts.'}
     </div>
+
+    {managed && <section className="card" aria-label="Instance access policy">
+      <h2>{personal ? 'Personal instance' : 'Multi-user instance'}</h2>
+      <p>{personal ? 'One owner. Registration is closed after setup; there are no additional invitation codes.' : config?.signup_policy === 'public' ? 'Public registration is enabled. Account data remain private.' : 'New accounts require a private invitation. Account data remain private.'}</p>
+      {Number.isInteger(config?.max_users) && <p>Account limit: {config.max_users}. Disabled accounts still count toward this limit.</p>}
+      <p className="adm-hint">The operator configures access policy and food catalogues with the self-hosting tools. This page does not install catalogues or change server policy. Nutrition backups are in Nutrition; workout backups are in Settings. A full instance backup is a separate operator task.</p>
+    </section>}
 
     {usersErr && <div className="card" role="alert" style={{ borderColor: 'var(--red)' }}>
       <div className="row between"><h2 style={{ margin: 0 }}>{users ? 'The last update failed' : 'Could not load the users'}</h2>
@@ -342,7 +377,7 @@ export default function Admin() {
         page on a box that never enabled it is byte-for-byte the page it was before. */}
     <AdminCoach />
 
-    {!personal && <InvitesCard invites={invites} reload={loadInvites} inviteOnly={inviteOnly} />}
+    {!personal && <InvitesCard invites={invites} reload={loadInvites} inviteOnly={inviteOnly} error={invitesErr} />}
 
     <div className="card">
       <h2 style={{ margin: 0 }}>Users</h2>

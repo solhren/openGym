@@ -9,11 +9,12 @@ import Admin from './Admin.jsx'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-const mocks = vi.hoisted(() => ({ answers: {}, sheets: [], config: null }))
+const mocks = vi.hoisted(() => ({ answers: {}, sheets: [], config: null, calls: [] }))
 vi.mock('../lib/api.js', () => ({
-  api: path => {
+  api: (path, options) => {
+    mocks.calls.push([path, options])
     const key = path.split('?')[0]
-    return key in mocks.answers ? Promise.resolve(mocks.answers[key]) : Promise.reject(new Error('not found'))
+    return key in mocks.answers ? Promise.resolve().then(() => typeof mocks.answers[key] === 'function' ? mocks.answers[key]() : mocks.answers[key]) : Promise.reject(new Error('not found'))
   }
 }))
 vi.mock('../store/useStore.js', () => {
@@ -49,6 +50,7 @@ beforeEach(() => {
   document.body.innerHTML = ''
   mocks.sheets.length = 0
   mocks.config = null
+  mocks.calls = []
   mocks.answers = {
     '/api/admin/users': { users: [{ id: 'u1', name: 'Mallory', workouts: 2, lastSync: null, disabled: false }], invite_only: false },
     '/api/admin/invites': { invites: [] },
@@ -168,5 +170,57 @@ describe('Admin when the users cannot be loaded', () => {
     await settle()
     expect(text(page)).toContain('The last update failed')
     expect([...page.querySelectorAll('.item')].some(el => el.textContent.includes('Mallory'))).toBe(true)
+  })
+})
+
+
+describe('managed invitation feedback', () => {
+  it('explains personal mode and does not offer extra accounts', async () => {
+    mocks.config = { instance_mode: 'personal', signup_policy: 'invite', max_users: 1 }
+    const host = render(<Admin />); await settle()
+    expect(host.querySelector('[aria-label="Instance access policy"]').textContent).toContain('Personal instance')
+    expect(host.textContent).toContain('Account limit: 1')
+    expect(host.textContent).not.toContain('New code')
+    expect(host.textContent).toContain('does not install catalogues')
+  })
+
+  it('failed invitation reads are not presented as an empty list or open registration', async () => {
+    delete mocks.answers['/api/admin/users']; delete mocks.answers['/api/admin/invites']
+    const host = render(<Admin />); await settle()
+    expect(host.textContent).toContain('Could not load invitations')
+    expect(host.textContent).not.toContain('No codes yet')
+    expect(host.textContent).not.toContain('Sign-up is open')
+    expect([...host.querySelectorAll('button')].find(b => b.textContent === 'New code').disabled).toBe(true)
+    mocks.answers['/api/admin/invites'] = { invites: [{ code: 'FIXTURE8' }] }
+    await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Retry invitations').click())
+    expect([...host.querySelectorAll('input')].some(input => input.value === 'FIXTURE8' && input.readOnly)).toBe(true)
+    expect(host.textContent).not.toContain('Could not load invitations')
+  })
+
+  it('creating an invitation is single-flight and failed clipboard writes do not claim success', async () => {
+    const original = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(Error('denied')) } })
+    try {
+      let complete
+      mocks.answers['/api/admin/invites/new'] = () => new Promise(resolve => { complete = resolve })
+      const host = render(<Admin />); await settle()
+      const button = [...host.querySelectorAll('button')].find(b => b.textContent === 'New code')
+      await act(async () => { button.click(); button.click() })
+      expect(mocks.calls.filter(([path]) => path.endsWith('/invites/new'))).toHaveLength(1)
+      expect(button.disabled).toBe(true)
+      // Even if refreshing fails, a created code stays visible for manual copying.
+      delete mocks.answers['/api/admin/invites']
+      await act(async () => complete({ invite: { code: 'FIXTURE8' } }))
+      expect(host.textContent).toContain('Could not copy')
+      expect([...host.querySelectorAll('input')].some(input => input.value === 'FIXTURE8' && input.readOnly)).toBe(true)
+      expect(host.textContent).not.toContain('Code copied')
+      mocks.answers['/api/admin/invites'] = { invites: [{ code: 'FIXTURE8', usedBy: 'second-account' }] }
+      await act(async () => [...host.querySelectorAll('button')].find(b => b.textContent === 'Retry invitations').click())
+      expect(host.textContent).toContain('Already used')
+      expect([...host.querySelectorAll('input')].some(input => input.value === 'FIXTURE8')).toBe(false)
+    } finally {
+      if (original) Object.defineProperty(navigator, 'clipboard', original)
+      else delete navigator.clipboard
+    }
   })
 })
