@@ -1,5 +1,11 @@
 # Quick start: your own openGym instance
 
+**Source beta preview.** The commands below are prepared and covered by script/API tests;
+this candidate's real Docker installation is still a manual validation. It is not an already
+validated appliance or APK. Only personal foods and the optional Ciqual starter are in the
+current portable scope; international OFF/wger installation is deferred.
+See [release status and the maintainer checklist](PUBLICATION.md).
+
 Use a reviewed checkout containing `scripts/self-hosting/prepare.py` and the
 matching account-mode API. The local `review/public-readiness` branch is not
 published automatically. Once the maintainer has published that reviewed ref,

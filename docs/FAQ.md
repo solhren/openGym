@@ -5,6 +5,15 @@ the public installation candidate on `review/public-readiness`. The review work
 is not automatically published or a certified deployment. Start with the
 [quick start](QUICK_START.md) and [administrator guide](SELF_HOSTING.md).
 
+## Is this an installable public release yet?
+
+This checkout is a source beta candidate for maintainer review. The portable path provides
+personal or multi-user accounts, personal foods and optional Ciqual generic foods. Real Docker
+acceptance and generic Android compilation/phone tests are deferred manual work; there is no
+validated generic APK or public container image to download from this review. International
+OFF/wger installation is planned for a future version. Use the [publication status](PUBLICATION.md)
+and an explicitly reviewed source ref, not the personal APK or upstream images.
+
 ## Is this the original openGym?
 
 It is a fork of [DuarteSantos8/openGym](https://github.com/DuarteSantos8/openGym), with Nutrition
@@ -160,14 +169,17 @@ CORS handling. Never include the pairing code or token in a bug report.
 
 They have different licenses. Application code uses GNU AGPL; preserve the original copyright
 and [third-party notices](../NOTICE.md). Exercise media are separately licensed and are not a
-freely reusable asset collection. Food records retain source-specific terms; Open Food Facts
+freely reusable asset collection. The upstream notice describes a restricted non-commercial
+fork permission; its private agreement has not been independently verified. See the
+[licence evidence and remaining review](PUBLICATION.md#licence-evidence). Ciqual 2025 uses Licence Ouverte Etalab 2.0 with source/date attribution.
+Other food records retain source-specific terms; Open Food Facts
 uses ODbL for its database and DbCL for contents, with separate terms for images. See the
 [README's attribution section](../README.md#license-and-attribution) and linked official sources.
 Public redistribution of the composed catalogue or a combined backup has not been validated.
 
 ## Where can I get help or report a bug?
 
-As checked on 3 November 2026, this fork has Issues and Discussions disabled and no verified
+As checked on 5 November 2026, this fork has Issues and Discussions disabled and no verified
 private vulnerability-reporting channel. Check the repository's current settings and
 [Contributing](../CONTRIBUTING.md) for contribution guidance. Do not assume upstream chat is
 support for this fork. Follow [SECURITY.md](../SECURITY.md) for sensitive findings and never post

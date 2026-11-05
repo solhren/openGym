@@ -16,7 +16,7 @@ Read the [README](README.md), [architecture map](docs/ARCHITECTURE.md),
 Check the current target branch before proposing a change. Avoid mixing a Nutrition change with
 unrelated training, deployment or formatting changes.
 
-As checked on 3 November 2026, this fork has **Issues and Discussions disabled**. Pull requests
+As checked on 5 November 2026, this fork has **Issues and Discussions disabled**. Pull requests
 are the available repository review mechanism; check the repository's current settings before
 relying on a bug-report or discussion link. Upstream community channels belong to the upstream
 project and are not a support promise for this fork. For vulnerabilities, use SECURITY.md;
@@ -79,6 +79,17 @@ git diff --check
 
 For a small fix, run the relevant test files during development, then report the exact suites
 you ran. MCP changes have their own package and tests in [mcp/README.md](mcp/README.md).
+For workflow or contributor-template changes, the bounded publication checks are:
+
+```sh
+npm ci --ignore-scripts --no-audit --no-fund
+node --test scripts/publication/check.test.mjs
+node scripts/publication/check.mjs
+```
+
+These use the existing root YAML dependency and do not execute workflows, publish artifacts or
+contact a hosted instance. GitHub still needs to validate and run the workflows after review.
+
 Documentation-only changes need a whitespace and link review; they do not require installing
 mobile SDKs, importing a catalogue or rebuilding the app.
 
@@ -91,6 +102,10 @@ and clearly identify any missing platform checks.
 Click through changed UI where possible, including keyboard focus, cancellation, narrow screens
 and both themes. Put new user-visible strings in all relevant locale packs; preserve placeholders
 and follow the existing Brazilian Portuguese inheritance rules.
+
+Do not expose Vite or test runners to untrusted networks. The current development and optional
+integration dependency findings are recorded in [the publication review](docs/PUBLICATION.md#security-review);
+a clean default API audit does not clear every development dependency.
 
 ## Change guidelines
 

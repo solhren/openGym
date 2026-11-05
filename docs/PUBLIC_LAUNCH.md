@@ -1,12 +1,13 @@
 # Public launch notes and Reddit draft
 
-**Draft for maintainer review — not published.** This describes the experimental Nutrition work
-in `solhren/openGym`, not a released upstream openGym feature. Evidence and repository settings
-were reviewed on 3 November 2026; documentation was consolidated on 4 November
-against the local public-installation candidate. The repository settings have not
-been rechecked during that consolidation. No announcement is ready to post until
-the gates below have recorded evidence. Commands inspected in documentation are
-not a claim that Docker or Android packaging ran successfully.
+**Draft for maintainer review — not published.** The current decision is to prepare a
+**source beta preview**, with real Docker execution and generic Android compilation/device
+tests left to later manual validation. International OFF/wger installation is deferred to a
+future version. Repository reporting settings were rechecked on 5 November 2026.
+
+[Publication procedure and licence/security evidence](PUBLICATION.md) is the authoritative
+checklist for this source preparation. The draft below is not permission to announce tested
+containers, a generic APK or international catalogue coverage. No Reddit post is made here.
 
 ## What can be said today
 
@@ -48,7 +49,8 @@ score, or a count of products that every installation receives. Keep the
 
 Use [the acceptance record](dev/PUBLIC_RELEASE_CANDIDATE.md) for actual commands,
 revisions and results. Do not aggregate overlapping test runs as extra coverage.
-This list intentionally stays open until its evidence has been supplied.
+The container/device rows remain explicitly deferred; they are required before claiming a
+validated installable beta, not tasks to silently complete during source preparation.
 
 | Gate | Current evidence and remaining condition |
 | --- | --- |
@@ -63,9 +65,9 @@ This list intentionally stays open until its evidence has been supplied.
 | Security/support | Enable and verify private reporting and an actual feedback channel before recruiting testers |
 | Licences/artifacts | Review the exact distributed code, media and data; no composed private catalogue is being redistributed |
 
-The public candidate must not be labelled a validated public beta while these
-critical installation and artifact gates remain open. The personal beta remains
-separate evidence, with a different deployment and signing identity.
+A reviewed source preview may disclose these open gates; it must not be labelled a validated
+Docker/Android public beta while the corresponding acceptance evidence is absent. The personal
+beta remains separate evidence, with a different deployment and signing identity.
 
 ## Outstanding launch requirements
 

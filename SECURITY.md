@@ -6,7 +6,7 @@ promise support from the upstream openGym maintainer or cover a third party's ho
 
 ## Reporting availability
 
-**Checked 3 November 2026:** GitHub private vulnerability reporting is disabled for this fork.
+**Checked 5 November 2026:** GitHub private vulnerability reporting is disabled for this fork.
 Issues and Discussions are also disabled. No alternative private security contact has been
 verified for this repository. Do not send sensitive findings to an invented email address,
 an upstream community room or a public pull request.
@@ -22,6 +22,25 @@ Do not include passwords, session cookies, pairing codes, tokens, private keys, 
 personal meal history, photos or complete data directories in a report. A useful report contains
 the affected commit/build, deployment mode, minimal reproduction with synthetic data, impact,
 and relevant redacted logs. Use your own test instance and accounts.
+
+The repository now includes a private-report form template, but committing a template does
+**not** enable reporting. The maintainer must enable it in GitHub Settings and verify the button;
+see the [manual publication checklist](docs/PUBLICATION.md#manual-github-checklist).
+
+## Dependency findings (5 November 2026)
+
+Lockfile audits report no known advisories in the default API (`--omit=dev --omit=optional`),
+frontend production dependencies (`--omit=dev`) or root documentation tools. This is a point-in-time
+registry result, not a security certification. The full frontend development toolchain has
+8 findings (2 high); API with the optional Coach dependencies and standalone MCP each have
+6 (2 high). Counts overlap transitively and must not be added as unique vulnerabilities.
+See [audit scope, advisories and limitations](docs/PUBLICATION.md#security-review).
+
+The public API image omits optional dependencies, and nginx serves the built frontend rather
+than a Vite dev server. Do not expose a development/test server or enable Coach/MCP under the
+assumption that those paths passed the default runtime audit. Their dependencies need a separate
+review and tested update before being recommended for general use. No forced audit update or
+lockfile-only untested upgrade was performed in this publication preparation.
 
 ## Version and response policy
 

@@ -1,11 +1,20 @@
 # Self-hosting this openGym fork
 
+**Source beta preview.** The commands below are prepared and covered by script/API tests;
+this candidate's real Docker installation is still a manual validation. It is not an already
+validated appliance or APK. Only personal foods and the optional Ciqual starter are in the
+current portable scope; international OFF/wger installation is deferred.
+See [release status and the maintainer checklist](PUBLICATION.md).
+
 This guide installs the source in this repository on a Linux server using Docker
 Compose. It does not require the author's server, domain, private keys or food
 databases. The API and web images are built locally; upstream images from
 `DuarteSantos8` do **not** represent this fork's Nutrition changes.
 
 For a shorter first installation path, use the [quick start](QUICK_START.md).
+Do not use the legacy root `docker-compose.yml` or `.env.example` for this managed
+installation: their account defaults and catalogue setup are different. Use `prepare.py`
+to generate the matching isolated Compose configuration and private instance settings.
 
 The installation runs workout tracking, accounts, personal foods, recipes and
 Nutrition synchronization. To add a searchable public food database, follow the
@@ -38,8 +47,8 @@ Use a non-root Linux account that can run Docker, with:
   Allow additional space and memory for image builds. Check the Docker data disk
   too if it differs from your home directory: `docker info --format '{{.DockerRootDir}}'`.
 - Network access during cloning/building (registries, Alpine and npm), and during
-  the explicit Ciqual acquisition (Anses public sources, under 4 MiB compressed
-  in total). The bootstrap uses Python's standard library, with bounded download,
+  the explicit Ciqual acquisition (Anses public sources, under 4 MiB
+  downloaded in total). The bootstrap uses Python's standard library, with bounded download,
   parsing and database sizes. Runtime food lookup has no provider connection.
 - For phones or remote access: a hostname you control, DNS pointing to the
   server, and a reverse proxy providing a browser-trusted HTTPS certificate.

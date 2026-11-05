@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased — Nutrition source beta candidate
+
+This section describes **solhren/openGym** on `review/public-readiness`, not an upstream
+release. No tag, public image or generic APK has been created by this review. The inherited
+package version below is not a release identifier for these changes.
+
+- Nutrition journal, personal foods, recipes, goals, progressive local storage, offline
+  operations, independent synchronization and Nutrition-only backup preview/restore.
+- Public installer source with private first-admin bootstrap, personal mode or isolated
+  multi-user accounts. Invitations are the multi-user default; public signup requires
+  deliberate opt-in. Guest and password login are disabled in managed profiles.
+- Optional Ciqual 2025 acquisition directly from Anses: 3,484 generic foods, official
+  French/English names, explicit 100 g references, source attribution and unknown values
+  preserved. No catalogue archive is bundled and no food-provider runtime fallback is used.
+- Catalogue lifecycle and instance backup/restore/update/rollback tools, with bounded
+  validation and recovery tests. Existing personal-beta catalogue data remain separate.
+- Generic Android source profile with isolated server/account handling; personal signing
+  keys and distribution are not reused for a generic release.
+- Publication hardening: pinned GitHub Actions, restricted inherited publishers, explicit
+  read-only defaults, fork-specific issue/PR/security forms and documented licence evidence.
+
+**Known limitations:** real Docker lifecycle acceptance and generic Android compilation/device
+validation are manual work deferred beyond this source preparation. International OFF/wger
+installation is deferred to a future version; Ciqual is regional and has no retail barcodes.
+Combined workout + Nutrition restore remains blocked. Optional Coach/MCP and development-tool
+advisories remain recorded, and media permission needs maintainer review before distribution.
+See [publication procedure and evidence](docs/PUBLICATION.md),
+[README limitations](README.md#food-data-and-current-limits) and [SECURITY.md](SECURITY.md).
+
+The historical upstream release notes follow unchanged.
+
 ## v1.4.1 (2026-10-10)
 
 Bug fixes for v1.4.0, mostly the things you told us about on Discord and GitHub.

@@ -8,12 +8,14 @@ contributors built the original application. This fork adds an experimental Nutr
 and local food-catalogue integration. The application code retains its GNU AGPL license;
 third-party data and media have separate terms.
 
-**Status: public installation candidate under review on `review/public-readiness`.**
-The existing personal beta is on `feature/nutrition`; the new installer and account
-policies are local review work, not a published release. Obtain the reviewed source
-before following its setup commands. Upstream `main`, demos, container tags and APKs
-do not establish what is included or tested in this fork. Docker startup and a
-generic Android APK still require validation before a public beta is recommended.
+**Status: source beta candidate on `review/public-readiness`, awaiting maintainer review.**
+This branch is prepared locally; it has not been published by this review. The existing
+personal beta on `feature/nutrition` is a separate deployment. The current public scope is
+Web self-hosting source, personal or multi-user accounts, and an optional small Ciqual
+catalogue. Real Docker acceptance and generic Android compilation/device tests are deferred
+manual validations. International OFF/wger installation is deferred to a future version.
+Do not treat upstream images, APKs or CI badges as evidence for this candidate.
+See the [publication checklist and evidence](docs/PUBLICATION.md) before distributing it.
 
 [Get started](docs/QUICK_START.md) · [FAQ](docs/FAQ.md) · [Self-hosting](docs/SELF_HOSTING.md) ·
 [Contribute](CONTRIBUTING.md) · [Security](SECURITY.md)
@@ -113,8 +115,9 @@ Current limitations include:
 
 - The portable starter supports 3,484 generic Ciqual foods with official English/French
   names: 3,006 complete, 473 with unknown values, and 5 not addable. It is a French
-  composition table, not worldwide brand coverage. OFF/wger remain unavailable in
-  this public installer; existing personal-beta catalogues are separate.
+  composition table, not worldwide brand coverage. International OFF/wger installation is
+  deferred to a future version and unavailable in this public installer. Existing personal-beta
+  catalogues are separate.
 - Selecting several source IDs is not yet a working OFF + wger + Ciqual union.
   Only Ciqual has a complete portable acquisition/reader path in this installer.
 - Real Docker execution of the new installer remains unverified in this environment;
@@ -149,6 +152,7 @@ not universal deployment instructions.
 | Work on the code | [Contributing](CONTRIBUTING.md) |
 | Understand security and reporting availability | [Security policy](SECURITY.md) |
 | Review Nutrition backup behavior | [Backup design and limits](docs/dev/NUTRITION_BACKUP_RESTORE.md) |
+| Prepare a source beta and GitHub settings | [Publication checklist](docs/PUBLICATION.md) |
 | Review the launch draft and evidence limits | [Public launch notes](docs/PUBLIC_LAUNCH.md) |
 
 `frontend/` contains React, Vite and the Capacitor shells. `api/` contains the Node HTTP API and
@@ -165,6 +169,10 @@ preparation and validation tools; it is separate from the local journal storage 
 - **Exercise text, diagrams and media:** follow [NOTICE.md](NOTICE.md). In particular, the Gym
   visual exercise media are not AGPL assets or a freely reusable media pack. This fork does not
   grant additional media permissions or certify the scope of the upstream media agreement.
+- **Ciqual starter:** Anses Ciqual 2025, under [Licence Ouverte Etalab 2.0](https://www.data.gouv.fr/pages/legal/licences/etalab-2-0),
+  verified against the [publisher's dataset metadata](https://entrepot.recherche.data.gouv.fr/api/datasets/:persistentId/?persistentId=doi:10.57745/RDMHWY).
+  The installer downloads the original files explicitly; no food database is bundled here.
+  Keep the source, data date and transformation notice with derived records.
 - **Food records:** keep each record's source, author and license information. wger is a data
   source, not one blanket license for all imported records; its
   [official license notes](https://wger.readthedocs.io/en/latest/#licence) describe its initial
