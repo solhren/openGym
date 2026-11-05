@@ -1,0 +1,61 @@
+name: Browser-only demo
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the reviewed static demo to GitHub Pages
+        type: boolean
+        default: false
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == 'solhren' && github.ref == 'refs/heads/review/public-readiness'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm test -- --maxWorkers=1 src/lib/nutrition/demo-seed.test.js src/lib/api.demo.test.js
+        working-directory: frontend
+      - run: npm run build:demo
+        working-directory: frontend
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: opengym-browser-demo
+          path: frontend/dist-demo/
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+        if: inputs.publish
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        if: inputs.publish
+        with:
+          path: frontend/dist-demo/
+  deploy:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == 'solhren' && github.ref == 'refs/heads/review/public-readiness' && inputs.publish == true
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

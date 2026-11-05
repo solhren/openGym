@@ -79,7 +79,7 @@ export default function Journal({ date, data, service, status, onCreateFood, ini
   if (addMeal) return <section className="card nutrition-picker" aria-label={t('Choose food')}>
     <div className="nutrition-picker-heading"><h2>{t('Choose food')}</h2><Button size="sm" onClick={cancelPicker}>{t('Cancel')}</Button></div>
     <Select label="Meal" value={addMeal} onChange={setAddMeal} options={MEALS.map(value => ({ value, label: t(meals[value]) }))} />
-    <div className="nutrition-actions nutrition-picker-sources"><Button variant={!catalog ? 'tinted' : 'plain'} aria-pressed={!catalog} onClick={() => setCatalog(false)}>{t('Local foods and recipes')}</Button><Button variant={catalog ? 'tinted' : 'plain'} aria-pressed={catalog} onClick={() => setCatalog(true)}>{t(service.catalog.localOnly ? 'Food catalogue' : 'Open Food Facts')}</Button></div>
+    <div className="nutrition-actions nutrition-picker-sources"><Button variant={!catalog ? 'tinted' : 'plain'} aria-pressed={!catalog} onClick={() => setCatalog(false)}>{t('Local foods and recipes')}</Button>{service.catalog.enabled !== false && <Button variant={catalog ? 'tinted' : 'plain'} aria-pressed={catalog} onClick={() => setCatalog(true)}>{t(service.catalog.localOnly ? 'Food catalogue' : 'Open Food Facts')}</Button>}</div>
     {catalog ? <FoodCatalog service={service} onChoose={setSelected} autoFocus /> : <>
       <SearchField autoFocus aria-label={t('Search foods and recipes')} placeholder={t('Search foods and recipes')} value={query} onChange={e => setQuery(e.target.value)} onClear={() => setQuery('')} />
       <ErrorNotice error={recent.error} />

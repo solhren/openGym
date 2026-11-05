@@ -172,8 +172,8 @@ export function matchesExerciseSearch(exercise, query) {
 }
 
 // Media normally sits next to the app (img/ and gif/, mounted into the web container).
-// A build can point them somewhere else — the demo build pulls them off a CDN instead of
-// shipping ~140 MB of images into the deployment. `import.meta.env` is undefined in plain
+// A build can point them elsewhere. The static demo uses its own neutral SVG instead
+// of publishing restricted exercise media. `import.meta.env` is undefined in plain
 // Node; the guard keeps this module loadable without Vite.
 const ENV = import.meta.env || {}
 // Under their own folder since v1.4.0: a docker-compose.yml from before then still mounts the old
@@ -194,9 +194,9 @@ export const figureOf = S => (S?.exFigure === 'female' || S?.exFigure === 'male'
   ? S.exFigure
   : (S?.body === 'female' ? 'female' : 'male')
 const drawing = (ex, figure) => (figure === 'female' ? ex.fv : figure === 'male' ? ex.mv : null) || null
-export const imgSrc = (ex, figure) => IMG_BASE + (drawing(ex, figure) ? drawing(ex, figure) + '.webp' : ex.img)
+export const imgSrc = (ex, figure) => ENV.VITE_DEMO === '1' ? 'demo-exercise.svg' : IMG_BASE + (drawing(ex, figure) ? drawing(ex, figure) + '.webp' : ex.img)
 const clipFile = f => (CLIP_EXT !== '.mp4' && f.endsWith('.mp4') ? f.slice(0, -4) + CLIP_EXT : f)
-export const gifSrc = (ex, figure) => GIF_BASE + clipFile(drawing(ex, figure) ? drawing(ex, figure) + '.mp4' : ex.gif)
+export const gifSrc = (ex, figure) => ENV.VITE_DEMO === '1' ? 'demo-exercise.svg' : GIF_BASE + clipFile(drawing(ex, figure) ? drawing(ex, figure) + '.mp4' : ex.gif)
 // The catalogue's animations are short MP4 loops; a fork's or an older build's may still be GIFs.
 export const isVideoSrc = src => /\.(mp4|webm)(\?|$)/i.test(src || '')
 

@@ -1417,3 +1417,22 @@ See [portable catalogue installation](PUBLIC_CATALOG_INSTALLATION.md) for source
 availability, the operator registry, verification and remaining public-launch
 limitations. The user persistence v1, backup and synchronization contracts are
 unchanged.
+
+
+### Browser-only demonstration (5 November 2026)
+
+`npm --prefix frontend run build:demo` produces a separate static build. The existing
+web UI and IndexedDB adapter remain the source of truth; no parallel journal or
+backend is introduced. `use-nutrition.jsx` binds demo sessions to a dedicated local
+`demo-…` scope, seeds fictional examples only on a null head with a single CAS commit,
+and disables the remote catalogue adapter. Later visits retain user edits/deletions.
+An interrupted first write can be retried; concurrent first tabs retain the winning
+publication. Unknown nutrients stay unknown and volume examples require ml.
+
+API transports refuse dispatch in this build, account identities are not adopted,
+and the pending queue remains durable but is not advertised as awaiting a server in
+this serverless demo. Normal server and Android build flags/behavior are unchanged.
+The build strips inherited `VITE_*` flags, ignores `.env`, disables analytics and
+uses a neutral exercise illustration rather than publishing restricted media.
+See [DEMO.md](../DEMO.md) for the exact scope, tests, local preview and manual
+GitHub Pages publication procedure. Publication is not implied by a successful build.

@@ -1,3 +1,4 @@
+import { DEMO } from '../lib/demo.js'
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/ui.jsx'
@@ -29,7 +30,7 @@ export async function loadNutritionView(service, date, journal) {
 
 function SyncStatus({ service, status, retry, attention }) {
   return <section className={`nutrition-sync${attention ? ' nutrition-sync-attention' : ''}`} aria-label={t('Nutrition synchronization')}>
-    <div className="nutrition-sync-line"><span className="nutrition-sync-dot" aria-hidden="true" /><p role="status">{t(statuses[status.syncStatus] ?? statuses.blocked)}{status.pending > 0 ? ` · ${t('{0} pending operations', status.pending)}` : ''}{status.busy ? ` · ${t('Saving…')}` : ''}</p>
+    <div className="nutrition-sync-line"><span className="nutrition-sync-dot" aria-hidden="true" /><p role="status">{t(statuses[status.syncStatus] ?? statuses.blocked)}{!DEMO && status.pending > 0 ? ` · ${t('{0} pending operations', status.pending)}` : ''}{status.busy ? ` · ${t('Saving…')}` : ''}</p>
       {service && status.syncStatus !== 'local' && (attention ? <Button size="sm" disabled={status.busy || status.syncStatus === 'syncing'} onClick={retry}>{t('Retry synchronization')}</Button>
         : <details className="nutrition-sync-details"><summary>{t('Details')}</summary><Button size="sm" disabled={status.busy} onClick={retry}>{t('Retry synchronization')}</Button></details>)}
     </div>
@@ -47,9 +48,10 @@ export function NutritionScreen({ service, status, startupError }) {
   const go = (target, day = date) => { setCreateFood(false); setActionError(null); setParams({ view: target, date: day }) }
   const retry = async () => { setActionError(null); try { await service.refresh(); content.reload() } catch (error) { setActionError(error) } }
   const props = { date, data: content.data, service, status }
-  const attention = !['synced', 'local'].includes(status.syncStatus) || status.pending > 0 || status.busy || status.conflicts > 0 || !!status.error
+  const attention = !['synced', 'local'].includes(status.syncStatus) || (!DEMO && status.pending > 0) || status.busy || status.conflicts > 0 || !!status.error
   const syncProps = { service, status, retry, attention }
   return <div className="narrow nutrition">
+    {DEMO && <aside className="card" aria-label={t('Demo')}><strong>{t('You’re in the demo')}</strong><p>{t('Example data, stored only in this browser. Go wild and change anything you like.')}</p></aside>}
     <header className="hdr nutrition-header"><div className="nutrition-title"><h1 tabIndex={-1}>{t('Nutrition')}</h1><p className="sub"><time dateTime={date}>{new Date(`${date}T12:00:00`).toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</time></p></div>
       <div className="nutrition-header-actions"><details className="nutrition-tools" key={view} onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); event.stopPropagation() } }}>
         <summary aria-current={managementViews.includes(view) ? 'page' : undefined}><Icon name="more" /><span>{t('More')}</span></summary>

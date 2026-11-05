@@ -5,6 +5,9 @@ import { createNutritionLocalStore } from './local-store.js'
 import { createNutritionUISession } from './ui-session.js'
 import { nutritionInstallationIdentity } from './ui-identity.js'
 import { check } from './persistence-contract.js'
+import { DEMO } from '../demo.js'
+import { todayISO } from '../format.js'
+import { dateLocale } from '../i18n.js'
 import { MOBILE } from '../mobile.js'
 import { appBase } from '../app-base.js'
 
@@ -28,13 +31,13 @@ async function open() {
     check(!!state.user || state.isGuest(), 'session', 'auth_required')
     const identity = await nutritionInstallationIdentity()
     check(attempt === epoch, 'session', 'ui_session_changed')
-    const session = { userId: state.user ? state.user.id : `local-${identity.profileId}`,
-      serverOrigin: state.user ? new URL(state.sync.server).origin : null, epoch: attempt }
+    const session = { userId: DEMO ? `demo-${identity.profileId}` : state.user ? state.user.id : `local-${identity.profileId}`,
+      serverOrigin: !DEMO && state.user ? new URL(state.sync.server).origin : null, epoch: attempt }
     const store = await createNutritionLocalStore({ namespace: { profileId: session.userId, serverOrigin: session.serverOrigin },
       generation: 'generation-1', deviceId: identity.deviceId })
     if (attempt !== epoch) { store.close(); throw new Error('nutrition-session-changed') }
     try {
-      if (state.user) {
+      if (state.user && !DEMO) {
         const base = new URL(state.sync.server)
         if (!MOBILE) base.pathname = appBase()
         const meta = await store.inspect()
@@ -42,8 +45,13 @@ async function open() {
           hasExistingData: meta.head !== null || meta.status === 'recovery-required' } })
       }
       check(attempt === epoch, 'session', 'ui_session_changed')
+      if (DEMO) {
+        const { seedDemoNutrition } = await import('./demo-seed.js')
+        await seedDemoNutrition(store, { day: todayISO(), locale: dateLocale(), guard: () => check(attempt === epoch, 'session', 'ui_session_changed') })
+        check(attempt === epoch, 'session', 'ui_session_changed')
+      }
     } catch (error) { store.close(); throw error }
-    const service = createNutritionUISession({ store, session, getSession, transport: api })
+    const service = createNutritionUISession({ store, session, getSession, transport: api, catalogEnabled: !DEMO })
     current = { session, api: service }
     await service.inspect()
     return service

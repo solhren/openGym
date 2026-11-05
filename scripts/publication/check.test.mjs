@@ -43,3 +43,13 @@ test('untrusted issue or PR text cannot be interpolated into shell commands', ()
 test('duplicate YAML keys fail parsing rather than hiding a guard or permission', () => {
   assert.throws(() => load('permissions:\n  contents: read\npermissions:\n  contents: write\n'), /duplicated mapping key/)
 })
+
+test('browser demo requires owner, reviewed branch and explicit publication opt-in', () => {
+  const demo = workflow('demo-preview.yml')
+  assert.deepEqual(Object.keys(demo.on), ['workflow_dispatch'])
+  assert.equal(demo.on.workflow_dispatch.inputs.publish.default, false)
+  for (const term of ["github.actor == 'solhren'", "github.ref == 'refs/heads/review/public-readiness'", 'inputs.publish == true']) {
+    rejects('demo-preview.yml', w => { w.jobs.deploy.if = w.jobs.deploy.if.replace(term, 'true') }, 'guard')
+  }
+  assert.ok(!JSON.stringify(demo).includes('stage-media'))
+})

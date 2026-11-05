@@ -9,7 +9,9 @@ import { load } from 'js-yaml'
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const personalGuard = ["github.event_name == 'workflow_dispatch'", "github.repository == 'solhren/openGym'", "github.ref == 'refs/heads/feature/nutrition'", "github.actor == 'solhren'"]
 const upstreamGuard = ["github.repository == 'DuarteSantos8/openGym'"]
+const demoGuard = ["github.event_name == 'workflow_dispatch'", "github.repository == 'solhren/openGym'", "github.actor == 'solhren'", "github.ref == 'refs/heads/review/public-readiness'"]
 const gatedJobs = {
+  'demo-preview.yml': { build: demoGuard, deploy: [...demoGuard, 'inputs.publish == true'] },
   'docker-publish.yml': { build: upstreamGuard },
   'pages.yml': { build: upstreamGuard, deploy: upstreamGuard },
   'mirror.yml': { mirror: upstreamGuard },

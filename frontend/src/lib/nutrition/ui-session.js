@@ -6,7 +6,7 @@ import { createFoodCatalog } from './catalog/client.js'
 
 /** One account-bound lifetime, independent of route mounting. Only successful durable
  * publication changes the view revision. Late work cannot notify a replacement session. */
-export function createNutritionUISession({ store, session, getSession, transport, online, catalogTransport, catalogLimiter, catalogCapabilitiesTransport, catalogLocalTransport, catalogLocalOnly, newId = newNutritionId }) {
+export function createNutritionUISession({ store, session, getSession, transport, online, catalogTransport, catalogLimiter, catalogCapabilitiesTransport, catalogLocalTransport, catalogLocalOnly, catalogEnabled = true, newId = newNutritionId }) {
   session = jsonClone(session)
   let closed = false, tail = Promise.resolve(), syncAttempt = 0, timer = null, synchronizing = null
   const listeners = new Set()
@@ -14,7 +14,7 @@ export function createNutritionUISession({ store, session, getSession, transport
   const guard = () => check(!closed && canonicalJson(session) === canonicalJson(getSession()), 'session', 'ui_session_changed')
   const emit = patch => { if (!closed) { state = { ...state, ...patch }; listeners.forEach(fn => fn()) } }
   const sync = session.serverOrigin === null ? null : createNutritionSync({ store, getSession, transport, online, newId })
-  const catalog = createFoodCatalog({ guard, transport: catalogTransport, limiter: catalogLimiter, capabilitiesTransport: catalogCapabilitiesTransport, serverOrigin:session.serverOrigin, localTransport:catalogLocalTransport, localOnlyV1:catalogLocalOnly })
+  const catalog = catalogEnabled ? createFoodCatalog({ guard, transport: catalogTransport, limiter: catalogLimiter, capabilitiesTransport: catalogCapabilitiesTransport, serverOrigin:session.serverOrigin, localTransport:catalogLocalTransport, localOnlyV1:catalogLocalOnly }) : Object.freeze({ enabled: false, localOnly: false, close() {} })
   const commands = createNutritionCommands({ store, guard, newId })
   const backup = createNutritionBackup({ store, getSession, sync })
   const inspect = async () => {

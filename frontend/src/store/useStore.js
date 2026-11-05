@@ -1292,7 +1292,7 @@ export const useStore = create((set, get) => {
   // check has to ask (lib/media-owed.js). A copy without any leaves the media store unopened.
   if (referencedHashes(S0).size) loadPending()
   meta.set(S0, { base: readStoredSync(), owed: storedOwed() })
-  const user0 = (() => { try { return JSON.parse(localStorage.getItem('gym_user')) || null } catch { return null } })()
+  const user0 = DEMO ? null : (() => { try { return JSON.parse(localStorage.getItem('gym_user')) || null } catch { return null } })()
   adoptHold = !!user0 && readAdopt()?.uid === user0.id
   const sync0 = { offline: false, pending: storedOwed(), auth: false, lastError: null, lastSynced: (() => { try { return +localStorage.getItem(SYNCED_AT_KEY) || 0 } catch { return 0 } })(), server: serverBase(), held: adoptHold }
   sync0.status = statusOf(sync0, user0)
@@ -1924,8 +1924,10 @@ export const useStore = create((set, get) => {
       // Demo build (GitHub Pages): no backend at all — seed once, stay in guest mode.
       if (DEMO) {
         if (!localStorage.getItem(DEMO_SEEDED)) {
+          // Never replace a profile already present on this origin. Deploy demos on
+          // their own origin; Nutrition additionally uses a separate demo namespace.
+          if (!hasData(get().S) && !get().S.active) await get().resetDemo()
           localStorage.setItem(DEMO_SEEDED, '1')
-          await get().resetDemo()
         }
         get().setGuest(true)
         finishBoot()

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="Exercise illustration omitted in the demo">
+  <rect width="180" height="180" rx="16" fill="#e9eef4"/>
+  <g stroke="#52637a" stroke-width="9" stroke-linecap="round" fill="none">
+    <path d="M55 90h70M55 65v50M40 76v28M125 65v50M140 76v28"/>
+  </g>
+</svg>

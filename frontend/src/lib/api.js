@@ -1,5 +1,6 @@
 // Backend + WebAuthn helpers (ported from the vanilla app).
 import { t } from './i18n-core.js'
+import { DEMO } from './demo.js'
 import { MOBILE } from './mobile.js'
 import { appBase } from './app-base.js'
 import { nativeFetch } from './capacitor-fetch.js'
@@ -39,6 +40,7 @@ const remoteHeaders = () => Object.assign({}, accessFor(remoteBase), remoteToken
 // Same session as training, bounded/abortable catalogue response is parsed by
 // the catalogue client. Never return the bearer token to a view or follow redirects.
 export function authenticatedCatalogFetch(path,{signal,expectedBase}={}){
+  assertBackendAvailable()
   if(typeof path!=='string'||path.length>2048||!/^\/api\/nutrition\/catalog\/(?:capabilities|search|product)(?:\?[^#]*)?$/.test(path))throw failure('Invalid catalogue path','invalid-query',400)
   if(MOBILE&&(!remoteBase||!remoteToken))throw failure(t('This phone is not connected to a server.'),'not-paired',0)
   // The catalogue belongs to a captured account session. Compare the full base,
@@ -72,7 +74,10 @@ const TIMEOUT_MS = 60000
 
 const failure = (message, code, status) => Object.assign(new Error(message), { code, status })
 
+const assertBackendAvailable = () => { if (DEMO) throw failure(t('Example data, only in this browser.'), 'demo-offline', 0) }
+
 export async function api(path, opts) {
+  assertBackendAvailable()
   const { timeout, ...init } = opts || {}
   // A phone with no server to talk to: local mode, or a pairing that is gone. There is no
   // relative URL to fall back on here — the WebView's own origin is Capacitor's local asset
@@ -92,6 +97,7 @@ export async function api(path, opts) {
 // the store both mean the server could not be reached, and the device says it is offline instead
 // of waiting forever.
 async function request(url, init, ms) {
+  assertBackendAvailable()
   const ctl = typeof AbortController === 'function' ? new AbortController() : null
   let timer = null
   const expired = new Promise((_, reject) => {
@@ -126,7 +132,7 @@ async function exchange(url, init) {
 // origin is Capacitor's asset server, which answers every path with index.html: the phones sent
 // every "left" to https://localhost/api/activity. The api() call beside it reaches the server.
 export function beacon(path, body) {
-  if (MOBILE) return false
+  if (MOBILE || DEMO) return false
   try {
     if (typeof navigator === 'undefined' || typeof navigator.sendBeacon !== 'function') return false
     return !!navigator.sendBeacon(appBase().replace(/\/$/, '') + path, new Blob([JSON.stringify(body)], { type: 'application/json' }))
@@ -152,6 +158,7 @@ const timedOut = () => failure(t('The server did not answer in time.'), 'timeout
  * Errors carry { status, code } like api()'s: the server's code on a refusal (media-missing).
  */
 export async function apiBlob(path, { expectSize, idleMs = 30000, fetchImpl = globalThis.fetch } = {}) {
+  assertBackendAvailable()
   if (MOBILE && !remoteBase) throw notPaired()
   const max = typeof expectSize === 'number' && expectSize >= 0 ? expectSize + 1024 : Infinity
   const ctl = typeof AbortController === 'function' ? new AbortController() : null
@@ -208,6 +215,7 @@ export async function apiBlob(path, { expectSize, idleMs = 30000, fetchImpl = gl
  * `idleMs` without progress; no status at all when the network failed.
  */
 export function apiUpload(path, blob, mime, { onProgress, idleMs = 60000, XHR = globalThis.XMLHttpRequest } = {}) {
+  if (DEMO) return Promise.reject(failure(t('Example data, only in this browser.'), 'demo-offline', 0))
   if (MOBILE && !remoteBase) return Promise.reject(notPaired())
   return new Promise((resolve, reject) => {
     const xhr = new XHR()

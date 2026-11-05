@@ -37,6 +37,7 @@ __pycache__/
 
 # Build output / deps
 frontend/dist/
+frontend/dist-demo/
 node_modules/
 *.log
 .DS_Store

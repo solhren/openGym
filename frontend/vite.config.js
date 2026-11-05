@@ -44,7 +44,7 @@ const umamiId = process.env.VITE_UMAMI_ID
 const umami = {
   name: 'opengym-umami',
   transformIndexHtml() {
-    if (!umamiSrc || !umamiId) return
+    if (process.env.VITE_DEMO === '1' || !umamiSrc || !umamiId) return
     return [{
       tag: 'script',
       attrs: { defer: true, src: umamiSrc, 'data-website-id': umamiId },
@@ -102,6 +102,8 @@ const pkgVersion = JSON.parse(readFileSync(new URL('./package.json', import.meta
 const appVersion = process.env.APP_BUILD ? `${pkgVersion}+${process.env.APP_BUILD}` : pkgVersion
 
 export default defineConfig({
+  // Static demos must not inherit a developer's private .env build configuration.
+  envDir: process.env.VITE_DEMO === '1' ? false : undefined,
   define: { __APP_VERSION__: JSON.stringify(appVersion) },
   plugins: [react(), umami, flavor, swStamp, catalogueMedia],
   base: './',

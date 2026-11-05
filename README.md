@@ -20,6 +20,14 @@ See the [publication checklist and evidence](docs/PUBLICATION.md) before distrib
 [Get started](docs/QUICK_START.md) · [FAQ](docs/FAQ.md) · [Self-hosting](docs/SELF_HOSTING.md) ·
 [Contribute](CONTRIBUTING.md) · [Security](SECURITY.md)
 
+## Try the interface without a server
+
+A [browser-only demo](docs/DEMO.md) is available to build locally with
+`npm --prefix frontend run build:demo`. It includes fictional workouts and Nutrition
+examples; you can create foods and log meals using this browser's local storage.
+It needs no account or food API. **GitHub Pages publication is still pending**;
+this is not a link to a running public demo.
+
 ## What you can do
 
 - **Train:** create weekday or rotating routines, run guided sessions, record sets, use rest
