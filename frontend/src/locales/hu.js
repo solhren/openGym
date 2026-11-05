@@ -2455,4 +2455,5 @@ export default {
   "{0} invalid products were omitted.": "{0} invalid products were omitted.",
   "Food catalogue": "Élelmiszer-katalógus",
   "Several local products share this barcode. Select a product by name.": "Több helyi terméknek azonos a vonalkódja. Válassz terméket név alapján.",
+  "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "Megbízható tanúsítvánnyal rendelkező HTTPS-kiszolgálócím szükséges, elérési út nélkül, például https://gym.example.com.",
 }

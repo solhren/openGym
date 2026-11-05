@@ -1614,6 +1614,7 @@ export const PT_BR_OVERRIDES = {
 
   "Food catalogue": "Catálogo de alimentos",
   "Several local products share this barcode. Select a product by name.": "Vários produtos locais compartilham este código de barras. Selecione um produto pelo nome.",
+  "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "Use um endereço de servidor HTTPS com certificado válido e sem caminho, por exemplo https://gym.example.com.",
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }

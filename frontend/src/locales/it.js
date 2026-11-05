@@ -2452,4 +2452,5 @@ export default {
   "{0} invalid products were omitted.": "{0} invalid products were omitted.",
   "Food catalogue": "Catalogo alimentare",
   "Several local products share this barcode. Select a product by name.": "Più prodotti locali condividono questo codice a barre. Seleziona un prodotto per nome.",
+  "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "Usa un indirizzo del server HTTPS con un certificato attendibile e senza percorso, ad esempio https://gym.example.com.",
 }

@@ -2452,4 +2452,5 @@ export default {
   "{0} invalid products were omitted.": "{0} invalid products were omitted.",
   "Food catalogue": "खाद्य सूची",
   "Several local products share this barcode. Select a product by name.": "कई स्थानीय उत्पादों का बारकोड एक ही है। नाम से उत्पाद चुनें।",
+  "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "भरोसेमंद प्रमाणपत्र वाला HTTPS सर्वर पता इस्तेमाल करें, बिना किसी पाथ के, जैसे https://gym.example.com।",
 }

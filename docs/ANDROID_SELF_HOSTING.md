@@ -40,6 +40,21 @@ namespaces for the account and origin and preserves its pending operations and
 historical food snapshots. There is no automatic import from the personal beta's
 app sandbox: synchronize or export there before changing distributions.
 
+## Pairing form behavior
+
+The generic profile explains the trusted HTTPS origin requirement next to the address
+field. It rejects HTTP, credential-bearing URLs and paths before submitting a pairing
+code, using the existing origin validator. Pressing the keyboard submit action is supported;
+double submissions share one pending attempt and the fields stay locked until it finishes.
+A network error leaves both fields intact and remains visible for retry. The delayed focus
+timer is cancelled on unmount; a late UI result does not close a different sheet.
+
+The added short help text is available in all 18 locale packs through assisted translations;
+structural checks are not human language review. No networking, secure storage, authentication,
+Android permission or signing behavior was changed. No personal hostname is prefilled in
+the generic profile. Follow [manual checklist B](MANUAL_BETA_TESTS.md#b-generic-android)
+on a workstation/phone before claiming it works physically.
+
 ## Server and transport requirements
 
 Use a valid HTTPS certificate matching the hostname, with `ORIGIN` and `RP_ID`

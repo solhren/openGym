@@ -2472,4 +2472,5 @@ export default {
   "{0} invalid products were omitted.": "{0} invalid products were omitted.",
   "Food catalogue": "Lebensmittelkatalog",
   "Several local products share this barcode. Select a product by name.": "Mehrere lokale Produkte haben diesen Barcode. Wähle ein Produkt nach Namen aus.",
+  "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "Verwende eine HTTPS-Serveradresse mit vertrauenswürdigem Zertifikat und ohne Pfad, zum Beispiel https://gym.example.com.",
 }

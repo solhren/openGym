@@ -2452,4 +2452,5 @@ export default {
   "{0} invalid products were omitted.": "{0} invalid products were omitted.",
   "Food catalogue": "식품 카탈로그",
   "Several local products share this barcode. Select a product by name.": "여러 로컬 제품이 같은 바코드를 사용합니다. 이름으로 제품을 선택하세요.",
+  "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "경로 없이 신뢰할 수 있는 인증서가 있는 HTTPS 서버 주소를 사용하세요. 예: https://gym.example.com.",
 }

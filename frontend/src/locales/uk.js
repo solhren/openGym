@@ -2449,4 +2449,5 @@ export default {
   "{0} invalid products were omitted.": "{0} invalid products were omitted.",
   "Food catalogue": "Каталог продуктів",
   "Several local products share this barcode. Select a product by name.": "Кілька локальних продуктів мають однаковий штрихкод. Виберіть продукт за назвою.",
+  "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "Використовуйте HTTPS-адресу сервера з довіреним сертифікатом без шляху, наприклад https://gym.example.com.",
 }

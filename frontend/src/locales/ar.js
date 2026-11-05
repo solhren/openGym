@@ -2507,4 +2507,5 @@ export default {
   "{0} invalid products were omitted.": "{0} invalid products were omitted.",
   "Food catalogue": "كتالوج الأغذية",
   "Several local products share this barcode. Select a product by name.": "توجد عدة منتجات محلية تحمل الرمز الشريطي نفسه. اختر منتجًا باسمه.",
+  "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "استخدم عنوان خادم HTTPS بشهادة موثوقة وبدون مسار، مثل https://gym.example.com.",
 }

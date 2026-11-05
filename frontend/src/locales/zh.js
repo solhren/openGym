@@ -2452,4 +2452,5 @@ export default {
   "{0} invalid products were omitted.": "{0} invalid products were omitted.",
   "Food catalogue": "食品目录",
   "Several local products share this barcode. Select a product by name.": "多个本地产品使用同一条形码。请按名称选择产品。",
+  "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "请使用具有受信任证书且不含路径的 HTTPS 服务器地址，例如 https://gym.example.com。",
 }

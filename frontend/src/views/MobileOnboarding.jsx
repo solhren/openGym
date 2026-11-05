@@ -1,7 +1,7 @@
 // Mobile build only, first launch: the choice useStore.boot() couldn't make on its own — keep
 // everything on this device, or connect to a self-hosted openGym server instead. See
 // lib/remote.js for the pairing flow this hands off to.
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useId } from 'react'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { t } from '../lib/i18n.js'
@@ -11,6 +11,7 @@ import { askAddDeviceData } from '../sheets.jsx'
 import { normalizeServerUrl } from '../lib/remote.js'
 import { loadCfAccess, saveCfAccess } from '../lib/cf-access.js'
 import {PERSONAL_BETA,PERSONAL_ORIGIN} from '../lib/personal-beta.js'
+import { PUBLIC_ANDROID, publicServerOrigin } from '../lib/public-android.js'
 
 // A plain http:// server works (#428), but whatever the app sends, the pairing code and then its
 // token, crosses the network readable. Said once under the field, not in the way: on a home
@@ -88,39 +89,47 @@ export function ConnectSheet({ close, initialUrl = '', again = false }) {
   // "the server was reached but refused the app's request" and act on it (#329).
   const [error, setError] = useState('')
   const ref = useRef(null)
-  const codeRef = useRef(null)
-  useEffect(() => { setTimeout(() => (initialUrl ? codeRef : ref).current?.focus(), 250) }, [])
+  const codeRef = useRef(null), pending = useRef(false), alive = useRef(true), hintId = useId()
+  const httpsHelp = t('Use a trusted HTTPS server address without a path, for example https://gym.example.com.')
+  useEffect(() => {
+    alive.current = true
+    const timer = setTimeout(() => (initialUrl ? codeRef : ref).current?.focus(), 250)
+    return () => { alive.current = false; clearTimeout(timer) }
+  }, [])
   const go = async () => {
-    if (!url.trim() || !code.trim()) { useUI.getState().toast(t('Enter your server address and the code')); return }
-    setBusy(true)
+    if (pending.current) return
+    if (!url.trim() || !code.trim()) { setError(t('Enter your server address and the code')); return }
+    if (PUBLIC_ANDROID && !publicServerOrigin(url)) { setError(httpsHelp); ref.current?.focus(); return }
+    pending.current = true; setBusy(true)
     setError('')
-    try { await connectToServer(url.trim(), code.trim(), askAddDeviceData); close(); useUI.getState().toast(t('Connected')) }
-    catch (e) { setError(e.message || t('Could not connect')) }
-    finally { setBusy(false) }
+    try { await connectToServer(url.trim(), code.trim(), askAddDeviceData); if (alive.current) { close(); useUI.getState().toast(t('Connected')) } }
+    catch (e) { if (alive.current) setError(e.message || t('Could not connect')) }
+    finally { pending.current = false; if (alive.current) setBusy(false) }
   }
-  return <>
+  return <form onSubmit={event => { event.preventDefault(); go() }}>
     <h3>{again ? t('Pair again') : t('Connect to my server')}</h3>
     <div className="muted small" style={{ marginBottom: 14 }}>
       {again
         ? t('Open Settings → Account → “Pair the mobile app” on your openGym site in a browser and enter the new code shown there. What this phone kept is merged into your account.')
         : t('Open Settings → Account → “Pair the mobile app” on the openGym site you’re already signed into, then enter its address and the code shown there.')}
     </div>
-    <input ref={ref} className="input" placeholder={t('Server address (e.g. gym.example.com)')} value={url} readOnly={PERSONAL_BETA}
+    <input ref={ref} className="input" placeholder={t('Server address (e.g. gym.example.com)')} value={url} readOnly={PERSONAL_BETA} disabled={busy} aria-describedby={PUBLIC_ANDROID ? hintId : undefined}
       aria-label={t('Server address (e.g. gym.example.com)')}
       onChange={e => setUrl(e.target.value)} autoCapitalize="none" autoCorrect="off" inputMode="url" />
-    {plainHttp(url) && <div className="dim small" role="note" style={{ marginTop: 8, lineHeight: 1.45 }}>
+    {PUBLIC_ANDROID && <p id={hintId} className="muted small">{httpsHelp}</p>}
+    {!PUBLIC_ANDROID && plainHttp(url) && <div className="dim small" role="note" style={{ marginTop: 8, lineHeight: 1.45 }}>
       {t('Plain http:// isn’t encrypted. Fine on your home network, but use https:// if your server is reachable from the internet.')}
     </div>}
     <div style={{ height: 10 }} />
-    <input ref={codeRef} className="input" placeholder={t('Pairing code')} maxLength={8} value={code}
+    <input ref={codeRef} className="input" placeholder={t('Pairing code')} maxLength={8} value={code} disabled={busy} autoCapitalize="characters" autoCorrect="off" spellCheck={false} enterKeyHint="go"
       aria-label={t('Pairing code')}
       onChange={e => setCode(e.target.value.toUpperCase())} style={{ letterSpacing: '.14em', fontWeight: 600, textAlign: 'center' }} />
     {error && <div className="small" role="alert" style={{ color: 'var(--red)', marginTop: 10, lineHeight: 1.45, overflowWrap: 'anywhere' }}>{error}</div>}
     <div style={{ height: 12 }} />
-    <Button variant="primary" onClick={go} disabled={busy}>{busy ? t('Connecting…') : t('Connect')}</Button>
+    <Button variant="primary" type="submit" disabled={busy}>{busy ? t('Connecting…') : t('Connect')}</Button>
     <div style={{ height: 10 }} />
     <Button icon="key" onClick={() => openCfAccess(normalizeServerUrl(url) || '')} disabled={busy}>{t('Cloudflare Access')}</Button>
-  </>
+  </form>
 }
 
 export default function MobileOnboarding() {

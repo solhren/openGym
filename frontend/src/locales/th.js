@@ -2463,4 +2463,5 @@ export default {
   "{0} invalid products were omitted.": "{0} invalid products were omitted.",
   "Food catalogue": "แค็ตตาล็อกอาหาร",
   "Several local products share this barcode. Select a product by name.": "มีผลิตภัณฑ์ในเครื่องหลายรายการใช้บาร์โค้ดเดียวกัน โปรดเลือกผลิตภัณฑ์ตามชื่อ",
+  "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "ใช้ที่อยู่เซิร์ฟเวอร์ HTTPS ที่มีใบรับรองที่เชื่อถือได้และไม่มีพาธ เช่น https://gym.example.com",
 }

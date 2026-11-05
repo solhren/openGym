@@ -2452,4 +2452,5 @@ export default {
   "{0} invalid products were omitted.": "{0} invalid products were omitted.",
   "Food catalogue": "Gıda kataloğu",
   "Several local products share this barcode. Select a product by name.": "Birden fazla yerel ürün aynı barkodu kullanıyor. Ürünü adına göre seçin.",
+  "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "Güvenilir sertifikası olan, yol içermeyen bir HTTPS sunucu adresi kullanın; örneğin https://gym.example.com.",
 }

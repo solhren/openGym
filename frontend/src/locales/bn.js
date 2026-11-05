@@ -2531,4 +2531,5 @@ export default {
   "{0} invalid products were omitted.": "{0} invalid products were omitted.",
   "Food catalogue": "খাদ্য তালিকা",
   "Several local products share this barcode. Select a product by name.": "একই বারকোডে একাধিক স্থানীয় পণ্য রয়েছে। নাম দিয়ে একটি পণ্য নির্বাচন করুন।",
+  "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "বিশ্বস্ত সার্টিফিকেটসহ একটি HTTPS সার্ভারের ঠিকানা ব্যবহার করুন, কোনো পাথ ছাড়া, যেমন https://gym.example.com।",
 }
