@@ -21,6 +21,13 @@ package version below is not a release identifier for these changes.
 - Publication hardening: pinned GitHub Actions, restricted inherited publishers, explicit
   read-only defaults, fork-specific issue/PR/security forms and documented licence evidence.
 
+- Beginner diagnostics and recovery guidance: read-only prerequisite/metadata checks,
+  matching localhost ports and actionable preparation output; no daemon or account-file access.
+- Admin access-policy summary and honest invitation loading/copy failures, manual-copy fields
+  and protection against repeated creation. Generic Android explains HTTPS and supports
+  keyboard pairing with one pending attempt. Nutrition announces results and restores search
+  focus after a failed product read. See [manual acceptance](docs/MANUAL_BETA_TESTS.md).
+
 **Known limitations:** real Docker lifecycle acceptance and generic Android compilation/device
 validation are manual work deferred beyond this source preparation. International OFF/wger
 installation is deferred to a future version; Ciqual is regional and has no retail barcodes.

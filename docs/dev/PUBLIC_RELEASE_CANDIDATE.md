@@ -357,3 +357,76 @@ findings and media/data distribution rights must remain visible in release revie
 The beginner path that exists today is personal or multi-user Web preparation with
 optional Ciqual; OFF/wger portable installation and a published generic APK are not
 being advertised as available.
+
+
+## Bounded usability follow-up — 5 November 2026
+
+Starting point: `69ab8319`. This follow-up does not rerun the full suites above or
+claim new Docker/native acceptance. It adds safe operator diagnostics and fixes
+observable UI recovery problems, without changing server APIs, synchronization,
+food values, snapshots or personal data. No new package dependency was added.
+
+Changes and reasons:
+
+- `scripts/self-hosting/doctor.py`: client-only prerequisites, bounded non-secret
+  instance/registry inspection, free disk/RAM and loopback-port probe. It never
+  contacts the Docker daemon, reads account/session/invitation files or rewrites
+  configuration. A usable client/metadata report is **not** service health or
+  catalogue integrity. The current port is not reserved for later startup.
+- `prepare.py`: reject mismatched localhost origin/listen ports before writing;
+  print exact next commands and diagnose-before-retry instructions. Existing
+  instance refusal remains intentional. Partial source copying is not resumed
+  automatically: keep it and choose a fresh directory; an already prepared
+  instance can retry catalogue acquisition/recovery through existing tools.
+- Admin: failed invitation reads previously looked empty, and failed clipboard
+  writes could announce success. Explicit loading/error/retry, selectable code
+  fields and single-flight creation now preserve truthful feedback. A created
+  code remains available if refresh fails, but is not presented as new after a
+  successful refresh shows it used. The managed mode/limit and operator-only
+  catalogue/backup tasks are explained. The existing English-only Admin convention
+  is retained; no fictitious catalogue management endpoint was added.
+- Generic Android pairing: explicit trusted HTTPS help and early use of the
+  existing URL validator, keyboard submit, disabled fields while pending, repeated
+  submit guard and cleanup of delayed focus/UI results. Legacy HTTP behavior is
+  unchanged outside this profile. The phone transport, secure storage, permissions,
+  key and package are unchanged; this is not an APK compilation result.
+- Nutrition: announce the actual returned result count with existing plural keys;
+  restore query/list/focus after a local product-detail error. French Search now
+  reads “Rechercher”. No nutrient, quantity or persistence rule was modified.
+
+The new HTTPS help sentence was added with assisted translations in 18 locale
+packs. The first structural check caught insertion into the derived `pt-BR`
+export rather than its override object; it was corrected. The final locale check
+passes; this is not a human review of every translation.
+
+| Final relevant verification | Result | Scope |
+| --- | --- | --- |
+| `python3 -m unittest discover -s scripts/self-hosting/tests -p 'test_*.py' -q` | 42 passed, 0 failed; 7.03 s | 34 existing installer/recovery tests plus 8 doctor/port tests; isolated files and simulated lifecycle, no real containers |
+| Targeted frontend command below | 77 passed in 9 files, 0 failed/skipped; 25.87 s | Actual React components with mocked networks/native facilities, durable journal fixtures and origin validation |
+| Final Admin recheck after fallback-code refinement | 15 passed in 2 files, 0 failed/skipped; 3.65 s | Overlaps the 77 tests; **not** 92 distinct tests |
+| `node frontend/scripts/check-locales.mjs` | 18 locales × 2,467 keys aligned | Parsing/key/placeholders, not human language acceptance |
+| Read-only doctor CLI against an absent temporary destination | Passed; did not create it | Real Compose client version and loopback probe; no daemon or private account reads |
+| Documentation local paths/anchors | 55 checked, no errors | Changed user guides plus Nutrition notes at this checkpoint |
+| `git diff --check` | Passed | No full build, full API or full frontend suite rerun |
+
+```bash
+npm --prefix frontend test -- --maxWorkers=1   src/views/Admin.test.jsx src/views/Admin.password.test.jsx   src/views/MobileOnboarding.public.test.jsx   src/views/MobileOnboarding.connect-error.test.jsx   src/views/MobileOnboarding.cf-access.test.jsx   src/views/MobileOnboarding.http.test.js src/lib/public-android.test.js   src/views/nutrition/FoodCatalog.test.jsx src/views/nutrition/FoodCatalog.native.test.jsx
+
+# Final focused rerun following the Admin fallback correction, not additional coverage:
+npm --prefix frontend test -- --maxWorkers=1   src/views/Admin.test.jsx src/views/Admin.password.test.jsx
+```
+
+Environment: Node 22.23.3, Vitest 4.1.11, Python 3.13.5; tests ran with one frontend
+worker. Observed final reserves were about **20.47 GiB disk** and **4.07 GiB RAM**.
+No catalogue import, Docker build/start, Android compilation or production action
+was performed. No fresh browser visual/responsive or physical camera assertion
+is made. The inherited runtime permission declarations still need merged-manifest
+and physical consent-flow review on the eventual generic APK.
+
+[Manual beta checklists](../MANUAL_BETA_TESTS.md) now provide isolated personal and
+multi-user installation, owner setup, journal, backups, restore/rollback and
+Android build/pair/switch/update instructions. They explicitly mark barcode-product
+acceptance blocked on Ciqual-only setups, where the scanner must be hidden.
+This source is ready for those manual trials after maintainer review; the deferred
+Docker, generic APK, licences/support and optional dependency gates from
+[publication preparation](../PUBLICATION.md) are not automatically cleared.
