@@ -2435,7 +2435,7 @@ export default {
   "Product image: CC BY-SA": "Image du produit : CC BY-SA",
   "Product name or brand": "Nom du produit ou marque",
   "Scan product barcode": "Scanner un code-barres de produit",
-  "Search": "Search",
+  "Search": "Rechercher",
   "Search Open Food Facts explicitly. Products are contributed by the community; values may be incomplete.": "Lance la recherche sur Open Food Facts. Les produits sont renseignés par la communauté ; les valeurs peuvent être incomplètes.",
   "Searching catalogue…": "Recherche dans le catalogue…",
   "Showing cached catalogue data": "Résultats du catalogue en cache",

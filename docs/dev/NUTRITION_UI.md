@@ -1,5 +1,18 @@
 # Nutrition interface — step 3
 
+## Bounded beta usability follow-up — 5 November 2026
+
+Catalogue result counts now use the existing translated singular/plural strings in a
+status announcement. A failed local detail read previously closed the combobox without
+reopening its results, leaving keyboard users without a visible route back. It now keeps
+the query/results, reports the error and restores input focus. The journal service, cached
+foods, provider selection, nutrient values, immutable snapshots and sync are unchanged.
+The French Search button now says “Rechercher”. Existing integration tests continue to cover
+quantity, durable add/edit/delete/reopen, partial nutrition and unavailable products.
+
+This follow-up is verified by component tests, not a fresh physical-device or browser
+responsive certification. See [manual beta acceptance](../MANUAL_BETA_TESTS.md).
+
 ## Android startup diagnosis — 3 November 2026
 
 Opening Home → Nutrition lazy-loads `views/Nutrition.jsx`. `useNutrition()` starts

@@ -363,3 +363,25 @@ test('public bilingual catalogue: search, attribution, mass-only journal, reopen
   expect((await service.day('2026-10-10')).entries[0].snapshot).toEqual(row.food)
   expect(service.getSnapshot().pending).toBeGreaterThan(0);expect(transport).not.toHaveBeenCalled();expect(local).toHaveBeenCalledTimes(2)
 },20000)
+
+
+test('catalogue announces matching results and restores search focus after a failed product read', async () => {
+  service.close(); await fixture.reopen()
+  const local = vi.fn(async path => {
+    if (!path.includes('/search?')) throw Error('disconnected during selection')
+    return response(localSearchBody())
+  })
+  service = createNutritionUISession({ store: fixture.store, session: fixture.session.value, getSession: () => fixture.session.value, online: () => false,
+    catalogLocalOnly: true, catalogTransport: transport, catalogLocalTransport: local,
+    catalogCapabilitiesTransport: async () => response(localCapabilities) })
+  await mount(); await click('Add food'); await click('Food catalogue')
+  const input = host.querySelector('[role="combobox"]'); await act(async () => input.focus()); await type(input, 'riz')
+  await wait(() => host.querySelector('[role="option"]'))
+  expect([...host.querySelectorAll('[role="status"]')].some(p => /\d+ results?/.test(p.textContent))).toBe(true)
+  await key(input, 'ArrowDown'); await key(input, 'Enter'); await wait(() => host.querySelector('[role="alert"]'))
+  expect(document.activeElement).toBe(input); expect(input.value).toBe('riz')
+  expect(input.getAttribute('aria-expanded')).toBe('true')
+  expect(host.querySelector('[role="listbox"]').hidden).toBe(false)
+  expect((await service.day('2026-10-10')).entries).toHaveLength(0)
+  expect(transport).not.toHaveBeenCalled()
+})

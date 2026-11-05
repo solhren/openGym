@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useId } from 'react'
 import { Button, SearchField } from '../../components/ui.jsx'
-import { t, getLang } from '../../lib/i18n.js'
+import { t, tn, getLang } from '../../lib/i18n.js'
 import { MOBILE } from '../../lib/mobile.js'
 import { scanCode } from '../../lib/scan.js'
 import { NutrientValues, FoodSource, fmt, labels } from './common.jsx'
@@ -74,7 +74,7 @@ export default function FoodCatalog({ service, onChoose, autoFocus = false }) {
       const found = await read(service.catalog.localOnly ? product.id : product.code, { signal:controller.signal, language:getLang().slice(0,2) })
       service.assertCurrent()
       if (alive.current && token === epoch.current) { setSelected(found.product); setResult(previous=>({...previous,...found})) }
-    } catch (failure) { if (alive.current && token === epoch.current && failure.name !== 'AbortError') setError(failure) }
+    } catch (failure) { if (alive.current && token === epoch.current && failure.name !== 'AbortError') { setError(failure); setOpen(true); input.current?.focus() } }
     finally { if (alive.current && token === epoch.current) setLoading(false) }
   }
   const keyboard = event => {
@@ -123,6 +123,7 @@ export default function FoodCatalog({ service, onChoose, autoFocus = false }) {
     {loading && <p role="status">{t('Searching catalogue…')}</p>}
     {error && <p className="nutrition-error" role="alert">{error.code === 'provider-unavailable' && `${t(mode === 'text' ? 'Product name or brand' : 'Barcode')}: `}{t(error.code === 'camera-permission-denied' ? 'Camera permission is needed to scan. Enable it in Settings.' : error.code === 'camera-unavailable' ? 'Barcode camera scanning is unavailable here. Type the code instead.' : error.code === 'not-found' && service.catalog.localOnly ? 'No catalogue products found' : messages[error.code] ?? 'The catalogue is unavailable. Your local foods remain available.')}{error.retryAfter ? ` ${t('Try again in {0} seconds.', error.retryAfter)}` : ''}</p>}
     {(result?.cached || result?.validation?.stale) && <p className="muted small">{t('Showing cached catalogue data')}</p>}
+    {!loading && !error && !selected && result?.products?.length > 0 && <p role="status" className="muted small">{tn('{0} result', '{0} results', result.products.length)}</p>}
     {result?.products && !result.products.length && <p role="status">{t('No catalogue products found')}</p>}
     {result?.rejected > 0 && <p className="muted small">{t('{0} invalid products were omitted.', result.rejected)}</p>}
     {(!selected || (local && mode === 'text')) && <div className="nutrition-results" id={local && mode === 'text' ? listId : undefined}
