@@ -143,6 +143,7 @@ not universal deployment instructions.
 
 | Need | Start here |
 | --- | --- |
+| Validate a disposable Docker install or generic Android build | [Manual beta checklists](docs/MANUAL_BETA_TESTS.md) |
 | Install for the first time | [Quick start](docs/QUICK_START.md) |
 | Administer, back up, update or roll back | [Self-hosting](docs/SELF_HOSTING.md) |
 | Understand personal/multi-user isolation and recovery | [Account policies](docs/dev/PUBLIC_ACCOUNT_MODES.md) |

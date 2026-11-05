@@ -10,6 +10,8 @@ import re
 import secrets
 import shutil
 import subprocess
+import shlex
+import sys
 from urllib.parse import urlsplit
 
 from state import private_write, reserve, restore
@@ -97,6 +99,8 @@ def installation_policy(mode=None, signup=None, max_users=None, allow_public=Fal
 def prepare(directory, origin, port=8080, project='opengym-selfhost', archive=None, repo=REPO, guard=reserve,
             catalogues=None, mode=None, signup=None, max_users=None, allow_public=False):
     host = browser_origin(origin)
+    if origin.startswith('http://localhost') and (urlsplit(origin).port or 80) != port:
+        raise ValueError('For localhost HTTP, --origin must include the same port as --port (default 8080)')
     policy = installation_policy(mode, signup, max_users, allow_public) if not archive or mode is not None else None
     from catalogue import plan_catalogues
     requested = plan_catalogues(repo, catalogues)
@@ -104,7 +108,7 @@ def prepare(directory, origin, port=8080, project='opengym-selfhost', archive=No
         raise ValueError('Use a lowercase project name and a port from 1024 to 65535')
     target = Path(directory).absolute()
     if target.exists() or target.is_symlink() or not target.parent.is_dir():
-        raise ValueError('Choose a new instance directory with an existing parent')
+        raise ValueError('Instance directory exists or its parent is missing. Nothing was overwritten. Run doctor.py INSTANCE for recovery instructions; prepare.py requires a NEW directory')
     if target.parent.resolve() != target.parent:
         raise ValueError('The instance parent must not contain symlinks')
     env_value(target)
@@ -187,16 +191,28 @@ def main():
     parser.add_argument('--max-users', type=int, help='Personal is fixed at 1; multi-user default 100, allowed 2..1000')
     parser.add_argument('--allow-public-signup', action='store_true', help='Acknowledge public registration after the first administrator has used the private bootstrap invite')
     args = parser.parse_args()
+    if sys.version_info < (3, 11):
+        parser.error('Python 3.11 or newer is required')
+    if not shutil.which('git'):
+        parser.error('Git is required to prepare the reviewed source checkout')
     if os.getuid() == 0:
         parser.error('Use the non-root account that will own the instance and run Docker')
     try:
         metadata = prepare(args.directory, args.origin, args.port, args.project, args.restore, catalogues=args.catalogues,
                            mode=args.mode, signup=args.signup, max_users=args.max_users, allow_public=args.allow_public_signup)
     except (OSError, ValueError, subprocess.SubprocessError) as error:
-        parser.exit(1, f'Preparation refused: {error}\n')
+        parser.exit(1, f'Preparation stopped: {error}\nExisting files were preserved. Diagnose before retrying:\n  python3 {shlex.quote(str(REPO / "scripts/self-hosting/doctor.py"))} {shlex.quote(str(Path(args.directory).absolute()))} --port {args.port}\n')
     mode = 'public catalogue registry selected' if isinstance(metadata['catalogue'], dict) else 'personal foods only'
     print(f"Prepared {metadata['release']}; {metadata['instanceMode']} / {metadata['signupPolicy']}; {mode}. No service was started.")
     print('Invitation: data/bootstrap-invite.txt inside the private instance directory (not printed).')
+    print('Next steps (builds/start are explicit; watch the resource reserve):')
+    print('  cd ' + shlex.quote(str(Path(args.directory).absolute())))
+    print('  docker compose --env-file instance.env -f compose.yaml config --quiet')
+    print('  docker compose --env-file instance.env -f compose.yaml build api')
+    print('  docker compose --env-file instance.env -f compose.yaml build web')
+    print('  python3 ' + shlex.quote(str(REPO / 'scripts/self-hosting/catalogue.py')) + ' apply ' + shlex.quote(str(Path(args.directory).absolute())))
+    print('  docker compose --env-file instance.env -f compose.yaml ps')
+    print('Open ' + metadata['origin'] + ' after the services are healthy. Remote access requires your trusted HTTPS proxy.')
 
 
 if __name__ == '__main__':

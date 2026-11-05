@@ -61,6 +61,25 @@ remote relay. Builds are separate and not constrained by these runtime limits. B
 reserve is at risk. These limits are intended for a small personal installation;
 no multi-user capacity benchmark is supplied.
 
+## Read-only troubleshooting
+
+```bash
+python3 scripts/self-hosting/doctor.py "$HOME/opengym-instance" --port 8080
+```
+
+Run from the reviewed checkout and pass your actual loopback web port. The command only
+runs the Compose **client version** check, reads bounded non-secret instance metadata and
+probes a TCP connection to that port; it never asks the daemon to list or change services.
+It does not read `db.json`, the session secret, invitations or `instance.env`. It cannot
+certify a running API, verify catalogue checksums or reserve a port for a later build.
+An exit code of 1 means a prerequisite/configuration check failed; warnings require review.
+Use `--json` for shareable findings and still review them before posting.
+
+The [quick-start recovery section](QUICK_START.md#if-preparation-was-interrupted) distinguishes
+retrying a download/configuration from starting a fresh source preparation. Existing data
+and generations are never removed by the helper. See [manual acceptance](MANUAL_BETA_TESTS.md)
+for actual Docker lifecycle tests, which remain unexecuted in this preparation.
+
 ## 1. Prepare a new instance
 
 Use a reviewed checkout or future tagged release **containing these tools**.
@@ -253,6 +272,12 @@ No account or password is pre-created. Registration requires the generated
 invitation is consumed by registration. In Settings → Account, confirm the admin
 dashboard is available and add another passkey if possible. A server backup
 preserves public credential records, not the authenticator's private key.
+
+The Admin page shows the configured personal/multi-user policy and account ceiling. It
+manages account access and invitations; it does **not** install catalogues, change server
+policy or make a complete server backup. Catalogue configuration remains in the operator
+commands below. An invitation read/copy failure is reported explicitly; codes can be
+selected in their read-only fields for manual copying. Share codes privately.
 
 In **personal mode**, registration closes after the owner has registered; an
 invitation cannot add a second owner. In **multi-user invite mode**, administrators

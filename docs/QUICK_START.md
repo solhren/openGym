@@ -24,6 +24,21 @@ space for sources, images and backups. These are operating reserves, not a
 tested minimum server specification. Full requirements and HTTPS setup are in
 [the self-hosting guide](SELF_HOSTING.md).
 
+## Check before you start
+
+From the reviewed checkout, run the read-only helper before creating an instance:
+
+```bash
+python3 scripts/self-hosting/doctor.py "$HOME/opengym-instance" --port 8080
+```
+
+It checks Git/Python/Compose client availability, the directory, resource reserves and
+whether the loopback web port answers. It never contacts the Docker daemon, reads account
+files or starts/stops anything. A busy port can belong to an existing instance: do not
+stop an unrelated service. Choose another `--port` and matching localhost `--origin`
+for a new installation. Run it again after a failure; `--json` gives a bounded report
+without invitation codes, account contents or private environment values.
+
 ## Prepare and start
 
 Set the actual checkout path. The example below is for a browser on the Docker
@@ -100,3 +115,23 @@ If catalogue configuration was interrupted, run `catalogue.py recover INSTANCE`
 before inspection or application. It completes the journaled configuration,
 without starting services. See the [full guide](SELF_HOSTING.md#4-manage-catalogue-selections)
 for source listing, selection, removal and rollback commands.
+
+## If preparation was interrupted
+
+Keep the instance directory. Re-running `prepare.py` over it is deliberately refused.
+Use `doctor.py` to distinguish these cases:
+
+- **Prepared instance, failed Ciqual download:** run `catalogue.py acquire INSTANCE`.
+  The existing bootstrap verifies completed files. If it reports an unpublished partial
+  attempt, follow its explicit `--restart` instruction; do not remove data yourself.
+- **Pending configuration journal:** run `catalogue.py recover INSTANCE` before `inspect`
+  or `apply`. Recovery verifies the recorded update and does not start services.
+- **Missing/invalid preparation files:** preserve that directory and the error report.
+  Start a fresh preparation in a **new** directory only if needed. This is not an automatic
+  repair of a partially copied source or account data; use a verified backup for data recovery.
+- **Images missing or build failed:** finish the separate `build api` / `build web` commands
+  in the existing prepared instance, then `catalogue.py apply INSTANCE`. Do not regenerate
+  the bootstrap invitation, run `down -v` or prune images/volumes to retry.
+
+For the first real container and phone acceptance run, follow the bounded
+[manual beta test checklists](MANUAL_BETA_TESTS.md) with disposable accounts.
