@@ -75,6 +75,15 @@ class ReleaseTests(unittest.TestCase):
             with self.assertRaises(ValueError): m.select_artifact(run_fixture(), [artifact | changed])
         with self.assertRaises(ValueError): m.select_artifact(run_fixture(), [artifact, artifact])
 
+    def test_missing_or_unsafe_origin_cannot_validate_or_publish(self):
+        self.bundle()
+        for origin in ['', 'http://gym.example.com', 'https://user:password@gym.example.com', 'https://gym.example.com/api']:
+            with self.subTest(origin=origin), patch.dict(os.environ, {'OPENGYM_ORIGIN': origin}):
+                with self.assertRaisesRegex(ValueError, 'OPENGYM_ORIGIN'):
+                    m.validate_bundle(self.folder)
+                with self.assertRaisesRegex(ValueError, 'OPENGYM_ORIGIN'):
+                    m.main('100')
+
     def test_valid_bundle(self):
         digest = self.bundle()
         self.assertEqual(m.validate_bundle(self.folder), digest)

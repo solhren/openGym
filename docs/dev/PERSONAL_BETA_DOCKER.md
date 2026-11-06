@@ -23,6 +23,8 @@ catalogues, données, volumes ou services Docker. Il refuse des changements
 Compose non enregistrés et une identité non autorisée ; une seconde exécution est neutre.
 
 ```bash
+DEPLOY_OWNER=$(id -un)
+DEPLOY_GROUP=$(id -gn)
 sudo install -o "$DEPLOY_OWNER" -g "$DEPLOY_GROUP" -m 0755 \
  /home/codex/openGym/scripts/private-beta/docker/fix-nginx-tmpfs.py \
  /srv/opengym/fix-nginx-tmpfs.py
@@ -188,6 +190,8 @@ libre, l'absence d'une stack openGym existante et la validité de `prepared.json
 
 ```bash
 set -e
+DEPLOY_OWNER=$(id -un)
+DEPLOY_GROUP=$(id -gn)
 STAGE=/home/codex/openGym/scripts/nutrition-local-catalog/runtime/private-beta-compose-20261102
 DEST=/srv/opengym
 sudo test -f "$STAGE/prepared.json"

@@ -140,6 +140,7 @@ class GitHub:
 
 
 def main(run_id):
+    approved_origin()  # Fail before reading/downloading or publishing with a missing target.
     require(re.fullmatch(r'[1-9][0-9]{0,19}', run_id) is not None, 'Invalid run ID')
     require(os.environ.get('GITHUB_ACTIONS') == 'true' and os.environ.get('GITHUB_REPOSITORY') == REPO and os.environ.get('GITHUB_ACTOR') == REPO.split('/')[0] and os.environ.get('GITHUB_REF') == 'refs/heads/feature/nutrition' and os.environ.get('GITHUB_EVENT_NAME') == 'workflow_dispatch' and bool(os.environ.get('GH_TOKEN')), 'Publication requires the owner-dispatched repository workflow token')
     publication_sha = os.environ.get('GITHUB_SHA', '')

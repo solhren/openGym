@@ -60,7 +60,7 @@ jobs:
       ANDROID_BETA_DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_BETA_DEBUG_KEYSTORE_BASE64 }}
 
   android-personal-release:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == github.repository_owner && inputs.android_release_run != '' && inputs.android_origin != ''
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == github.repository_owner && inputs.android_release_run != ''
     permissions:
       contents: write
       actions: read

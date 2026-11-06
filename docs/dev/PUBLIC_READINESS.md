@@ -289,3 +289,63 @@ Local validation artifacts are retained under the integration worktree
 The read-only catalogue benchmark script/JSON remain in the Nutrition worktree
 `scripts/nutrition-local-catalog/runtime/public-quality-evidence/` (ignored).
 These evidence paths are not runtime installation dependencies.
+
+
+## Portable configuration cleanup — 6 November 2026
+
+This follow-up removes personal hostnames and deployment-owner names from executable
+configuration and test fixtures. It does not change the application's training,
+Nutrition persistence, synchronization, account policies or Android application IDs.
+Repository links continue to identify this fork; existing Android package namespaces
+are retained for update/storage compatibility.
+
+- Tests use neutral reserved example domains. The personal frontend profile requires
+  `VITE_NUTRITION_CATALOG_ORIGIN`; its build wrapper accepts `OPENGYM_ORIGIN` or an
+  explicit CLI origin. There is no implicit personal server.
+- Docker preparation supplies the configured origin to build, API, initialization,
+  provenance labels and reverse-proxy routing. Missing values fail through Compose's
+  required-variable checks. Set `OPENGYM_ORIGIN` and its matching `OPENGYM_RP_ID` in
+  the reviewed Compose environment file. Generic nginx configuration contains no
+  personal hostname. Existing deployed/frozen packages are not modified.
+- Personal preparation mode is explicit (`--personal` / `OPENGYM_PERSONAL_BETA=1`),
+  rather than selected by comparing a hostname. Account/security policy stays the same
+  for the same selected mode.
+- Personal Android Actions build and distribution share an explicit origin input;
+  distribution rejects missing, unsafe or artifact-mismatched origins before publishing.
+  Repository-owner guards, immutable actions, application IDs and signature checks remain.
+- Offline deployment tools default to the current real owner, support
+  `OPENGYM_DEPLOY_OWNER`, and retain file-ownership, sudo/setuid, symlink, checksum
+  and concurrent-change checks. Root CI fixtures explicitly declare root ownership;
+  generated runtime UID/GID values remain nonzero. Root identities are simulated in
+  unit tests; no privileged shell or production operation is used for validation.
+
+See [the deployment-owner and origin instructions](PERSONAL_BETA_DOCKER.md) and
+[Android workflow inputs](ANDROID_APK_GITHUB.md) for operators. Reuse the existing
+origin when rebuilding an installation; do not change a server's stored identity or
+create a replacement Android signing key as part of this cleanup.
+
+Validation uses Node.js 22.23.3, npm 10.9.9 and Python 3.13.5, in the isolated
+`review/public-readiness` worktree.
+
+| Verification | Result | Command |
+| --- | --- | --- |
+| Complete API suite | 868 passed, 0 failed/skipped; 96.72 s | `npm --prefix api test -- --test-concurrency=2` |
+| Complete frontend suite | 5,962 passed across 455 files, 0 failed/skipped; 786.43 s | `npm --prefix frontend test -- --maxWorkers=1` |
+| Android publication/signature tools | 26 passed | `python3 -m unittest discover -s scripts/private-beta -p 'test_android_*.py' -q` |
+| Offline patch/owner tools | 7 passed | `python3 -m unittest discover -s scripts/private-beta/docker -p 'test_*.py' -q` |
+| Workflow publication policy | 12 passed | `node --test scripts/publication/check.test.mjs` |
+| Translation consistency | 18 locales, 2,467 keys each | `node frontend/scripts/check-locales.mjs` |
+
+The earlier targeted API/frontend checks overlap the complete suites and are not
+added to these totals. Node/Python syntax checks and `git diff --check` passed.
+The tracked-code/documentation scan finds no personal hostname or personal home
+directory. All 33 remaining non-Markdown owner-name occurrences are repository
+identifiers/links/guards or the deliberately stable Android package identifiers.
+No private `.env`, deployment, catalogue generation, signing key or user data was
+read or changed, and no push, image build or release publication was performed.
+
+
+The complete frontend run emitted a Node `MaxListenersExceededWarning` about eleven
+`unhandledRejection` listeners. The run still passed; no listener limit was increased
+and this configuration cleanup does not claim to diagnose that warning. Real Android
+build/device validation and Docker deployment were not performed or required here.
