@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Patch only the installed Compose frontend tmpfs and deployment checksums.
 
-Run as the deployment owner, never root. No Docker operation, volume, catalogue,
+Run as the configured deployment owner, without sudo. No Docker operation, volume, catalogue,
 source snapshot or image is changed. Original files are retained for recovery.
 """
 import copy
@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+from deployment_owner import verify_deployment_owner
 
 MOUNT = '/var/cache/nginx:rw,nosuid,nodev,noexec,size=4m,uid=101,gid=101,mode=0700'
 NAMES = ('compose.json', 'compose.lab.json')
@@ -22,8 +23,7 @@ def sha(raw):
 
 def patch(root):
     root = Path(root).resolve(strict=True)
-    if os.geteuid() == 0 or root.stat().st_uid != os.geteuid():
-        raise ValueError('Run as the deployment owner (solhren), not through sudo python')
+    verify_deployment_owner(root)
     before, after = {}, {}
     for name in (*NAMES, 'deployment.sha256'):
         file = root / name

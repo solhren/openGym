@@ -1,5 +1,7 @@
 import importlib.util
 import json
+import os
+import pwd
 from pathlib import Path
 import tempfile
 import unittest
@@ -13,6 +15,9 @@ spec.loader.exec_module(fix)
 
 class InstalledWarmupFixTests(unittest.TestCase):
     def setUp(self):
+        environment=patch.dict(os.environ,{"OPENGYM_DEPLOY_OWNER":pwd.getpwuid(os.getuid()).pw_name},clear=True)
+        environment.start()
+        self.addCleanup(environment.stop)
         runtime = folder.parents[1]/'nutrition-local-catalog/runtime'
         self.tmp = tempfile.TemporaryDirectory(prefix='private-beta-warmup-test-', dir=runtime)
         self.addCleanup(self.tmp.cleanup)

@@ -2,7 +2,7 @@
 
 ## Correctif du laboratoire installé : nginx sur racine readonly
 
-L'essai réel sous solhren a révélé `mkdir() "/var/cache/nginx/fastcgi_temp"
+L'essai réel sous le propriétaire du déploiement a révélé `mkdir() "/var/cache/nginx/fastcgi_temp"
 failed (30: Read-only file system)`. Le `/tmp` inscriptible ne couvre pas les
 répertoires par défaut FastCGI/uWSGI/SCGI que nginx initialise au démarrage,
 même si l'application utilise uniquement le reverse proxy HTTP. Le TimeoutError
@@ -15,17 +15,15 @@ ainsi que CPU, PID, capacités supprimées, no-new-privileges et SQLite readonly
 Le tmpfs compte dans cette limite mémoire, ne la relève pas. Aucun changement
 de Dockerfile, d'image ou de configuration applicative n'est nécessaire.
 
-L'installation sous `/srv/opengym` est inaccessible à codex
-(`/home/solhren` 0700). Le correctif n'y a donc pas été appliqué automatiquement.
-Depuis un terminal **solhren**, copier seulement l'outil de correction, puis
-l'exécuter sans sudo. L'outil sauvegarde les deux Compose et leur checksum,
+Si `/srv/opengym` appartient à un autre utilisateur, le propriétaire du déploiement
+doit copier l'outil de correction puis l'exécuter sans sudo. L'outil sauvegarde les deux Compose et leur checksum,
 ajoute seulement le montage frontend dans chacun, et actualise
 `deployment.sha256`. Il ne touche pas au contexte source figé, aux images,
 catalogues, données, volumes ou services Docker. Il refuse des changements
-Compose non enregistrés et une exécution root ; une seconde exécution est neutre.
+Compose non enregistrés et une identité non autorisée ; une seconde exécution est neutre.
 
 ```bash
-sudo install -o solhren -g solhren -m 0755 \
+sudo install -o "$DEPLOY_OWNER" -g "$DEPLOY_GROUP" -m 0755 \
  /home/codex/openGym/scripts/private-beta/docker/fix-nginx-tmpfs.py \
  /srv/opengym/fix-nginx-tmpfs.py
 cd /srv/opengym
@@ -67,7 +65,7 @@ La recherche, son classement et son délai de **2 secondes** ne changent pas ;
 le budget optionnel de préchargement de 3 s n'est pas relevé. Voir le diagnostic
 et les mesures dans [NUTRITION_LOCAL_CATALOG_PROTOTYPE.md](NUTRITION_LOCAL_CATALOG_PROTOTYPE.md).
 
-L'installation réelle reste privée à solhren. Le helper lit les deux Compose
+L'installation réelle reste privée au propriétaire du déploiement. Le helper lit les deux Compose
 résolus pour trouver leur véritable contexte backend (y compris SOURCE_CONTEXT),
 puis sauvegarde et met à jour seulement `wger-off-reference.py` et ses métadonnées
 `source-inventory.json`, `source.sha256`, `prepared.json`. Les checksums restent
@@ -78,10 +76,10 @@ modifiés. OPENGYM_RELEASE est conservé pour garder aussi le **même nom de vol
 du laboratoire** et ne pas imposer de reconstruire le frontend ; le reçu consigne
 l'ancienne et la nouvelle empreinte source.
 
-Depuis SSH **solhren**, sans aucun déploiement public :
+Depuis SSH **le propriétaire du déploiement**, sans aucun déploiement public :
 
 ```bash
-sudo install -o solhren -g solhren -m 0644 -t /srv/opengym \
+sudo install -o "$DEPLOY_OWNER" -g "$DEPLOY_GROUP" -m 0644 -t /srv/opengym \
  /home/codex/openGym/scripts/private-beta/docker/fix-catalog-warmup.py \
  /home/codex/openGym/scripts/nutrition-local-catalog/profile-reference-search.py
 cd /srv/opengym
@@ -116,7 +114,7 @@ Attendu : `passed: true`, `warmupPlan` mentionne `search_rank_idx`, 20 résultat
 pour chacune des six recherches, références g/ml correctes et chaque recherche
 sous 2 s. L'initialisation et les hashes sont mesurés séparément, pas assimilés à
 la latence SQL. Les tests locaux passent (43 wger, 4 installer, 17 Node/API), mais
-le correctif n'a pas été appliqué ni compilé sous solhren par codex : accès privé
+le correctif n'a pas été appliqué ni compilé dans le répertoire privé par le compte de développement : accès privé
 et accès au moteur Docker non disponibles. La validation dans la stack réelle
 reste nécessaire avant de considérer le timeout Docker résolu.
 
@@ -139,7 +137,7 @@ Aucun middleware Authelia ajouté. L'API réutilise son authentification existan
 Code et build dans les images, volume personnel indépendant, catalogue monté
 depuis `/srv/opengym/catalogues` : aucun chemin `/home/codex`
 n'est utilisé à l'exécution. UID backend 1000, nginx 101, tous deux non root.
-Les fichiers de déploiement sont administrés par solhren (1000:1000).
+Les fichiers de déploiement sont administrés par le propriétaire choisi.
 
 ## Instantané de catalogue sans reconstruction
 
@@ -183,7 +181,7 @@ rejouer exactement un déploiement ou revenir en arrière. Aucune installation h
 
 L'instantané initial est préparé sous :
 `/home/codex/openGym/scripts/nutrition-local-catalog/runtime/private-beta-compose-20261102`.
-Après examen et accord, depuis SSH **solhren**, ce transfert nécessite sudo car
+Après examen et accord, depuis SSH **le propriétaire du déploiement**, ce transfert nécessite sudo car
 le dossier de codex est privé. Il déplace uniquement le nouvel instantané, pas les
 générations d'origine. Vérifier auparavant le même système de fichiers, l'espace
 libre, l'absence d'une stack openGym existante et la validité de `prepared.json`.
@@ -194,15 +192,15 @@ STAGE=/home/codex/openGym/scripts/nutrition-local-catalog/runtime/private-beta-c
 DEST=/srv/opengym
 sudo test -f "$STAGE/prepared.json"
 sudo test ! -e "$DEST"
-sudo install -d -m 0755 -o solhren -g solhren /home/solhren/services
+sudo install -d -m 0755 -o "$DEPLOY_OWNER" -g "$DEPLOY_GROUP" /srv
 # Les deux chemins doivent être sur le même volume ; sinon arrêter.
-sudo stat -c '%d %n' "$STAGE" /home/solhren/services
-test "$(sudo stat -c %d "$STAGE")" = "$(stat -c %d /home/solhren/services)"
+sudo stat -c '%d %n' "$STAGE" /srv
+test "$(sudo stat -c %d "$STAGE")" = "$(stat -c %d /srv)"
 sudo mv -T -- "$STAGE" "$DEST"
-sudo chown solhren:solhren "$DEST" "$DEST/backups"
-sudo chown -R solhren:solhren "$DEST/source"
-sudo find "$DEST" -maxdepth 1 -type f -exec chown solhren:solhren {} +
-sudo find "$DEST/catalogues" -type d -exec chown solhren:solhren {} +
+sudo chown "$DEPLOY_OWNER:$DEPLOY_GROUP" "$DEST" "$DEST/backups"
+sudo chown -R "$DEPLOY_OWNER:$DEPLOY_GROUP" "$DEST/source"
+sudo find "$DEST" -maxdepth 1 -type f -exec chown "$DEPLOY_OWNER:$DEPLOY_GROUP" {} +
+sudo find "$DEST/catalogues" -type d -exec chown "$DEPLOY_OWNER:$DEPLOY_GROUP" {} +
 # NE PAS faire de chown/chmod récursif des fichiers SQLite.
 cd "$DEST"
 # Confirmer aussi le disque utilisé par Docker avant tout build.
@@ -212,7 +210,7 @@ test "$(stat -c %d .)" = "$(stat -c %d "$DOCKER_ROOT")"
 ./manage.sh check
 ```
 
-Aucun sudo nécessaire ensuite si solhren a déjà accès au moteur Docker, comme
+Aucun sudo nécessaire ensuite si le propriétaire a déjà accès au moteur Docker, comme
 pour ses autres stacks. Ne pas changer les groupes ou permissions du socket pour
 contourner un refus. La réservation du réseau `net` est réutilisée, jamais recréée.
 Si Docker stocke ses images sur un autre système de fichiers, arrêter : son
@@ -430,7 +428,7 @@ compte ou repas réel utilisé.
 
 ### Conditions avant activation
 
-1. Exécuter le laboratoire Docker depuis le terminal autorisé de solhren : build,
+1. Exécuter le laboratoire Docker depuis le terminal du propriétaire autorisé : build,
    droits du volume neuf, HTTP via nginx, refus anonymes, egress interne isolé,
    redémarrage du backend/worker et montage readonly doivent réussir.
 2. Appliquer et valider dans Docker le correctif COUNT(id) du préchargement
@@ -478,3 +476,24 @@ the backend's origin checks and authentication remain authoritative.
 
 No running installation or previously prepared package is modified by source edits.
 Do not replace an existing instance's origin/data binding to rename a server.
+
+
+## Deployment owner and root CI
+
+Run offline patch tools as the owner of the deployment files, without sudo.
+`OPENGYM_DEPLOY_OWNER` defaults to the current OS identity; set it explicitly when
+reviewing a different ownership configuration. The tools still require that identity
+to match the invoking UID and every file's ownership and still reject sudo/setuid,
+symlinks, unrecorded changes and concurrent edits.
+
+In isolated root-owned CI fixtures only, `OPENGYM_DEPLOY_OWNER=root` is an explicit
+opt-in. It does not allow patching files owned by other users or make generated
+containers privileged. Configuration generation uses nonzero
+`OPENGYM_RUNTIME_UID`/`OPENGYM_RUNTIME_GID` (defaults: invoking nonzero IDs, or
+1000:1000 in root CI). Prefer an unprivileged deployment owner on a real host.
+For administrative transfer examples above, first set:
+
+```sh
+export DEPLOY_OWNER="$(id -un)"
+export DEPLOY_GROUP="$(id -gn)"
+```

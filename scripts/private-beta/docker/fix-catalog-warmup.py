@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Apply the one-SELECT warmup fix to the installed frozen backend context.
 
-Run as solhren. Compose config is read only to locate the real build context.
+Run as the configured deployment owner. Compose config is read only to locate the real build context.
 No image build, container action, catalogue/volume access or secret is involved.
 """
 import ast
@@ -12,6 +12,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from deployment_owner import verify_deployment_owner
 
 TARGET = 'scripts/nutrition-local-catalog/wger-off-reference.py'
 OLD = b'SELECT count(*)FROM products INDEXED BY search_rank_idx'
@@ -39,8 +40,7 @@ def resolve_context(root):
 
 def patch(root, context=None):
     root = Path(root).resolve(strict=True)
-    if os.geteuid() == 0 or root.stat().st_uid != os.geteuid():
-        raise ValueError('Run as the deployment owner (solhren), not sudo python')
+    verify_deployment_owner(root)
     context = resolve_context(root) if context is None else Path(context).resolve(strict=True)
     if not context.is_relative_to(root) or context.name != 'source':
         raise ValueError('Expected a source context within this deployment')

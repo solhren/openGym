@@ -1,3 +1,4 @@
+import {userInfo} from 'node:os';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -45,7 +46,7 @@ function installedFixture(t){
  fs.writeFileSync(path.join(dir,'deployment.sha256'),Object.entries(before).map(([n,v])=>sha(v)+'  '+n+'\n').join('')+'a'.repeat(64)+'  manage.sh\n');
  fs.writeFileSync(path.join(dir,'source.sha256'),'source snapshot must stay unchanged');
  const script=fileURLToPath(new URL('../../scripts/private-beta/docker/fix-nginx-tmpfs.py',import.meta.url));
- return {dir,before,run:()=>spawnSync('python3',[script,dir],{encoding:'utf8'})};
+ return {dir,before,run:(extra={})=>spawnSync('python3',[script,dir],{encoding:'utf8',env:{PATH:process.env.PATH,OPENGYM_DEPLOY_OWNER:userInfo().username,...extra}})};
 }
 test('installed nginx fix updates both real-format Compose files and checksums without changing services or sources',t=>{
  const f=installedFixture(t),r=f.run();assert.equal(r.status,0,r.stderr);
@@ -102,4 +103,8 @@ test('offline backup validates its private state, estimates space and emits only
 
 test('personal stack uses only the configured HTTPS origin and rejects unsafe origins',()=>{
  const c=stack({origin:'https://gym.example.com'});assert.equal(c.services.backend.environment.ORIGIN,'https://gym.example.com');assert.equal(c.services.backend.environment.RP_ID,'gym.example.com');assert.equal(c.services.frontend.build.args.OPENGYM_ORIGIN,'https://gym.example.com');assert.equal(c.services.frontend.labels['traefik.http.routers.opengym-personal.rule'],'Host(`gym.example.com`)');assert.equal(c.services.initialize.command[1],'https://gym.example.com');assert.throws(()=>stack({origin:'http://gym.example.com'}));
+});
+test('installed patch refuses a different configured owner and sudo before changing any file',t=>{
+ const f=installedFixture(t);
+ for(const env of [{OPENGYM_DEPLOY_OWNER:'not-the-fixture-owner'},{SUDO_USER:'fixture-admin'},{SUDO_UID:'0'}]){const r=f.run(env);assert.equal(r.status,1);assert.match(r.stderr,/deployment|OPENGYM_DEPLOY_OWNER/);for(const [name,raw]of Object.entries(f.before))assert.equal(fs.readFileSync(path.join(f.dir,name),'utf8'),raw);}
 });
