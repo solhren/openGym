@@ -2,6 +2,8 @@
 
 Plan workouts, log sets and body weight, and keep a food journal in one self-hosted app.
 
+**[Try the interactive demo — no installation or account needed](https://solhren.github.io/openGym/)**
+
 This is [solhren/openGym](https://github.com/solhren/openGym), a fork of
 [DuarteSantos8/openGym](https://github.com/DuarteSantos8/openGym). Duarte Santos and the upstream
 contributors built the original application. This fork adds an experimental Nutrition workflow
@@ -9,8 +11,7 @@ and local food-catalogue integration. The application code retains its GNU AGPL 
 third-party data and media have separate terms.
 
 **Status: source beta candidate on `review/public-readiness`, awaiting maintainer review.**
-This branch is prepared locally; it has not been published by this review. The existing
-personal beta on `feature/nutrition` is a separate deployment. The current public scope is
+The existing personal beta on `feature/nutrition` is a separate deployment. The current public scope is
 Web self-hosting source, personal or multi-user accounts, and an optional small Ciqual
 catalogue. Real Docker acceptance and generic Android compilation/device tests are deferred
 manual validations. International OFF/wger installation is deferred to a future version.
@@ -22,11 +23,11 @@ See the [publication checklist and evidence](docs/PUBLICATION.md) before distrib
 
 ## Try the interface without a server
 
-A [browser-only demo](docs/DEMO.md) is available to build locally with
-`npm --prefix frontend run build:demo`. It includes fictional workouts and Nutrition
-examples; you can create foods and log meals using this browser's local storage.
-It needs no account or food API. **GitHub Pages publication is still pending**;
-this is not a link to a running public demo.
+Open the **[live browser demo](https://solhren.github.io/openGym/)** to try openGym
+without installing anything or creating an account. It includes fictional workouts
+and Nutrition examples: create foods, log meals, and edit quantities using this
+browser's local storage. No food API or connection to a personal server is needed.
+See [demo scope and local build instructions](docs/DEMO.md) for details.
 
 ## What you can do
 

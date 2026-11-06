@@ -1,6 +1,7 @@
 # Browser-only demo
 
-The fork's static demo is prepared for GitHub Pages. **It is not published yet.**
+The **[live browser demo](https://solhren.github.io/openGym/)** is hosted on GitHub Pages.
+On 6 November 2026, its URL returned HTTP 200 with the openGym app shell.
 It runs the real interface and local persistence, with fictional workout history,
 four editable example foods (including one with an unknown nutrient), a recipe
 and two breakfast entries. Examples are not dietary advice or a verified food catalogue.
@@ -37,7 +38,7 @@ The build ignores `.env` files and inherited `VITE_*` flags. Output: `frontend/d
 Do not copy private files or `catalogue/media` into it. API transports reject requests
 in demo builds and the Nutrition picker exposes only local foods/recipes.
 
-## Maintainer publication (pending)
+## Maintainer publication and updates
 
 The dedicated manual `demo-preview.yml` workflow builds this folder and can publish it
 to GitHub Pages only in `solhren/openGym`, when launched by `solhren` from

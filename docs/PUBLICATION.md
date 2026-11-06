@@ -242,3 +242,29 @@ production deployment inherits a validation claim from that record alone.
 
 Insert the actual tag/commit, working feedback links and updated validation results
 when publishing. Do not silently copy inherited upstream release/version claims.
+
+
+## Repository description and demo link
+
+The public demo URL returned HTTP 200 with the application shell on 6 November 2026.
+The README now links directly to it; visitors need no installation or account.
+The repository's **About** metadata is a GitHub setting, not a versioned file. The
+following values are prepared for the repository owner to apply; a documentation
+commit or push does not update those fields automatically:
+
+- **Description:** `Self-hosted workout and nutrition tracker. Try the interactive browser demo: https://solhren.github.io/openGym/`
+- **Website:** `https://solhren.github.io/openGym/`
+
+Use the About edit control on the repository homepage, or an already installed,
+owner-authenticated GitHub CLI ([official command reference](https://cli.github.com/manual/gh_repo_edit)):
+
+```sh
+test "$(gh api user --jq .login)" = solhren && \
+  gh repo edit solhren/openGym \
+    --description 'Self-hosted workout and nutrition tracker. Try the interactive browser demo: https://solhren.github.io/openGym/' \
+    --homepage 'https://solhren.github.io/openGym/'
+```
+
+The diagnostic connector was authenticated as another account with read-only repository
+access, so it was not used to modify this metadata. The operator must apply the setting
+with the repository owner's account. No production configuration is involved.
