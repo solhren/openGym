@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == 'solhren' && github.ref == 'refs/heads/review/public-readiness'
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == github.repository_owner && github.ref == 'refs/heads/review/public-readiness'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -45,7 +45,7 @@ jobs:
         with:
           path: frontend/dist-demo/
   deploy:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == 'solhren' && github.ref == 'refs/heads/review/public-readiness' && inputs.publish == true
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == github.repository_owner && github.ref == 'refs/heads/review/public-readiness' && inputs.publish == true
     needs: build
     runs-on: ubuntu-24.04
     # Pages itself remains bounded to 10 min. Allow setup/polling/cancellation

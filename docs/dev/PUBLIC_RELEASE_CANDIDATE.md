@@ -269,7 +269,7 @@ conditional, and the explicit public Android profile has an empty personal origi
 even if a stale host override is inherited. The personal profile's original origin
 is unchanged. Fresh Web and generic mobile-web builds succeeded from `045752fe`.
 The mobile copy check, distribution marker, referenced assets and service-worker
-stamp passed, and **no `https://gym.solhren.fr` string remained in its JS assets**.
+stamp passed, and **no `https://gym.example.com` string remained in its JS assets**.
 These Vite builds do not include media staging, Capacitor sync, Gradle or an APK.
 The builder that performs those steps is prepared for an equipped machine.
 

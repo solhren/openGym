@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 // Run through `docker compose exec backend ...`; no public port or auth secret.
-const origin='https://gym.solhren.fr',get=async path=>fetch('http://frontend:8080'+path,{headers:{Origin:origin},signal:AbortSignal.timeout(5000)});
+import {betaOrigin} from '../../../api/nutrition/catalog-beta.js';
+const origin=betaOrigin(process.env.OPENGYM_ORIGIN||process.env.ORIGIN).origin,get=async path=>fetch('http://frontend:8080'+path,{headers:{Origin:origin},signal:AbortSignal.timeout(5000)});
 const r=await get('/api/config'),c=await r.json();assert.equal(r.status,200);assert.equal(c.personal_beta,true);assert.equal(c.allow_guest,false);assert.equal(c.invite_only,true);
 for(const path of ['/api/data','/api/nutrition/head','/api/nutrition/catalog/search?q=Nutella'])assert.equal((await get(path)).status,401);
 const {WgerCatalogWorker}=await import('../../nutrition-local-catalog/wger-worker-client.mjs');

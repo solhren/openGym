@@ -15,7 +15,7 @@ ainsi que CPU, PID, capacités supprimées, no-new-privileges et SQLite readonly
 Le tmpfs compte dans cette limite mémoire, ne la relève pas. Aucun changement
 de Dockerfile, d'image ou de configuration applicative n'est nécessaire.
 
-L'installation sous `/home/solhren/services/opengym` est inaccessible à codex
+L'installation sous `/srv/opengym` est inaccessible à codex
 (`/home/solhren` 0700). Le correctif n'y a donc pas été appliqué automatiquement.
 Depuis un terminal **solhren**, copier seulement l'outil de correction, puis
 l'exécuter sans sudo. L'outil sauvegarde les deux Compose et leur checksum,
@@ -27,8 +27,8 @@ Compose non enregistrés et une exécution root ; une seconde exécution est neu
 ```bash
 sudo install -o solhren -g solhren -m 0755 \
  /home/codex/openGym/scripts/private-beta/docker/fix-nginx-tmpfs.py \
- /home/solhren/services/opengym/fix-nginx-tmpfs.py
-cd /home/solhren/services/opengym
+ /srv/opengym/fix-nginx-tmpfs.py
+cd /srv/opengym
 python3 ./fix-nginx-tmpfs.py .
 docker compose --env-file images.conf -f compose.json config --quiet
 docker compose --env-file images.conf -f compose.lab.json config --quiet
@@ -81,10 +81,10 @@ l'ancienne et la nouvelle empreinte source.
 Depuis SSH **solhren**, sans aucun déploiement public :
 
 ```bash
-sudo install -o solhren -g solhren -m 0644 -t /home/solhren/services/opengym \
+sudo install -o solhren -g solhren -m 0644 -t /srv/opengym \
  /home/codex/openGym/scripts/private-beta/docker/fix-catalog-warmup.py \
  /home/codex/openGym/scripts/nutrition-local-catalog/profile-reference-search.py
-cd /home/solhren/services/opengym
+cd /srv/opengym
 python3 fix-catalog-warmup.py .
 # Garde une référence à l'image précédente, sans copie de couche ni de données :
 docker image tag "$(docker compose --env-file images.conf -f compose.lab.json images -q backend)" \
@@ -124,7 +124,7 @@ Cette préparation remplace les unités systemd proposées dans PERSONAL_BETA.md
 Aucun service systemd openGym n'est créé. Aucun conteneur, réseau partagé, DNS ou
 proxy existant n'est modifié pendant la préparation. Activation après accord.
 
-Invariants : `gym.solhren.fr`, compte unique avec invitation initiale privée puis
+Invariants : `gym.example.com`, compte unique avec invitation initiale privée puis
 inscriptions closes, aucun invité même en panne, appairage natif sécurisé,
 catalogue entièrement local et readonly, contrats Nutrition et données conservés.
 
@@ -137,7 +137,7 @@ publié. L'option explicite `OPENGYM_BETA_DOCKER=1` autorise l'écoute conteneur
 Aucun middleware Authelia ajouté. L'API réutilise son authentification existante.
 
 Code et build dans les images, volume personnel indépendant, catalogue monté
-depuis `/home/solhren/services/opengym/catalogues` : aucun chemin `/home/codex`
+depuis `/srv/opengym/catalogues` : aucun chemin `/home/codex`
 n'est utilisé à l'exécution. UID backend 1000, nginx 101, tous deux non root.
 Les fichiers de déploiement sont administrés par solhren (1000:1000).
 
@@ -191,7 +191,7 @@ libre, l'absence d'une stack openGym existante et la validité de `prepared.json
 ```bash
 set -e
 STAGE=/home/codex/openGym/scripts/nutrition-local-catalog/runtime/private-beta-compose-20261102
-DEST=/home/solhren/services/opengym
+DEST=/srv/opengym
 sudo test -f "$STAGE/prepared.json"
 sudo test ! -e "$DEST"
 sudo install -d -m 0755 -o solhren -g solhren /home/solhren/services
@@ -226,7 +226,7 @@ Ces commandes ne publient aucun port et ne modifient aucune autre stack. Ne pas
 les considérer comme déjà exécutées si le moteur Docker n'était pas accessible.
 
 ```bash
-cd /home/solhren/services/opengym
+cd /srv/opengym
 ./manage.sh build
 # Nouveau volume et réseau de laboratoire ; aucune route Traefik dans ce Compose.
 docker compose --env-file images.conf -f compose.lab.json run --rm --no-deps initialize
@@ -256,17 +256,17 @@ avant les réserves de ressources ; le script surveille aussi builds/sauvegardes
 
 ## Activation personnelle — après autorisation explicite uniquement
 
-Vérifier l'absence de route concurrente `Host(gym.solhren.fr)` et les métadonnées
+Vérifier l'absence de route concurrente `Host(gym.example.com)` et les métadonnées
 du réseau `net` avant cette opération. Les labels définissent `websecure`, TLS
 `letsencrypt`, port conteneur 8080 ; aucun middleware Authelia. Pas de modification
 du DNS nécessaire pour l'IPv4 constatée. Aucun fichier ACME/secret n'est affiché.
 
 ```bash
-cd /home/solhren/services/opengym
+cd /srv/opengym
 ./manage.sh initialize
 ./manage.sh start
 ./manage.sh status
-curl --fail --head --max-time 20 https://gym.solhren.fr
+curl --fail --head --max-time 20 https://gym.example.com
 ```
 
 La première activation crée uniquement `opengym-personal-data-v1`. Docker peuple
@@ -284,7 +284,7 @@ docker compose --env-file images.conf -f compose.json exec backend \
  cat /var/lib/opengym-beta/bootstrap-invite.txt
 ```
 
-Créer votre passkey depuis Chrome Android sur `https://gym.solhren.fr`, avec le
+Créer votre passkey depuis Chrome Android sur `https://gym.example.com`, avec le
 nom que vous choisissez et cette invitation. Les inscriptions sont alors closes.
 Dans Paramètres → Compte, demander le code d'appairage mobile à usage unique,
 puis le saisir dans l'APK. L'APK n'utilise ni localhost comme backend ni un tunnel
@@ -342,7 +342,7 @@ Depuis le paquet source sur un poste avec Node 22, JDK 21 et SDK 35 :
 ```bash
 cd source
 (cd frontend && npm ci)
-node scripts/private-beta/build-android.mjs https://gym.solhren.fr
+node scripts/private-beta/build-android.mjs https://gym.example.com
 ```
 
 Le script produit le debug `ch.duartesantos.opengym.test` séparé de l'application
@@ -463,3 +463,18 @@ utilisateur.
 Références : [réseaux Compose](https://docs.docker.com/reference/compose-file/networks/),
 [volumes Docker](https://docs.docker.com/engine/storage/volumes/),
 [images épinglées](https://docs.docker.com/build/building/best-practices/#pin-base-image-versions).
+
+
+## Portable deployment origin
+
+Examples use `https://gym.example.com`; replace it with your approved HTTPS origin.
+There is no personal-domain fallback. Set `OPENGYM_ORIGIN=https://gym.example.com`
+and `OPENGYM_RP_ID=gym.example.com` in the reviewed Compose environment file
+(e.g. `images.conf`). The latter must match the origin hostname. Compose supplies
+`OPENGYM_ORIGIN` to the frontend build and initialization; API startup validates its
+origin/RP ID against the isolated data marker. Reuse the same values for updates.
+The frontend nginx default virtual host accepts traffic routed by your existing proxy;
+the backend's origin checks and authentication remain authoritative.
+
+No running installation or previously prepared package is modified by source edits.
+Do not replace an existing instance's origin/data binding to rename a server.

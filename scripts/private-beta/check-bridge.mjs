@@ -24,11 +24,11 @@ try{
  if(failure)throw failure;
  assert.ok(fs.existsSync(socket),'socket bridge must become ready');
  const result=await new Promise((resolve,reject)=>{
-  const req=http.get({socketPath:socket,path:'/api/config',headers:{Origin:'https://gym.solhren.fr',Authorization:'Bearer synthetic-bridge-test'}},res=>{
+  const req=http.get({socketPath:socket,path:'/api/config',headers:{Origin:'https://gym.example.com',Authorization:'Bearer synthetic-bridge-test'}},res=>{
    let text='';res.setEncoding('utf8');res.on('data',v=>text+=v);res.once('end',()=>{try{resolve(JSON.parse(text));}catch(e){reject(e);}});
   });req.once('error',reject);req.setTimeout(5000,()=>req.destroy(new Error('bridge verification timed out')));
  });
- assert.deepEqual(result,{path:'/api/config',origin:'https://gym.solhren.fr',authorization:'Bearer synthetic-bridge-test'});
+ assert.deepEqual(result,{path:'/api/config',origin:'https://gym.example.com',authorization:'Bearer synthetic-bridge-test'});
  console.log(JSON.stringify({unixBridge:'passed',apiListen:'127.0.0.1',headersPreserved:true,systemdInstalled:false,dockerTested:false}));
 }catch(e){console.error(e.message);process.exitCode=1;}
 finally{

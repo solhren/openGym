@@ -20,7 +20,7 @@ spec.loader.exec_module(m)
 
 
 def run_fixture():
-    return {'id': 100, 'run_attempt': 1, 'repository': {'full_name': m.REPO}, 'head_repository': {'full_name': m.REPO}, 'actor': {'login': 'solhren'}, 'head_branch': 'feature/nutrition', 'event': 'workflow_dispatch', 'path': '.github/workflows/test.yml', 'status': 'completed', 'conclusion': 'success', 'head_sha': 'a' * 40}
+    return {'id': 100, 'run_attempt': 1, 'repository': {'full_name': m.REPO}, 'head_repository': {'full_name': m.REPO}, 'actor': {'login': m.REPO.split('/')[0]}, 'head_branch': 'feature/nutrition', 'event': 'workflow_dispatch', 'path': '.github/workflows/test.yml', 'status': 'completed', 'conclusion': 'success', 'head_sha': 'a' * 40}
 
 
 def jobs_fixture():
@@ -29,6 +29,9 @@ def jobs_fixture():
 
 class ReleaseTests(unittest.TestCase):
     def setUp(self):
+        self.origin_env = patch.dict(os.environ, {"OPENGYM_ORIGIN": "https://gym.example.com"})
+        self.origin_env.start()
+        self.addCleanup(self.origin_env.stop)
         self.tmp = tempfile.TemporaryDirectory(prefix='opengym-public-release-test-')
         self.addCleanup(self.tmp.cleanup)
         self.folder = Path(self.tmp.name)
@@ -40,7 +43,7 @@ class ReleaseTests(unittest.TestCase):
                 z.writestr(extra, 'synthetic fixture')
         digest = hashlib.sha256((self.folder / m.APK).read_bytes()).hexdigest()
         (self.folder / (m.APK + '.sha256')).write_text(digest + '  ' + m.APK + '\n')
-        (self.folder / 'build.json').write_text(json.dumps({'origin': 'https://gym.solhren.fr', 'localOnly': True, 'personalAccountRequired': True, 'applicationId': 'ch.duartesantos.opengym.test', 'variant': 'debug', 'physicalDeviceTested': False}))
+        (self.folder / 'build.json').write_text(json.dumps({'origin': 'https://gym.example.com', 'localOnly': True, 'personalAccountRequired': True, 'applicationId': 'ch.duartesantos.opengym.test', 'variant': 'debug', 'physicalDeviceTested': False}))
         return digest
 
     def release(self):
@@ -180,7 +183,7 @@ class ReleaseTests(unittest.TestCase):
         for resumed in [False, True]:
             with self.subTest(resumed=resumed), tempfile.TemporaryDirectory(prefix='opengym-publisher-test-') as runtime:
                 fake = FakeGitHub(resumed)
-                env = {'GITHUB_ACTIONS': 'true', 'GITHUB_REPOSITORY': m.REPO, 'GITHUB_ACTOR': 'solhren',
+                env = {'OPENGYM_ORIGIN': 'https://gym.example.com', 'GITHUB_ACTIONS': 'true', 'GITHUB_REPOSITORY': m.REPO, 'GITHUB_ACTOR': m.REPO.split('/')[0],
                        'GITHUB_REF': 'refs/heads/feature/nutrition', 'GITHUB_EVENT_NAME': 'workflow_dispatch',
                        'GITHUB_SHA': 'b' * 40, 'GH_TOKEN': 'synthetic-test-token', 'RUNNER_TEMP': runtime,
                        'GITHUB_STEP_SUMMARY': str(Path(runtime) / 'summary.md'), 'ANDROID_HOME': runtime}

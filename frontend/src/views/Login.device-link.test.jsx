@@ -35,7 +35,7 @@ vi.mock('../lib/api.js', () => ({
   createPasskey: vi.fn(),
 }))
 vi.mock('../lib/demo.js', () => ({ DEMO: false, REPO: 'https://example.invalid' }))
-vi.mock('../lib/personal-beta.js',()=>({get PERSONAL_BETA(){return mocks.personal},PERSONAL_ORIGIN:'https://gym.solhren.fr'}))
+vi.mock('../lib/personal-beta.js',()=>({get PERSONAL_BETA(){return mocks.personal},PERSONAL_ORIGIN:'https://gym.example.com'}))
 vi.mock('../sheets.jsx', () => ({ askAddDeviceData: vi.fn(), confirmSheet: vi.fn() }))
 
 const mounted = []

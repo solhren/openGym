@@ -8,7 +8,8 @@ COPY api/coach/core/ /app/api/coach/core/
 COPY api/nutrition/core/ /app/api/nutrition/core/
 COPY api/shared/ /app/api/shared/
 COPY frontend/ ./
-ENV VITE_OPENGYM_PERSONAL_BETA=1 VITE_NUTRITION_LOCAL_V1=1 VITE_NUTRITION_CATALOG_ORIGIN=https://gym.solhren.fr
+ARG OPENGYM_ORIGIN
+ENV VITE_OPENGYM_PERSONAL_BETA=1 VITE_NUTRITION_LOCAL_V1=1 VITE_NUTRITION_CATALOG_ORIGIN=${OPENGYM_ORIGIN}
 RUN NODE_OPTIONS=--max-old-space-size=512 npm run build
 FROM ${NGINX_IMAGE}
 COPY scripts/private-beta/docker/nginx.conf /etc/nginx/nginx.conf

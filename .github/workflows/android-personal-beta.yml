@@ -2,7 +2,17 @@ name: Android personal beta APK
 
 on:
   workflow_dispatch:
+    inputs:
+      origin:
+        description: Approved HTTPS backend origin
+        required: true
+        type: string
   workflow_call:
+    inputs:
+      origin:
+        description: Approved HTTPS backend origin
+        required: true
+        type: string
     secrets:
       ANDROID_BETA_DEBUG_KEYSTORE_BASE64:
         description: Stable debug keystore, base64 encoded, for compatible APK updates
@@ -18,7 +28,9 @@ concurrency:
 jobs:
   apk:
     # Never build a personal APK from upstream, another branch, a PR or another actor.
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == 'solhren'
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == github.repository_owner
+    env:
+      OPENGYM_ORIGIN: ${{ inputs.origin }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -81,7 +93,7 @@ jobs:
       - name: Build the personal Android APK using the existing script
         env:
           APP_BUILD: beta-${{ github.run_id }}-${{ github.run_attempt }}
-        run: node scripts/private-beta/build-android.mjs https://gym.solhren.fr
+        run: node scripts/private-beta/build-android.mjs
 
       - name: Verify the generated APK and public build metadata
         id: apk
@@ -92,10 +104,10 @@ jobs:
           apk="${files[0]}"
           folder=$(dirname "$apk")
           python3 - "$folder/build.json" <<'PY'
-          import json, sys
+          import json, sys, os
           with open(sys.argv[1]) as stream:
               meta = json.load(stream)
-          assert meta['origin'] == 'https://gym.solhren.fr'
+          assert meta['origin'] == os.environ['OPENGYM_ORIGIN']
           assert meta['localOnly'] is True
           assert meta['personalAccountRequired'] is True
           assert meta['applicationId'] == 'ch.duartesantos.opengym.test'

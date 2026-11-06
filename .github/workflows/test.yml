@@ -28,6 +28,11 @@ on:
       - '.github/workflows/test.yml'
   workflow_dispatch:
     inputs:
+      android_origin:
+        description: Approved HTTPS backend origin for a personal APK (required for Android jobs)
+        required: false
+        default: ''
+        type: string
       android_release_run:
         description: 'Publish the APK of this successful Tests run (leave empty to build)'
         required: false
@@ -45,21 +50,24 @@ jobs:
   # test.yml already exists on main. Its manual branch selector can call the
   # new reusable APK workflow on feature/nutrition without changing main.
   android-personal-beta:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == 'solhren' && inputs.android_release_run == ''
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == github.repository_owner && inputs.android_release_run == '' && inputs.android_origin != ''
     permissions:
       contents: read
     uses: ./.github/workflows/android-personal-beta.yml
+    with:
+      origin: ${{ inputs.android_origin }}
     secrets:
       ANDROID_BETA_DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_BETA_DEBUG_KEYSTORE_BASE64 }}
 
   android-personal-release:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == 'solhren' && inputs.android_release_run != ''
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == github.repository_owner && inputs.android_release_run != '' && inputs.android_origin != ''
     permissions:
       contents: write
       actions: read
     uses: ./.github/workflows/android-personal-release.yml
     with:
       run_id: ${{ inputs.android_release_run }}
+      origin: ${{ inputs.android_origin }}
 
   test:
     if: inputs.android_release_run == ''

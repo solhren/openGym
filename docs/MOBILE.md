@@ -382,7 +382,7 @@ membership, the distribution certificate and profile as protected file variables
 For the phone-only private HTTPS beta, use
 [PERSONAL_BETA_DOCKER.md](dev/PERSONAL_BETA_DOCKER.md) for the Compose deployment and
 [PERSONAL_BETA.md](dev/PERSONAL_BETA.md) for the single-account authentication
-`https://gym.solhren.fr` profile (guest disabled, native secure pairing), and
+`https://gym.example.com` profile (guest disabled, native secure pairing), and
 [ANDROID_PRIVATE_BETA.md](dev/ANDROID_PRIVATE_BETA.md) for the older laboratory preparation: isolated service, proxy
 approval, real HTTPS origin and the guarded APK build command. The loopback
 procedure below remains a workstation laboratory test, not that beta deployment.
@@ -414,7 +414,7 @@ that Gradle produced an APK or that physical Android testing passed.
 
 ## APK personnel via GitHub Actions
 
-Pour la bêta sur `https://gym.solhren.fr`, suivre
+Pour la bêta sur `https://gym.example.com`, suivre
 [le guide Android personnel](dev/ANDROID_APK_GITHUB.md) : compilation manuelle dans
 le fork solhren/openGym, appairage avec le compte unique et signature stable pour
 les mises à jour sans désinstallation. Aucun catalogue ni secret dans le dépôt.

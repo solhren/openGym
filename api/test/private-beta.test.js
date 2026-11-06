@@ -43,11 +43,11 @@ test('private beta configuration generation never installs or enables a service'
  const review=JSON.parse(fs.readFileSync(path.join(output,'review.json')));assert.equal(review.enabled,false);assert.equal(review.requiresApproval,true);assert.equal(review.proxyNamespaceVerified,false);
  const unit=fs.readFileSync(path.join(output,'opengym-beta.service'),'utf8');assert.match(unit,/ProtectHome=tmpfs/);assert.match(unit,/IPAddressDeny=any/);assert.match(unit,/ReadWritePaths=\/var\/lib\/opengym-beta/);
  assert.throws(()=>prepare(origin,output));
- const personal=dir+'-personal-review';t.after(()=>fs.rmSync(personal,{recursive:true,force:true}));prepare('https://gym.solhren.fr',personal);
+ const personal=dir+'-personal-review';t.after(()=>fs.rmSync(personal,{recursive:true,force:true}));prepare('https://gym.example.com',personal,{personal:true});
  const compose=JSON.parse(fs.readFileSync(path.join(personal,'compose.personal.json'))),web=compose.services.web;
  assert.equal(web.user,process.getuid()+':'+process.getgid());assert.notEqual(process.getuid(),0);
  assert.equal(web.ports,undefined);assert.equal(web.read_only,true);assert.deepEqual(web.cap_drop,['ALL']);assert.ok(web.volumes.every(v=>v.read_only));
- assert.ok(web.volumes.every(v=>!v.source.includes('/var/lib/opengym-beta')));assert.match(web.labels['traefik.http.routers.opengym-personal.rule'],/gym\.solhren\.fr/);
+ assert.ok(web.volumes.every(v=>!v.source.includes('/var/lib/opengym-beta')));assert.match(web.labels['traefik.http.routers.opengym-personal.rule'],/gym\.example\.com/);
  const config=fs.readFileSync(path.join(personal,'opengym-beta.conf'),'utf8');assert.match(config,/ALLOW_GUEST=0/);assert.match(config,/OPENGYM_PERSONAL_BETA=1/);assert.match(config,/INVITE_ONLY=1/);
 });
 test('beta log rotation is bounded and restartable, without touching account files',t=>{

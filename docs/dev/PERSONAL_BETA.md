@@ -1,4 +1,4 @@
-# Bêta personnelle — gym.solhren.fr, 2 novembre 2026
+# Bêta personnelle — gym.example.com, 2 novembre 2026
 
 > **Compilation et installation Android actuelles :** suivre
 > [ANDROID_APK_GITHUB.md](ANDROID_APK_GITHUB.md). Le guide distingue la compilation
@@ -18,8 +18,8 @@ modifié/activé pendant la préparation. Le worktree non commité est conservé
 
 ## Constats réseau et opérations en attente d'autorisation
 
-La résolution observée de `gym.solhren.fr` donne **89.167.10.27**, adresse IPv4 de
-ce VPS. `curl -I https://gym.solhren.fr` refuse actuellement TLS : le certificat
+La résolution observée de `gym.example.com` donne **89.167.10.27**, adresse IPv4 de
+ce VPS. `curl -I https://gym.example.com` refuse actuellement TLS : le certificat
 présenté est **TRAEFIK DEFAULT CERT**, autosigné, avec un nom alternatif ne couvrant
 pas le domaine. Aucun `-k` ni désactivation du contrôle de certificat n'est utilisé.
 Le DNS IPv4 fonctionne ; ne pas le changer sans raison. La route et le certificat
@@ -40,7 +40,7 @@ clé de certificat ou variable secrète du proxy ne doit être lu/affiché.
 
 ```text
 Téléphone / navigateur HTTPS :443
-  -> Traefik existant (règle Host gym.solhren.fr + certificat valide)
+  -> Traefik existant (règle Host gym.example.com + certificat valide)
   -> nouveau nginx bêta, réseau Docker existant, port 8080 INTERNE seulement
   -> /run/opengym-beta/api.sock (montage Unix en lecture seule)
   -> systemd-socket-proxyd sur l'hôte
@@ -63,15 +63,15 @@ résolveur Traefik existant, pas par l'API. Aucun secret TLS n'entre dans l'APK.
 
 ## Un seul compte et première création
 
-Profil rendu pour `https://gym.solhren.fr` :
+Profil rendu pour `https://gym.example.com` :
 
 ```text
 NODE_ENV=production
 OPENGYM_PRIVATE_BETA=1
 OPENGYM_PERSONAL_BETA=1
 BETA_MAX_USERS=1
-ORIGIN=https://gym.solhren.fr
-RP_ID=gym.solhren.fr
+ORIGIN=https://gym.example.com
+RP_ID=gym.example.com
 ALLOW_GUEST=0
 INVITE_ONLY=1
 FIRST_USER_ADMIN=1
@@ -105,12 +105,12 @@ profil opt-in, les autres instances et les parcours d'entraînement restent inch
 ## Authentification et persistance Android
 
 L'application ne tente pas WebAuthn dans sa WebView : son origine locale ne
-correspond pas à `gym.solhren.fr`. Elle réutilise l'appairage openGym existant :
+correspond pas à `gym.example.com`. Elle réutilise l'appairage openGym existant :
 
-1. Depuis le navigateur du téléphone, se connecter à `https://gym.solhren.fr` avec
+1. Depuis le navigateur du téléphone, se connecter à `https://gym.example.com` avec
    votre passkey, puis Paramètres → Compte → « Pair the mobile app ».
 2. Dans l'APK personnel, « Connect to my server » : origine préremplie
-   `https://gym.solhren.fr`, entrer le code de cinq minutes à usage unique.
+   `https://gym.example.com`, entrer le code de cinq minutes à usage unique.
 3. Le serveur fournit un Bearer propre à votre compte ; renouvellement `/api/me`
    et révocation existants restent utilisés. Aucun token n'est compilé dans l'APK.
 
@@ -188,7 +188,7 @@ test ! -e /etc/systemd/system/opengym-beta-proxy.service
 install -d -m 0700 -o codex -g codex /var/lib/opengym-beta
 runuser -u codex -- /home/codex/.local/opt/node22/bin/node \
  /home/codex/openGym/scripts/private-beta/init-state.mjs \
- /var/lib/opengym-beta https://gym.solhren.fr --personal
+ /var/lib/opengym-beta https://gym.example.com --personal
 install -m 0600 "$REVIEW/opengym-beta.conf" /etc/opengym-beta.conf
 for UNIT in opengym-beta.service opengym-beta-proxy.socket opengym-beta-proxy.service; do
  install -m 0644 "$REVIEW/$UNIT" "/etc/systemd/system/$UNIT"
@@ -210,7 +210,7 @@ Depuis le dépôt, préparer le build Web dans un **nouveau** répertoire dédi�
 export PATH="/home/codex/.local/opt/node22/bin:$PATH"
 cd /home/codex/openGym/frontend
 VITE_OPENGYM_PERSONAL_BETA=1 VITE_NUTRITION_LOCAL_V1=1 \
- VITE_NUTRITION_CATALOG_ORIGIN=https://gym.solhren.fr npm run build \
+ VITE_NUTRITION_CATALOG_ORIGIN=https://gym.example.com npm run build \
  -- --outDir ../scripts/nutrition-local-catalog/artifacts/personal-beta-20261102/web
 ```
 
@@ -230,7 +230,7 @@ docker compose -f "$REVIEW/compose.personal.json" up -d web
 
 Cette dernière commande crée seulement le nouveau frontal et sa règle Traefik,
 sans redémarrer les conteneurs existants. Elle n'est pas autorisée implicitement
-par la préparation. Vérifier `curl -I https://gym.solhren.fr` sans `-k`, puis
+par la préparation. Vérifier `curl -I https://gym.example.com` sans `-k`, puis
 vérifier sur Wi-Fi et réseau mobile : pas d'avertissement TLS, interface de
 connexion, pas de bouton invité, aucune donnée accessible anonymement. Le DNS
 ne doit être modifié que si l'audit révèle une divergence réelle.
@@ -239,7 +239,7 @@ ne doit être modifié que si l'audit révèle une divergence réelle.
 
 ```bash
 # Poste avec Node 22, JDK 21, SDK 35 ; le script impose le profil personnel.
-node scripts/private-beta/build-android.mjs https://gym.solhren.fr
+node scripts/private-beta/build-android.mjs https://gym.example.com
 ```
 
 Le paquet reste `ch.duartesantos.opengym.test`, distinct de la version principale.
@@ -304,7 +304,7 @@ ne pas additionner les tests ciblés et complets.
 | `node scripts/private-beta/check-bridge.mjs` | HTTP réel par socket Unix réussi, en-têtes de test conservés |
 | `systemd-analyze verify` des trois fichiers rendus finaux | Code 0, sans substitution de chemins ; aucun service démarré |
 | `docker compose ... config --quiet` | Syntaxe valide avec valeurs de test ; aucun conteneur lancé, réseau/image réels non attestés |
-| HTTPS public `curl --head ... https://gym.solhren.fr` | **Bloqué TLS, code 60**, certificat autosigné par défaut ; sécurité non contournée |
+| HTTPS public `curl --head ... https://gym.example.com` | **Bloqué TLS, code 60**, certificat autosigné par défaut ; sécurité non contournée |
 | Compilation APK personnelle | **Bloquée**, JDK 21 absent, adb absent, SDK non configuré ; aucun téléchargement/installation |
 | `git diff --check` | Réussi |
 
@@ -359,3 +359,10 @@ Les autres modifications du worktree étaient déjà présentes ; elles ne sont 
 réinitialisées ni attribuées à cette adaptation. Pas de nouvelle dépendance, pas
 de modification des contrats portables Nutrition, pas de catalogue reconstruit,
 pas de compte réel, de service installé ou de modification du DNS/proxy.
+
+
+### Explicit preparation profile
+
+`prepare.mjs ORIGIN OUTPUT --personal` (or `OPENGYM_PERSONAL_BETA=1`) explicitly
+selects the one-owner configuration. The mode is never inferred from a particular
+hostname. The configuration generator remains review-only and installs no service.

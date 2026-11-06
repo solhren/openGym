@@ -7,7 +7,7 @@
 > restent historiques et ne doivent pas être appliquées à la stack en service.
 
 
-**Profil définitif du 2 novembre :** pour `gym.solhren.fr`, suivre
+**Profil définitif du 2 novembre :** pour `gym.example.com`, suivre
 [PERSONAL_BETA.md](PERSONAL_BETA.md). Ce profil impose un compte unique, interdit
 le mode invité et conserve l'appairage dans le stockage natif sécurisé. Les
 anciens exemples invités et l'archive source d'octobre ci-dessous ne conviennent

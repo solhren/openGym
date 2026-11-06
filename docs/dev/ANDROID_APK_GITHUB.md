@@ -2,7 +2,7 @@
 
 ## Parcours utilisateur
 
-La bêta utilise **https://gym.solhren.fr**, le compte unique existant et le
+La bêta utilise **https://gym.example.com**, le compte unique existant et le
 catalogue du VPS. Aucun catalogue, mot de passe, invitation ou jeton personnel
 n'est embarqué dans l'APK. Le build ne contacte pas le VPS. L'application porte
 l'identifiant `ch.duartesantos.opengym.test`, distinct de l'application principale.
@@ -15,7 +15,7 @@ l'identifiant `ch.duartesantos.opengym.test`, distinct de l'application principa
    le navigateur/gestionnaire utilisé. Ne pas désinstaller une version existante
    pour contourner un problème de signature. Une alerte Play Protect est possible
    pour une application debug privée. Aucun Google Play ni tunnel SSH nécessaire.
-3. Depuis une session authentifiée dans l'application Web sur gym.solhren.fr,
+3. Depuis une session authentifiée dans l'application Web sur gym.example.com,
    ouvrir **Paramètres → Compte → Associer l’application mobile**, générer un code et le
    saisir dans l'écran d'appairage Android avant son expiration. Ne jamais
    publier ce code. La passkey reste celle du compte existant ; le jeton
@@ -78,7 +78,7 @@ checkout du commit sélectionné, Node 22, Temurin 21, plateforme/build-tools An
 35, `npm ci`, puis :
 
 ```bash
-node scripts/private-beta/build-android.mjs https://gym.solhren.fr
+node scripts/private-beta/build-android.mjs https://gym.example.com
 ```
 
 Il vérifie signature APK, identifiant, origine HTTPS et flags d'authentification /
@@ -127,7 +127,7 @@ npm --prefix frontend test -- --maxWorkers=2
 npm --prefix api test
 (cd frontend && node scripts/check-locales.mjs)
 (cd frontend && VITE_OPENGYM_PERSONAL_BETA=1 VITE_NUTRITION_LOCAL_V1=1 \
-  VITE_NUTRITION_CATALOG_ORIGIN=https://gym.solhren.fr npm run build:mobile)
+  VITE_NUTRITION_CATALOG_ORIGIN=https://gym.example.com npm run build:mobile)
 git diff --check
 ```
 
@@ -221,7 +221,7 @@ For a manual personal build, set it to the absolute path of the **existing** key
 
 ```bash
 export OPENGYM_ANDROID_DEBUG_KEYSTORE=/ABSOLUTE/PRIVATE/PATH/debug.keystore
-node scripts/private-beta/build-android.mjs https://gym.solhren.fr
+node scripts/private-beta/build-android.mjs https://gym.example.com
 ```
 
 After `apksigner verify --print-certs`, keytool exports only the retained key's
@@ -399,3 +399,14 @@ source **41667081441** ont été contrôlés par l'API GitHub.
 
 Le téléchargement APK est public, conformément à la visibilité du dépôt. Cela
 ne donne ni jeton ni accès aux données du compte ; l'appairage reste nécessaire.
+
+
+### Explicit personal backend origin
+
+The personal APK workflow requires the `origin` HTTPS input; the Tests dispatcher
+forwards its `android_origin` input to build and distribution. No default personal
+server is compiled. The local equivalent is
+`OPENGYM_ORIGIN=https://YOUR-APPROVED-HOST node scripts/private-beta/build-android.mjs`.
+Distribution verifies the artifact origin against that same configured origin, while
+retaining repository-owner, branch, source-run and stable-signature checks. Do not
+supply an invitation code or credential in these public build inputs.

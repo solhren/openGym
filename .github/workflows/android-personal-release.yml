@@ -3,6 +3,10 @@ name: Distribute personal Android beta
 on:
   workflow_call:
     inputs:
+      origin:
+        description: Approved HTTPS backend origin matching the signed APK
+        required: true
+        type: string
       run_id:
         description: Fully successful Tests run containing the signed personal APK
         required: true
@@ -17,7 +21,9 @@ concurrency:
 
 jobs:
   publish:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == 'solhren'
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == github.repository_owner
+    env:
+      OPENGYM_ORIGIN: ${{ inputs.origin }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:

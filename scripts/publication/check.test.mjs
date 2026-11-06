@@ -21,7 +21,7 @@ test('OR cannot bypass an otherwise present publication guard', () => {
   rejects('pages.yml', w => { w.jobs.deploy.if += ' || true' }, 'guard')
 })
 test('personal APK publication requires the owner and original personal branch', () => {
-  for (const field of ["github.actor == 'solhren'", "github.ref == 'refs/heads/feature/nutrition'"]) {
+  for (const field of ["github.actor == github.repository_owner", "github.ref == 'refs/heads/feature/nutrition'"]) {
     rejects('android-personal-release.yml', w => { w.jobs.publish.if = w.jobs.publish.if.replace(field, 'true') }, 'guard')
   }
 })
@@ -48,7 +48,7 @@ test('browser demo requires owner, reviewed branch and explicit publication opt-
   const demo = workflow('demo-preview.yml')
   assert.deepEqual(Object.keys(demo.on), ['workflow_dispatch'])
   assert.equal(demo.on.workflow_dispatch.inputs.publish.default, false)
-  for (const term of ["github.actor == 'solhren'", "github.ref == 'refs/heads/review/public-readiness'", 'inputs.publish == true']) {
+  for (const term of ["github.actor == github.repository_owner", "github.ref == 'refs/heads/review/public-readiness'", 'inputs.publish == true']) {
     rejects('demo-preview.yml', w => { w.jobs.deploy.if = w.jobs.deploy.if.replace(term, 'true') }, 'guard')
   }
   assert.ok(!JSON.stringify(demo).includes('stage-media'))
@@ -64,3 +64,8 @@ test('Pages timeout leaves runner headroom for diagnostics without extending the
   assert.ok(deploy['timeout-minutes'] * 60000 >= Number(action.with.timeout) + 120000)
   for (const job of [demo.jobs.build, deploy]) assert.equal(job['runs-on'], 'ubuntu-24.04')
 })
+
+test('personal Android workflows require the same explicit origin through build and publication',()=>{
+ for(const name of ['android-personal-beta.yml','android-personal-release.yml']){const w=workflow(name);assert.equal(w.on.workflow_call.inputs.origin.required,true);assert.equal(w.on.workflow_call.inputs.origin.default,undefined);assert.equal(Object.values(w.jobs)[0].env.OPENGYM_ORIGIN,'${{ inputs.origin }}')}
+ const w=workflow('test.yml');for(const name of ['android-personal-beta','android-personal-release'])assert.equal(w.jobs[name].with.origin,'${{ inputs.android_origin }}');
+});

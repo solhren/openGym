@@ -7,8 +7,8 @@ import {betaOrigin} from '../../api/nutrition/catalog-beta.js';
 const root=fileURLToPath(new URL('../../',import.meta.url));
 function command(bin,args,cwd,env=process.env){const r=spawnSync(bin,args,{cwd,env,stdio:'inherit'});if(r.error||r.status!==0)throw Error(`${bin} failed; no beta APK attested`);}
 try{
- if(process.argv.length!==3)throw Error('Usage: node scripts/private-beta/build-android.mjs https://APPROVED-BETA-DOMAIN');
- const target=betaOrigin(process.argv[2]),origin=target.origin;
+ if(process.argv.length>3||!(process.argv[2]||process.env.OPENGYM_ORIGIN))throw Error('Usage: node scripts/private-beta/build-android.mjs https://APPROVED-BETA-DOMAIN');
+ const target=betaOrigin(process.argv[2]||process.env.OPENGYM_ORIGIN),origin=target.origin;
  if(/(?:^|\.)example\.(?:org|com|net)$/.test(target.hostname))throw Error('A real approved beta domain is required; example fixture domains cannot be packaged');
  if(Number(process.versions.node.split('.')[0])!==22)throw Error('Node 22 required');
  const java=spawnSync('java',['-version'],{encoding:'utf8'});if(java.error||java.status!==0||!/version "21(?:[.\"])/.test(java.stderr+java.stdout))throw Error('JDK 21 must be installed and on PATH; nothing was downloaded');

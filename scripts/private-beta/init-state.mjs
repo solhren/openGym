@@ -20,6 +20,6 @@ export function initializeState(directory,origin,{personal=false}={}){
  const parent=fs.openSync(directory,'r');try{fs.fsyncSync(parent);}finally{fs.closeSync(parent);}
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)){
- try{if(![4,5].includes(process.argv.length)||process.argv[4]&&process.argv[4]!=='--personal')throw Error('Usage: node init-state.mjs EMPTY_BETA_DATA_DIR https://gym.solhren.fr [--personal]');initializeState(process.argv[2],process.argv[3],{personal:process.argv[4]==='--personal'});console.log('Isolated beta state initialized; no account/password created. Personal bootstrap invite stays in the private state directory.');}
+ try{if(![4,5].includes(process.argv.length)||process.argv[4]&&process.argv[4]!=='--personal')throw Error('Usage: node init-state.mjs EMPTY_BETA_DATA_DIR https://gym.example.com [--personal]');initializeState(process.argv[2],process.argv[3],{personal:process.argv[4]==='--personal'});console.log('Isolated beta state initialized; no account/password created. Personal bootstrap invite stays in the private state directory.');}
  catch(error){console.error(error.message);process.exitCode=1;}
 }

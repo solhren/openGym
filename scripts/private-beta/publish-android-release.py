@@ -4,6 +4,7 @@ No private signing key is needed. GITHUB_TOKEN deliberately suppresses release
 workflow cascades, especially the existing Docker publisher. Run via Tests' manual
 android_release_run input; never invoke publication with a personal token locally.
 """
+import urllib.parse
 import hashlib
 import json
 import os
@@ -30,7 +31,7 @@ def require(ok, message):
 
 def validate_run(run, jobs):
     require(run.get('repository', {}).get('full_name') == REPO and run.get('head_repository', {}).get('full_name') == REPO, 'Unexpected source repository')
-    require(run.get('actor', {}).get('login') == 'solhren' and run.get('head_branch') == 'feature/nutrition', 'Unexpected source actor or branch')
+    require(run.get('actor', {}).get('login') == REPO.split('/')[0] and run.get('head_branch') == 'feature/nutrition', 'Unexpected source actor or branch')
     require(run.get('event') == 'workflow_dispatch' and run.get('path') == '.github/workflows/test.yml', 'Unexpected source workflow')
     require(run.get('status') == 'completed' and run.get('conclusion') == 'success', 'Source run is not successful')
     require(type(run.get('run_attempt')) is int and run['run_attempt'] > 0 and re.fullmatch('[0-9a-f]{40}', run.get('head_sha', '')), 'Invalid source revision')
@@ -47,6 +48,13 @@ def select_artifact(run, artifacts):
     return name
 
 
+def approved_origin():
+    value = os.environ.get('OPENGYM_ORIGIN', '')
+    parsed = urllib.parse.urlsplit(value)
+    require(parsed.scheme == 'https' and parsed.hostname and parsed.username is None and parsed.password is None and not parsed.path and not parsed.query and not parsed.fragment and value == 'https://' + parsed.netloc, 'Set OPENGYM_ORIGIN to the approved HTTPS backend origin')
+    return value
+
+
 def validate_bundle(folder):
     expected = {APK, APK + '.sha256', 'build.json'}
     require({p.name for p in folder.iterdir()} == expected, 'Unexpected artifact files')
@@ -54,7 +62,7 @@ def validate_bundle(folder):
     apk = folder / APK
     require(0 < apk.stat().st_size <= MAX_APK and (folder / 'build.json').stat().st_size <= 4096 and (folder / (APK + '.sha256')).stat().st_size <= 256, 'Artifact size limit')
     manifest = json.loads((folder / 'build.json').read_text(encoding='utf-8'))
-    require(manifest.get('origin') == 'https://gym.solhren.fr' and manifest.get('applicationId') == 'ch.duartesantos.opengym.test' and manifest.get('variant') == 'debug', 'Unexpected APK profile')
+    require(manifest.get('origin') == approved_origin() and manifest.get('applicationId') == 'ch.duartesantos.opengym.test' and manifest.get('variant') == 'debug', 'Unexpected APK profile')
     require(manifest.get('localOnly') is True and manifest.get('personalAccountRequired') is True, 'Unsafe APK configuration')
     checksum = re.fullmatch(r'([0-9a-f]{64})[ \t]+\*?opengym-beta-debug\.apk\n?', (folder / (APK + '.sha256')).read_text())
     require(checksum is not None, 'Invalid APK checksum manifest')
@@ -133,7 +141,7 @@ class GitHub:
 
 def main(run_id):
     require(re.fullmatch(r'[1-9][0-9]{0,19}', run_id) is not None, 'Invalid run ID')
-    require(os.environ.get('GITHUB_ACTIONS') == 'true' and os.environ.get('GITHUB_REPOSITORY') == REPO and os.environ.get('GITHUB_ACTOR') == 'solhren' and os.environ.get('GITHUB_REF') == 'refs/heads/feature/nutrition' and os.environ.get('GITHUB_EVENT_NAME') == 'workflow_dispatch' and bool(os.environ.get('GH_TOKEN')), 'Publication requires the owner-dispatched repository workflow token')
+    require(os.environ.get('GITHUB_ACTIONS') == 'true' and os.environ.get('GITHUB_REPOSITORY') == REPO and os.environ.get('GITHUB_ACTOR') == REPO.split('/')[0] and os.environ.get('GITHUB_REF') == 'refs/heads/feature/nutrition' and os.environ.get('GITHUB_EVENT_NAME') == 'workflow_dispatch' and bool(os.environ.get('GH_TOKEN')), 'Publication requires the owner-dispatched repository workflow token')
     publication_sha = os.environ.get('GITHUB_SHA', '')
     require(re.fullmatch('[0-9a-f]{40}', publication_sha), 'Invalid publication revision')
     gh = GitHub()
@@ -158,7 +166,7 @@ def main(run_id):
     releases = gh.api('releases?per_page=100')
     release = select_release(releases)
     metadata = {'run_id': int(run_id), 'attempt': run['run_attempt'], 'source_sha': run['head_sha'], 'publication_sha': publication_sha, 'sha256': digest, 'certificate_sha256': PIN}
-    body = f"Bêta Android personnelle, authentification obligatoire sur https://gym.solhren.fr.\n\nTélécharger **{APK}**, puis installer sans désinstaller la version précédente. Aucun secret ni donnée personnelle embarqués ; scanner et utilisation réelle à vérifier sur téléphone.\n\nCompilation : https://github.com/{REPO}/actions/runs/{run_id}\n\nCommit source : `{run['head_sha']}`\n\nSHA-256 APK : `{digest}`\n\nCertificat stable SHA-256 : `{PIN}`\n\n{MARKER}{json.dumps(metadata, separators=(',', ':'))} -->\n"
+    body = f"Bêta Android personnelle, authentification obligatoire sur {approved_origin()}.\n\nTélécharger **{APK}**, puis installer sans désinstaller la version précédente. Aucun secret ni donnée personnelle embarqués ; scanner et utilisation réelle à vérifier sur téléphone.\n\nCompilation : https://github.com/{REPO}/actions/runs/{run_id}\n\nCommit source : `{run['head_sha']}`\n\nSHA-256 APK : `{digest}`\n\nCertificat stable SHA-256 : `{PIN}`\n\n{MARKER}{json.dumps(metadata, separators=(',', ':'))} -->\n"
     if release is not None:
         validate_order(previous_manifest(release), run)
     reference = gh.api('git/ref/tags/' + TAG, optional=True)

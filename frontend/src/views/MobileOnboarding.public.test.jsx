@@ -26,7 +26,7 @@ afterEach(() => { act(() => root.unmount()); host.remove() })
 test('generic pairing explains HTTPS and refuses unsafe addresses before sending a code', async () => {
   const [url, code] = host.querySelectorAll('input')
   expect(host.textContent).toContain('trusted HTTPS')
-  expect(host.textContent).not.toContain('gym.solhren.fr')
+  expect(url.value).toBe('')
   expect(document.getElementById(url.getAttribute('aria-describedby')).textContent).toContain('HTTPS')
   for (const address of ['http://gym.example.com', 'https://gym.example.com/api', 'https://user:password@gym.example.com']) {
     type(url, address); type(code, 'abcd2345')

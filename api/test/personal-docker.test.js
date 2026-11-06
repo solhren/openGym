@@ -13,8 +13,8 @@ import {resolveImage} from '../../scripts/private-beta/docker/resolve-images.mjs
 const runtime=fileURLToPath(new URL('../../scripts/nutrition-local-catalog/runtime/',import.meta.url)),sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 function directory(t){fs.mkdirSync(runtime,{recursive:true,mode:0o700});const d=fs.mkdtempSync(path.join(runtime,'private-beta-docker-test-'));t.after(()=>fs.rmSync(d,{recursive:true,force:true}));return d;}
 test('container listening is explicit, personal-only and never changes ordinary beta binding',t=>{
- const dir=directory(t),origin='https://gym.solhren.fr';initializeState(dir,origin,{personal:true});
- const environment={OPENGYM_PRIVATE_BETA:'1',OPENGYM_PERSONAL_BETA:'1',ALLOW_GUEST:'0',INVITE_ONLY:'1',BETA_MAX_USERS:'1',NODE_ENV:'production',ORIGIN:origin,RP_ID:'gym.solhren.fr',DATA_DIR:dir,NUTRITION_LOCAL_CATALOG:'1',NUTRITION_LOCAL_CATALOG_KIND:'wger-v1',...Object.fromEntries(['WORKSPACE','COMPLEMENT','REFERENCE','REFERENCE_INDEX'].map(n=>['NUTRITION_LOCAL_CATALOG_'+n,'fixture']))};
+ const dir=directory(t),origin='https://gym.example.com';initializeState(dir,origin,{personal:true});
+ const environment={OPENGYM_PRIVATE_BETA:'1',OPENGYM_PERSONAL_BETA:'1',ALLOW_GUEST:'0',INVITE_ONLY:'1',BETA_MAX_USERS:'1',NODE_ENV:'production',ORIGIN:origin,RP_ID:'gym.example.com',DATA_DIR:dir,NUTRITION_LOCAL_CATALOG:'1',NUTRITION_LOCAL_CATALOG_KIND:'wger-v1',...Object.fromEntries(['WORKSPACE','COMPLEMENT','REFERENCE','REFERENCE_INDEX'].map(n=>['NUTRITION_LOCAL_CATALOG_'+n,'fixture']))};
  assert.equal(privateBetaConfig({environment}).listenHost,'127.0.0.1');assert.equal(privateBetaConfig({environment:{...environment,OPENGYM_BETA_DOCKER:'1'}}).listenHost,'0.0.0.0');
  for(const v of [{OPENGYM_PRIVATE_BETA:'0'},{OPENGYM_PERSONAL_BETA:'0'},{ALLOW_GUEST:'1'}])assert.throws(()=>privateBetaConfig({environment:{...environment,OPENGYM_BETA_DOCKER:'1',...v}}));
 });
@@ -91,11 +91,15 @@ test('registry 429/503 and invalid digests stop once without an automatic retry'
  for(const status of [429,503,200]){let calls=0;await assert.rejects(resolveImage('library/node','22-alpine',{fetchImpl:async()=>++calls===1?new Response('{"token":"synthetic"}'):new Response(null,{status})}),/manifest-unavailable/);assert.equal(calls,2);}
 });
 test('offline backup validates its private state, estimates space and emits only a complete tar archive',t=>{
- const dir=directory(t);initializeState(dir,'https://gym.solhren.fr',{personal:true});
- const env={PATH:process.env.PATH,OPENGYM_PRIVATE_BETA:'1',OPENGYM_PERSONAL_BETA:'1',ALLOW_GUEST:'0',INVITE_ONLY:'1',BETA_MAX_USERS:'1',NODE_ENV:'production',ORIGIN:'https://gym.solhren.fr',RP_ID:'gym.solhren.fr',DATA_DIR:dir,NUTRITION_LOCAL_CATALOG:'1',NUTRITION_LOCAL_CATALOG_KIND:'wger-v1',...Object.fromEntries(['WORKSPACE','COMPLEMENT','REFERENCE','REFERENCE_INDEX'].map(n=>['NUTRITION_LOCAL_CATALOG_'+n,'fixture']))};
+ const dir=directory(t);initializeState(dir,'https://gym.example.com',{personal:true});
+ const env={PATH:process.env.PATH,OPENGYM_PRIVATE_BETA:'1',OPENGYM_PERSONAL_BETA:'1',ALLOW_GUEST:'0',INVITE_ONLY:'1',BETA_MAX_USERS:'1',NODE_ENV:'production',ORIGIN:'https://gym.example.com',RP_ID:'gym.example.com',DATA_DIR:dir,NUTRITION_LOCAL_CATALOG:'1',NUTRITION_LOCAL_CATALOG_KIND:'wger-v1',...Object.fromEntries(['WORKSPACE','COMPLEMENT','REFERENCE','REFERENCE_INDEX'].map(n=>['NUTRITION_LOCAL_CATALOG_'+n,'fixture']))};
  const script=fileURLToPath(new URL('../../scripts/private-beta/docker/backup.mjs',import.meta.url));
  const estimate=spawnSync(process.execPath,[script,'--estimate'],{env,encoding:'utf8'});assert.equal(estimate.status,0,estimate.stderr);assert.ok(Number(estimate.stdout)>fs.statSync(path.join(dir,'db.json')).size);
  const archive=spawnSync(process.execPath,[script],{env});assert.equal(archive.status,0,archive.stderr.toString());const list=spawnSync('tar',['-tzf','-'],{input:archive.stdout,encoding:'utf8'});assert.equal(list.status,0,list.stderr);assert.match(list.stdout,/\.\/db\.json/);assert.match(list.stdout,/\.opengym-private-beta\.json/);
  const other=directory(t);const invalid=spawnSync(process.execPath,[script],{env:{...env,DATA_DIR:other}});assert.equal(invalid.status,1);assert.equal(invalid.stdout.length,0);
  fs.symlinkSync('/etc/passwd',path.join(dir,'forbidden-synthetic-link'));const links=spawnSync(process.execPath,[script,'--estimate'],{env});assert.equal(links.status,1);assert.equal(links.stdout.length,0);
+});
+
+test('personal stack uses only the configured HTTPS origin and rejects unsafe origins',()=>{
+ const c=stack({origin:'https://gym.example.com'});assert.equal(c.services.backend.environment.ORIGIN,'https://gym.example.com');assert.equal(c.services.backend.environment.RP_ID,'gym.example.com');assert.equal(c.services.frontend.build.args.OPENGYM_ORIGIN,'https://gym.example.com');assert.equal(c.services.frontend.labels['traefik.http.routers.opengym-personal.rule'],'Host(`gym.example.com`)');assert.equal(c.services.initialize.command[1],'https://gym.example.com');assert.throws(()=>stack({origin:'http://gym.example.com'}));
 });

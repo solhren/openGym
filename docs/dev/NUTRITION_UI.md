@@ -83,7 +83,7 @@ Proxy). Builds retain the existing large-chunk/ineffective-dynamic-import warnin
 
 The HTTP tests start disposable local servers/workers with synthetic users and
 files. They exercise cookie/Bearer auth, account isolation, CSRF, durable publication,
-lost responses and two-device merge. No request goes to `gym.solhren.fr` or an
+lost responses and two-device merge. No request goes to `gym.example.com` or an
 external food provider. Their success tests the local HTTP boundary; it does not
 verify the phone's production network. No sync algorithm/API/contract changed.
 
@@ -113,7 +113,7 @@ env -i PATH=/home/codex/.local/opt/node22/bin:/usr/bin:/bin TMPDIR="$TMPDIR" \
 cd ../frontend
 npm run build
 VITE_MOBILE=1 VITE_OPENGYM_PERSONAL_BETA=1 VITE_NUTRITION_LOCAL_V1=1 \
-  VITE_NUTRITION_CATALOG_ORIGIN=https://gym.solhren.fr npm run build \
+  VITE_NUTRITION_CATALOG_ORIGIN=https://gym.example.com npm run build \
   -- --outDir ../scripts/nutrition-local-catalog/runtime/artifacts/mobile-web
 node --input-type=module -e "import { checkCopy } from './scripts/check-mobile-bundle.mjs'; checkCopy('../scripts/nutrition-local-catalog/runtime/artifacts/mobile-web')"
 cd ..
