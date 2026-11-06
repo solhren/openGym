@@ -181,3 +181,11 @@ asks. Do not uninstall an existing compatible build to update it.
 If secure storage reports an uncertain timeout, follow the Android guide's
 **Force stop** recovery; never Clear storage. Keep logs private and redact codes,
 tokens and meals. Simulated component tests are not physical Android acceptance.
+
+
+Generic APK distribution follow-up: use `android-selfhosted.yml`, a separate retained
+public debug key/certificate pin and an increasing public versionCode. The personal
+APK cannot be updated in-place by the generic package. Keep both installed; follow
+[the migration steps](ANDROID_SELF_HOSTING.md#personal-apk-migration-and-first-public-build)
+and verify original exports/server data before removing any installation. The workflow
+and simulated tests do not check these physical-phone acceptance items for you.

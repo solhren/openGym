@@ -11,6 +11,7 @@ const personalGuard = ["github.event_name == 'workflow_dispatch'", "github.repos
 const upstreamGuard = ["github.repository == 'DuarteSantos8/openGym'"]
 const demoGuard = ["github.event_name == 'workflow_dispatch'", "github.repository == 'solhren/openGym'", "github.actor == github.repository_owner", "github.ref == 'refs/heads/review/public-readiness'"]
 const gatedJobs = {
+  'android-selfhosted.yml': { apk: demoGuard, publish: [...demoGuard, 'inputs.publish == true'] },
   'demo-preview.yml': { build: demoGuard, deploy: [...demoGuard, 'inputs.publish == true'] },
   'docker-publish.yml': { build: upstreamGuard },
   'pages.yml': { build: upstreamGuard, deploy: upstreamGuard },

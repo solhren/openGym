@@ -49,6 +49,7 @@ export function build(root,env=process.env) {
   const apk=path.join(root,'frontend/android/app/build/outputs/apk/debug/app-debug.apk')
   const signerText=run(path.join(buildTools,'apksigner'),['verify','--print-certs',apk],root,configured,{capture:true}).toString('utf8')
   const badging=run(path.join(buildTools,'aapt'),['dump','badging',apk],root,configured,{capture:true}).toString('utf8')
+  const permissions=run(path.join(buildTools,'aapt'),['dump','permissions',apk],root,configured,{capture:true}).toString('utf8')
   const signerSha256=verifyApkEvidence({certificate,signerText,badging,versionCode:configured.OPENGYM_PUBLIC_ANDROID_VERSION_CODE})
   const outputRoot=path.join(root,'scripts/nutrition-local-catalog/artifacts')
   fs.mkdirSync(outputRoot,{recursive:true,mode:0o700})
@@ -58,8 +59,11 @@ export function build(root,env=process.env) {
   const hash=createHash('sha256');const fd=fs.openSync(apk,'r');const buffer=Buffer.alloc(1024*1024)
   try{let read;while((read=fs.readSync(fd,buffer,0,buffer.length,null))>0)hash.update(buffer.subarray(0,read))}finally{fs.closeSync(fd)}
   const apkSha256=hash.digest('hex')
+  const permissionsPath=path.join(output,'permissions.txt')
+  fs.writeFileSync(permissionsPath,permissions,{flag:'wx',mode:0o600})
+  const inspection=JSON.parse(run('python3',[path.join(root,'scripts/android-public/inspect-apk.py'),apk,permissionsPath],root,configured,{capture:true}).toString('utf8'))
   fs.writeFileSync(path.join(output,'opengym-selfhosted-debug.apk.sha256'),`${apkSha256}  opengym-selfhosted-debug.apk\n`,{flag:'wx',mode:0o600})
-  fs.writeFileSync(path.join(output,'build.json'),JSON.stringify({applicationId:APPLICATION_ID,versionCode:Number(configured.OPENGYM_PUBLIC_ANDROID_VERSION_CODE),profile:'selfhosted',variant:'debug',server:null,localFoodOnly:true,signerSha256,apkSha256,physicalDeviceTested:false},null,2)+'\n',{flag:'wx',mode:0o600})
+  fs.writeFileSync(path.join(output,'build.json'),JSON.stringify({applicationId:APPLICATION_ID,versionCode:Number(configured.OPENGYM_PUBLIC_ANDROID_VERSION_CODE),profile:'selfhosted',variant:'debug',server:null,localFoodOnly:true,signerSha256,apkSha256,physicalDeviceTested:false,inspection},null,2)+'\n',{flag:'wx',mode:0o600})
   return output
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {

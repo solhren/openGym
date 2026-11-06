@@ -1,0 +1,142 @@
+name: Android self-hosted beta
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: Increasing public Android versionCode (separate from personal APK)
+        required: true
+        type: string
+      publish:
+        description: Publish a new prerelease after automated checks (physical tests still required)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: android-selfhosted
+  cancel-in-progress: false
+jobs:
+  apk:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == github.repository_owner && github.ref == 'refs/heads/review/public-readiness'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      OPENGYM_PUBLIC_ANDROID_VERSION_CODE: ${{ inputs.version_code }}
+      EXPECTED_SIGNER: ${{ vars.ANDROID_PUBLIC_SIGNER_SHA256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Check public version and retained certificate pin
+        run: |
+          node --input-type=module -e "if(!/^[1-9][0-9]{0,8}$/.test(process.env.OPENGYM_PUBLIC_ANDROID_VERSION_CODE)||!/^([a-f0-9]{64})$/i.test(process.env.EXPECTED_SIGNER||''))throw Error('Set a positive version_code and ANDROID_PUBLIC_SIGNER_SHA256 repository variable')"
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+          log-accepted-android-sdk-licenses: false
+      - name: Install locked frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Run targeted public Android and scanner checks
+        run: |
+          node --test --test-concurrency=1 scripts/android-public/*.test.mjs
+          python3 -m unittest discover -s scripts/android-public -p 'test_*.py' -q
+          npm --prefix frontend test -- --maxWorkers=1 src/lib/public-android.test.js src/App.public-session.test.jsx src/lib/api.mobile.test.js src/lib/scan-native.test.js src/lib/nutrition/native-startup.test.jsx
+      - name: Restore only the public distribution signing key
+        env:
+          PUBLIC_KEYSTORE: ${{ secrets.ANDROID_PUBLIC_DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          python3 - <<'PY'
+          import base64,os
+          from pathlib import Path
+          raw=base64.b64decode(os.environ.get('PUBLIC_KEYSTORE',''),validate=True)
+          if not 0<len(raw)<=65536:raise SystemExit('Configure the separate retained ANDROID_PUBLIC_DEBUG_KEYSTORE_BASE64 secret')
+          key=Path(os.environ['RUNNER_TEMP'])/'opengym-public-debug.keystore'
+          with key.open('xb') as stream:
+              os.fchmod(stream.fileno(),0o600);stream.write(raw)
+          PY
+          echo "OPENGYM_PUBLIC_ANDROID_KEYSTORE=$RUNNER_TEMP/opengym-public-debug.keystore" >> "$GITHUB_ENV"
+          keytool -exportcert -keystore "$RUNNER_TEMP/opengym-public-debug.keystore" -storepass android -alias androiddebugkey -file "$RUNNER_TEMP/public-cert.der" > /dev/null
+          python3 - <<'PY'
+          import hashlib,os
+          from pathlib import Path
+          actual=hashlib.sha256((Path(os.environ['RUNNER_TEMP'])/'public-cert.der').read_bytes()).hexdigest()
+          if actual!=os.environ['EXPECTED_SIGNER'].lower():raise SystemExit('Retained public certificate does not match the configured pin')
+          PY
+      - name: Build and inspect the generic APK
+        id: apk
+        run: |
+          node scripts/android-public/build.mjs
+          mapfile -t files < <(find scripts/nutrition-local-catalog/artifacts -maxdepth 2 -type f -path '*/selfhosted-apk-*/opengym-selfhosted-debug.apk')
+          test "${#files[@]}" -eq 1
+          echo "directory=$(dirname "${files[0]}")" >> "$GITHUB_OUTPUT"
+        env:
+          APP_BUILD: selfhosted-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: opengym-selfhosted-${{ inputs.version_code }}
+          path: |
+            ${{ steps.apk.outputs.directory }}/opengym-selfhosted-debug.apk
+            ${{ steps.apk.outputs.directory }}/opengym-selfhosted-debug.apk.sha256
+            ${{ steps.apk.outputs.directory }}/build.json
+            ${{ steps.apk.outputs.directory }}/permissions.txt
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Remove the runner copy of the public signing key
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/opengym-public-debug.keystore" "$RUNNER_TEMP/public-cert.der"
+  publish:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == github.repository_owner && github.ref == 'refs/heads/review/public-readiness' && inputs.publish == true
+    needs: apk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SOURCE_SHA: ${{ github.sha }}
+      SOURCE_RUN: ${{ github.run_id }}
+      VERSION_CODE: ${{ inputs.version_code }}
+    steps:
+      - name: Download only this verified run's public APK artifact
+        run: gh run download "$SOURCE_RUN" --name "opengym-selfhosted-$VERSION_CODE" --dir package
+      - name: Publish a distinct prerelease without overwriting existing assets
+        run: |
+          set -euo pipefail
+          cd package
+          sha256sum --check opengym-selfhosted-debug.apk.sha256
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          m=json.loads(Path('build.json').read_text())
+          assert m['applicationId']=='fr.solhren.opengym.selfhosted.debug' and m['server'] is None and m['versionCode']==int(os.environ['VERSION_CODE'])
+          assert m['physicalDeviceTested'] is False and m['profile']=='selfhosted'
+          Path('release-notes.md').write_text('Generic self-hosted Android beta. Choose local mode or your own HTTPS server.\n\nInstalls alongside the personal APK: do not uninstall it. Synchronize or export workouts and Nutrition separately before transferring.\n\nUpdate this generic app using the same package/signing key and an increasing versionCode. Physical device acceptance remains required.\n\nSource: '+os.environ['SOURCE_SHA']+'\n\nAPK SHA-256: '+m['apkSha256']+'\n\nCertificate SHA-256: '+m['signerSha256']+'\n\nSource and installation guide: https://github.com/'+os.environ['GH_REPO']+'/blob/'+os.environ['SOURCE_SHA']+'/docs/ANDROID_SELF_HOSTING.md\n')
+          PY
+          gh release create "android-selfhosted-v$VERSION_CODE" opengym-selfhosted-debug.apk opengym-selfhosted-debug.apk.sha256 build.json permissions.txt --target "$SOURCE_SHA" --prerelease --draft --title "openGym — Self-hosted Android beta ($VERSION_CODE)" --notes-file release-notes.md
+          gh api "repos/$GH_REPO/releases?per_page=100" > "$RUNNER_TEMP/public-releases.json"
+          release_id=$(python3 - <<'PYID'
+          import json,os
+          from pathlib import Path
+          tag='android-selfhosted-v'+os.environ['VERSION_CODE']
+          rows=[r for r in json.loads((Path(os.environ['RUNNER_TEMP'])/'public-releases.json').read_text()) if r['tag_name']==tag and r['draft']]
+          assert len(rows)==1
+          r=rows[0]
+          assert r['prerelease'] and r['target_commitish']==os.environ['SOURCE_SHA']
+          assert {a['name'] for a in r['assets']}=={'opengym-selfhosted-debug.apk','opengym-selfhosted-debug.apk.sha256','build.json','permissions.txt'}
+          print(int(r['id']))
+          PYID
+          )
+          gh api --method PATCH "repos/$GH_REPO/releases/$release_id" -F draft=false > /dev/null

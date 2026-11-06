@@ -69,3 +69,10 @@ test('personal Android workflows require the same explicit origin through build 
  for(const name of ['android-personal-beta.yml','android-personal-release.yml']){const w=workflow(name);assert.equal(w.on.workflow_call.inputs.origin.required,true);assert.equal(w.on.workflow_call.inputs.origin.default,undefined);assert.equal(Object.values(w.jobs)[0].env.OPENGYM_ORIGIN,'${{ inputs.origin }}')}
  const w=workflow('test.yml');for(const name of ['android-personal-beta','android-personal-release'])assert.equal(w.jobs[name].with.origin,'${{ inputs.android_origin }}');
 });
+
+test('generic APK publication is opt-in, owner guarded and uses only a separate public signing secret',()=>{
+ const w=workflow('android-selfhosted.yml');assert.equal(w.on.workflow_dispatch.inputs.publish.default,false);
+ assert.equal(w.jobs.apk.permissions,undefined);assert.equal(w.jobs.publish.permissions.contents,'write');
+ const text=JSON.stringify(w);assert.ok(text.includes('ANDROID_PUBLIC_DEBUG_KEYSTORE_BASE64'));assert.ok(!text.includes('ANDROID_BETA_DEBUG_KEYSTORE_BASE64'));
+ rejects('android-selfhosted.yml',value=>{value.jobs.publish.if=value.jobs.publish.if.replace('inputs.publish == true','true')},'guard');
+});

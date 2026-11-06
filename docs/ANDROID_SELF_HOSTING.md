@@ -166,11 +166,18 @@ writes an APK, checksum and public metadata under a fresh ignored
 It does not publish them. Android signing verification is distinct from a SHA-256
 file checksum. This script has not been exercised with the native toolchain here.
 
-No generic GitHub workflow or public signing secret is provisioned by this work.
-The existing personal workflows remain separate. A future manual workflow must
-use a new distribution-specific retained secret, the builder above, minimum read
-permissions and explicit artifact verification; it must never borrow the personal
-beta's secret or automatically generate replacement keys.
+The manual **Android self-hosted beta** workflow (`android-selfhosted.yml`) uses
+this existing builder, Node 22/JDK 21/SDK 35, read-only build permissions and a
+separate `ANDROID_PUBLIC_DEBUG_KEYSTORE_BASE64` secret. Its public certificate pin
+must match the `ANDROID_PUBLIC_SIGNER_SHA256` repository variable. The workflow
+never generates replacement keys. Set an increasing `version_code`; publication
+is opt-in and creates a new distinct `android-selfhosted-vN` prerelease, never the
+personal release. The pinned owner/repository/review-branch guard remains active.
+
+This workflow has been statically checked but has not yet been executed. No generic
+APK or signing secret has been provisioned in this development session. The current
+connector is another read-only account and no local `gh` binary/toolchain was found;
+authentication with the repository owner is required to complete the build.
 
 ## Tests and acceptance
 
@@ -233,3 +240,67 @@ file or signing keystore.
 
 Android references: [backup rules](https://developer.android.com/identity/data/autobackup),
 [network security](https://developer.android.com/privacy-and-security/security-config).
+
+
+## Personal APK migration and first public build
+
+Direct replacement is **not supported**: the personal package is
+`ch.duartesantos.opengym.test` (default versionCode 26 in source), while the generic
+package is `fr.solhren.opengym.selfhosted.debug`, with an independently retained
+certificate and its own increasing versionCode. Android isolates their local
+files/IndexedDB/secure credentials. A higher version code alone cannot bridge
+package IDs or signatures. The personal key is neither read nor reused here.
+
+Keep both installed. Before transferring data, synchronize the personal app to
+its original server and verify no pending operations remain, or separately export
+workouts and Nutrition and retain the files. Pair the generic app to the same
+account/server for a synchronization transfer. For local-only transfer, import
+workouts using their supported import flow and Nutrition using its preview/merge
+flow. Do not import over an already synchronized copy without reviewing conflicts.
+Global workouts-plus-Nutrition restore is still unavailable. Verify meals, snapshots,
+recipes, goals and workout counts after restarting the generic app; retain the old
+app/exports until the physical-device migration is confirmed.
+
+For first provisioning only, use a workstation with JDK 21 to create a **new generic**
+debug key outside the checkout if this distribution has never been installed. If a
+generic APK already exists, recover its key instead. Keep a private backup. Example
+with `OPENGYM_PUBLIC_ANDROID_KEYSTORE` set to a new absolute private filename:
+
+```sh
+umask 077
+keytool -genkeypair -keystore "$OPENGYM_PUBLIC_ANDROID_KEYSTORE" \
+  -storepass android -keypass android -alias androiddebugkey -keyalg RSA \
+  -keysize 2048 -validity 10000 -dname 'CN=openGym Self-hosted Debug'
+test "$(gh api user --jq .login)" = solhren
+base64 -w0 "$OPENGYM_PUBLIC_ANDROID_KEYSTORE" | \
+  gh secret set ANDROID_PUBLIC_DEBUG_KEYSTORE_BASE64 --repo solhren/openGym
+PUBLIC_SIGNER=$(keytool -exportcert -keystore "$OPENGYM_PUBLIC_ANDROID_KEYSTORE" \
+  -storepass android -alias androiddebugkey | sha256sum | cut -d' ' -f1)
+gh variable set ANDROID_PUBLIC_SIGNER_SHA256 --repo solhren/openGym --body "$PUBLIC_SIGNER"
+```
+
+Run these with the owner account; do not put the key/base64 into a file in the
+checkout or print it. The password above is Android's conventional debug-key
+password, not an account credential; the keystore itself remains private.
+
+After reviewed source is pushed to `review/public-readiness` (the default branch
+must contain the workflow), start with **publish=false**:
+
+```sh
+gh workflow run android-selfhosted.yml --repo solhren/openGym \
+  --ref review/public-readiness -f version_code=1 -f publish=false
+```
+
+The artifact includes only APK/checksum, public build metadata and merged permissions.
+The builder verifies package, version, certificate, the self-hosted HTML marker,
+absence of a remote Capacitor shell and common secret/private-file patterns. This
+bounded text scan is not proof that every possible secret pattern is detectable.
+Permissions are reported in full for review; inherited notification, alarm, health
+and package-install capabilities are not described as scanner-only permissions.
+Retain the same key/pin for every update and increase versionCode. Only after the
+compiled artifact checks pass should the owner dispatch with `publish=true` to
+create a generic prerelease. It does not attest physical-device acceptance.
+
+Local follow-up verification: 7 builder/preflight tests, 3 synthetic APK-inspection
+tests and 100 targeted frontend tests passed (10 files, 22.60 s, 0 failed/skipped).
+No native build, APK signature measurement or physical-phone test is claimed yet.
