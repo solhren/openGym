@@ -311,3 +311,9 @@ workflows and their dispatcher jobs are disabled; existing installed personal ap
 keys, releases and production data remain intact. The old main is archived before
 integration. The public distribution uses its own retained certificate and package;
 use the migration steps above rather than uninstalling the personal application.
+
+
+First official CI attempt: D8 dex merging exhausted the generic builder's 512 MiB
+Java override. The override was removed so Gradle uses the existing project setting
+(`org.gradle.jvmargs=-Xmx1536m`), as the other Android builds already do. One worker
+and resource preflight remain enabled; no VPS build or production limit was changed.

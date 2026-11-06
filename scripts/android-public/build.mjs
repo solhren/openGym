@@ -45,7 +45,7 @@ export function build(root,env=process.env) {
   const certificate=run('keytool',['-exportcert','-keystore',configured.OPENGYM_PUBLIC_ANDROID_KEYSTORE,'-storepass','android','-alias','androiddebugkey'],root,configured,{capture:true})
   run('npm',['run','build:mobile'],path.join(root,'frontend'),configured)
   prepareAndroid({root,...(process.platform==='linux'?{availableMemory:availableRam}:{})})
-  run('./gradlew',['--no-daemon','--max-workers=1','-Dorg.gradle.jvmargs=-Xmx512m','assembleDebug'],path.join(root,'frontend/android'),configured)
+  run('./gradlew',['--no-daemon','--max-workers=1','assembleDebug'],path.join(root,'frontend/android'),configured)
   const apk=path.join(root,'frontend/android/app/build/outputs/apk/debug/app-debug.apk')
   const signerText=run(path.join(buildTools,'apksigner'),['verify','--print-certs',apk],root,configured,{capture:true}).toString('utf8')
   const badging=run(path.join(buildTools,'aapt'),['dump','badging',apk],root,configured,{capture:true}).toString('utf8')
