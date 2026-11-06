@@ -15,7 +15,7 @@ concurrency:
 jobs:
   build:
     if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == 'solhren' && github.ref == 'refs/heads/review/public-readiness'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -47,8 +47,10 @@ jobs:
   deploy:
     if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == 'solhren' && github.ref == 'refs/heads/review/public-readiness' && inputs.publish == true
     needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    runs-on: ubuntu-24.04
+    # Pages itself remains bounded to 10 min. Allow setup/polling/cancellation
+    # to finish before the runner kills the job and hides the action's diagnosis.
+    timeout-minutes: 12
     permissions:
       contents: read
       pages: write
@@ -59,3 +61,6 @@ jobs:
     steps:
       - id: deploy
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
+        with:
+          artifact_name: github-pages
+          timeout: '600000'

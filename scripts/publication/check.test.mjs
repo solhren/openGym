@@ -53,3 +53,14 @@ test('browser demo requires owner, reviewed branch and explicit publication opt-
   }
   assert.ok(!JSON.stringify(demo).includes('stage-media'))
 })
+
+test('Pages timeout leaves runner headroom for diagnostics without extending the provider deadline', () => {
+  const demo = workflow('demo-preview.yml')
+  const deploy = demo.jobs.deploy
+  const action = deploy.steps.find(step => step.id === 'deploy')
+  assert.equal(Number(action.with.timeout), 600000)
+  assert.equal(action.with.artifact_name, 'github-pages')
+  assert.equal(deploy['timeout-minutes'], 12)
+  assert.ok(deploy['timeout-minutes'] * 60000 >= Number(action.with.timeout) + 120000)
+  for (const job of [demo.jobs.build, deploy]) assert.equal(job['runs-on'], 'ubuntu-24.04')
+})

@@ -112,3 +112,37 @@ existing example names intentionally do not change when the UI language changes.
 Locale validation: **18 locales × 2,467 keys**, synchronized. `git diff --check` passed.
 The full frontend/API suites were not repeated for this demo-only change.
 No production deployment, Docker build or Android test is required for this static demo.
+
+## Pages deployment timeout: 6 November 2026
+
+The first publish attempt, [run 42251696088](https://github.com/solhren/openGym/actions/runs/42251696088),
+successfully installed dependencies, ran the six demo tests, built the app and uploaded
+both artifacts. The `github-pages` artifact was 4,642,787 bytes compressed. Pages accepted
+the deployment at 16:22:43 UTC, reported `deployment_queued` and then `updating_pages`
+from 16:23:50 through 16:32:33. The job's 10-minute deadline canceled it at 16:32:40.
+The public URL still returned HTTP 404 when checked after this attempt.
+
+This proves an incomplete Pages publication, not a failing React build or a denied
+deployment request. The reason for GitHub's prolonged `updating_pages` state is not
+visible in these logs. No unresolved global incident was listed by GitHub Status at
+the diagnostic check; that does not rule out a repository-specific service problem.
+
+The job deadline now leaves two minutes for runner setup, polling and cancellation
+around the action's unchanged 600,000 ms limit. The pinned action itself caps its
+timeout at ten minutes ([action source](https://github.com/actions/deploy-pages/blob/368f82528645a54fb793d4d04e342629a3f51346/src/internal/deployment.js)).
+Increasing that input would not solve the waiting state. Both demo jobs now explicitly
+use Ubuntu 24.04 for reproducibility: the `ubuntu-latest` migration notice was informational,
+not evidence of the publication failure. No permissions or application code changed.
+
+The local publication-policy suite passes **11 tests**, including the unchanged provider
+deadline and runner headroom. No full application suite/build was repeated for this YAML
+change. It remains unverified by a new GitHub Actions execution until the owner pushes
+the correction and launches **Browser-only demo → Run workflow** on
+`review/public-readiness`, with `publish` enabled. Rerunning the old execution would
+use its old source/workflow. Do not launch overlapping publication attempts.
+
+If the new attempt again remains at `updating_pages`, keep the run URL and timestamps,
+check [GitHub Status](https://www.githubstatus.com/), and report the blocked Pages
+deployment to GitHub support. Do not delete the repository, disable protections, change
+the production DNS or increase quotas as a speculative workaround. A green deploy and
+an HTTP 200 serving the actual app are still required before advertising the demo.
