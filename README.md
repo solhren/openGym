@@ -10,15 +10,14 @@ contributors built the original application. This fork adds an experimental Nutr
 and local food-catalogue integration. The application code retains its GNU AGPL license;
 third-party data and media have separate terms.
 
-**Status: source beta candidate on `review/public-readiness`, awaiting maintainer review.**
+**Status: official public beta source on `main`; physical Android acceptance is still pending.**
 The existing personal beta on `feature/nutrition` is a separate deployment. The current public scope is
 Web self-hosting source, personal or multi-user accounts, and an optional small Ciqual
-catalogue. Real Docker acceptance and generic Android compilation/device tests are deferred
-manual validations. International OFF/wger installation is deferred to a future version.
+catalogue. Real Docker acceptance and physical Android tests remain manual validations. International OFF/wger installation is deferred to a future version.
 Do not treat upstream images, APKs or CI badges as evidence for this candidate.
 See the [publication checklist and evidence](docs/PUBLICATION.md) before distributing it.
 
-[Get started](docs/QUICK_START.md) · [FAQ](docs/FAQ.md) · [Self-hosting](docs/SELF_HOSTING.md) ·
+[Android installation](docs/ANDROID_SELF_HOSTING.md) · [Get started](docs/QUICK_START.md) · [FAQ](docs/FAQ.md) · [Self-hosting](docs/SELF_HOSTING.md) ·
 [Contribute](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 ## Try the interface without a server

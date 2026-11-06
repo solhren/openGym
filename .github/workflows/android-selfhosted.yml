@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   apk:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == github.repository_owner && github.ref == 'refs/heads/review/public-readiness'
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == github.repository_owner && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -96,7 +96,7 @@ jobs:
         if: always()
         run: rm -f -- "$RUNNER_TEMP/opengym-public-debug.keystore" "$RUNNER_TEMP/public-cert.der"
   publish:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == github.repository_owner && github.ref == 'refs/heads/review/public-readiness' && inputs.publish == true
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == github.repository_owner && github.ref == 'refs/heads/main' && inputs.publish == true
     needs: apk
     runs-on: ubuntu-24.04
     timeout-minutes: 10

@@ -50,7 +50,7 @@ jobs:
   # test.yml already exists on main. Its manual branch selector can call the
   # new reusable APK workflow on feature/nutrition without changing main.
   android-personal-beta:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == github.repository_owner && inputs.android_release_run == '' && inputs.android_origin != ''
+    if: false && github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == github.repository_owner && inputs.android_release_run == '' && inputs.android_origin != ''
     permissions:
       contents: read
     uses: ./.github/workflows/android-personal-beta.yml
@@ -60,7 +60,7 @@ jobs:
       ANDROID_BETA_DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_BETA_DEBUG_KEYSTORE_BASE64 }}
 
   android-personal-release:
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == github.repository_owner && inputs.android_release_run != ''
+    if: false && github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.ref == 'refs/heads/feature/nutrition' && github.actor == github.repository_owner && inputs.android_release_run != ''
     permissions:
       contents: write
       actions: read

@@ -7,11 +7,12 @@ import { fileURLToPath } from 'node:url'
 import { load } from 'js-yaml'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
-const personalGuard = ["github.event_name == 'workflow_dispatch'", "github.repository == 'solhren/openGym'", "github.ref == 'refs/heads/feature/nutrition'", "github.actor == github.repository_owner"]
+const personalGuard = ["false","github.event_name == 'workflow_dispatch'", "github.repository == 'solhren/openGym'", "github.ref == 'refs/heads/feature/nutrition'", "github.actor == github.repository_owner"]
 const upstreamGuard = ["github.repository == 'DuarteSantos8/openGym'"]
 const demoGuard = ["github.event_name == 'workflow_dispatch'", "github.repository == 'solhren/openGym'", "github.actor == github.repository_owner", "github.ref == 'refs/heads/review/public-readiness'"]
+const androidGuard = ["github.event_name == 'workflow_dispatch'", "github.repository == 'solhren/openGym'", "github.actor == github.repository_owner", "github.ref == 'refs/heads/main'"]
 const gatedJobs = {
-  'android-selfhosted.yml': { apk: demoGuard, publish: [...demoGuard, 'inputs.publish == true'] },
+  'android-selfhosted.yml': { apk: androidGuard, publish: [...androidGuard, 'inputs.publish == true'] },
   'demo-preview.yml': { build: demoGuard, deploy: [...demoGuard, 'inputs.publish == true'] },
   'docker-publish.yml': { build: upstreamGuard },
   'pages.yml': { build: upstreamGuard, deploy: upstreamGuard },

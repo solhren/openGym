@@ -76,3 +76,8 @@ test('generic APK publication is opt-in, owner guarded and uses only a separate 
  const text=JSON.stringify(w);assert.ok(text.includes('ANDROID_PUBLIC_DEBUG_KEYSTORE_BASE64'));assert.ok(!text.includes('ANDROID_BETA_DEBUG_KEYSTORE_BASE64'));
  rejects('android-selfhosted.yml',value=>{value.jobs.publish.if=value.jobs.publish.if.replace('inputs.publish == true','true')},'guard');
 });
+
+test('official Android targets main and legacy personal publishers cannot execute',()=>{
+ const w=workflow('android-selfhosted.yml');for(const job of Object.values(w.jobs))assert.ok(job.if.includes("github.ref == 'refs/heads/main'"));
+ for(const [name,id]of [['android-personal-beta.yml','apk'],['android-personal-release.yml','publish'],['test.yml','android-personal-beta'],['test.yml','android-personal-release']]){assert.ok(workflow(name).jobs[id].if.startsWith('false &&'));rejects(name,v=>{v.jobs[id].if=v.jobs[id].if.replace('false && ','')},'guard')}
+});

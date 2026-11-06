@@ -172,7 +172,7 @@ separate `ANDROID_PUBLIC_DEBUG_KEYSTORE_BASE64` secret. Its public certificate p
 must match the `ANDROID_PUBLIC_SIGNER_SHA256` repository variable. The workflow
 never generates replacement keys. Set an increasing `version_code`; publication
 is opt-in and creates a new distinct `android-selfhosted-vN` prerelease, never the
-personal release. The pinned owner/repository/review-branch guard remains active.
+personal release. The pinned owner/repository/main-branch guard remains active.
 
 This workflow has been statically checked but has not yet been executed. No generic
 APK or signing secret has been provisioned in this development session. The current
@@ -283,12 +283,12 @@ Run these with the owner account; do not put the key/base64 into a file in the
 checkout or print it. The password above is Android's conventional debug-key
 password, not an account credential; the keystore itself remains private.
 
-After reviewed source is pushed to `review/public-readiness` (the default branch
+After reviewed source is integrated into `main` (the default branch
 must contain the workflow), start with **publish=false**:
 
 ```sh
 gh workflow run android-selfhosted.yml --repo solhren/openGym \
-  --ref review/public-readiness -f version_code=1 -f publish=false
+  --ref main -f version_code=1 -f publish=false
 ```
 
 The artifact includes only APK/checksum, public build metadata and merged permissions.
@@ -304,3 +304,10 @@ create a generic prerelease. It does not attest physical-device acceptance.
 Local follow-up verification: 7 builder/preflight tests, 3 synthetic APK-inspection
 tests and 100 targeted frontend tests passed (10 files, 22.60 s, 0 failed/skipped).
 No native build, APK signature measurement or physical-phone test is claimed yet.
+
+
+The official distribution now builds from `main`. The prior personal build/release
+workflows and their dispatcher jobs are disabled; existing installed personal apps,
+keys, releases and production data remain intact. The old main is archived before
+integration. The public distribution uses its own retained certificate and package;
+use the migration steps above rather than uninstalling the personal application.
