@@ -5,12 +5,14 @@ own HTTPS server at runtime; it embeds no server address, account, invitation or
 API token. It uses the existing Capacitor, secure-storage and ML Kit plugins.
 It is not the maintainer's personal APK, and does not update that installation.
 
-**Current validation:** JavaScript, React and build-configuration tests are
-available. No JDK, Android SDK or `adb` is installed in this development session;
-no self-hosted APK has been compiled, installed or tested on a phone. Do not
-advertise a downloadable generic APK until the packaging and phone checks below
-have passed. The personal scanner's earlier successful phone test does not
-validate this new profile.
+**Current validation:** the generic APK was compiled and verified in
+[GitHub Actions run 42314292403](https://github.com/solhren/openGym/actions/runs/42314292403).
+[Download the APK](https://github.com/solhren/openGym/releases/download/android-selfhosted-v1/opengym-selfhosted-debug.apk)
+from the [public prerelease](https://github.com/solhren/openGym/releases/tag/android-selfhosted-v1).
+Package/version/certificate, merged permissions and bounded asset inspection passed.
+This is not a stable release: physical installation, scanner, offline operation and
+upgrade/migration still require the manual phone checklist. The personal scanner's
+earlier phone test does not validate this new package.
 
 ## Connect, use and update
 
@@ -164,7 +166,7 @@ certificate against the supplied key, the package and version using `aapt`, and
 writes an APK, checksum and public metadata under a fresh ignored
 `scripts/nutrition-local-catalog/artifacts/selfhosted-apk-*` directory.
 It does not publish them. Android signing verification is distinct from a SHA-256
-file checksum. This script has not been exercised with the native toolchain here.
+file checksum. The official CI run exercised this builder with JDK 21 and Android SDK 35.
 
 The manual **Android self-hosted beta** workflow (`android-selfhosted.yml`) uses
 this existing builder, Node 22/JDK 21/SDK 35, read-only build permissions and a
@@ -174,10 +176,10 @@ never generates replacement keys. Set an increasing `version_code`; publication
 is opt-in and creates a new distinct `android-selfhosted-vN` prerelease, never the
 personal release. The pinned owner/repository/main-branch guard remains active.
 
-This workflow has been statically checked but has not yet been executed. No generic
-APK or signing secret has been provisioned in this development session. The current
-connector is another read-only account and no local `gh` binary/toolchain was found;
-authentication with the repository owner is required to complete the build.
+The workflow has now built and published the first public prerelease. Its signing
+key was newly provisioned independently of the personal key and is retained privately;
+future updates must reuse it. Never regenerate the key for an installed distribution.
+
 
 ## Tests and acceptance
 
@@ -303,7 +305,8 @@ create a generic prerelease. It does not attest physical-device acceptance.
 
 Local follow-up verification: 7 builder/preflight tests, 3 synthetic APK-inspection
 tests and 100 targeted frontend tests passed (10 files, 22.60 s, 0 failed/skipped).
-No native build, APK signature measurement or physical-phone test is claimed yet.
+Native build and signing verification subsequently passed in the official CI run;
+physical-phone acceptance is still pending.
 
 
 The official distribution now builds from `main`. The prior personal build/release
@@ -317,3 +320,25 @@ First official CI attempt: D8 dex merging exhausted the generic builder's 512 Mi
 Java override. The override was removed so Gradle uses the existing project setting
 (`org.gradle.jvmargs=-Xmx1536m`), as the other Android builds already do. One worker
 and resource preflight remain enabled; no VPS build or production limit was changed.
+
+
+### First official artifact evidence
+
+VersionCode **1**, package `fr.solhren.opengym.selfhosted.debug`, source `cb52088f`.
+APK size: **238,197,687 bytes**. SHA-256:
+`87cf217b90c165118fa86407d4759382badccdbe2fd508fee038977b52317aee`.
+Signing certificate SHA-256:
+`d60db9441bb43ddb93c4cff8b37c3bcbdfa62a6e81ef5b18215ee863e9f82997`.
+The retained public-key pin matches `apksigner`; the published GitHub asset digest
+matches the compiled APK checksum. Public `build.json` and `permissions.txt` are
+release assets. Inspection checked 105 text assets, no remote Capacitor shell and
+no detected private-file/common-token patterns. This is a bounded check, not a
+claim to detect all possible secrets. No personal backend is preconfigured.
+
+The merged permissions include camera/Internet/network state, notifications,
+alarms, boot receiver, vibration/wake lock, foreground-service support, Health
+Connect write permissions and the inherited package-install permission. Public
+in-app automatic updating is disabled; this permission is retained from the common
+manifest, not presented as a scanner requirement. Review permissions on your phone.
+The old `main` is retained as `archive/main-before-public-20261106`; existing personal
+APKs/releases, signing key and production installation were not replaced.

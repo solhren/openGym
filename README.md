@@ -20,6 +20,18 @@ See the [publication checklist and evidence](docs/PUBLICATION.md) before distrib
 [Android installation](docs/ANDROID_SELF_HOSTING.md) · [Get started](docs/QUICK_START.md) · [FAQ](docs/FAQ.md) · [Self-hosting](docs/SELF_HOSTING.md) ·
 [Contribute](CONTRIBUTING.md) · [Security](SECURITY.md)
 
+## Install the Android beta
+
+[Download the APK](https://github.com/solhren/openGym/releases/download/android-selfhosted-v1/opengym-selfhosted-debug.apk)
+· [Release, checksums and permissions](https://github.com/solhren/openGym/releases/tag/android-selfhosted-v1)
+· [Connection and migration guide](docs/ANDROID_SELF_HOSTING.md)
+
+Install **openGym Self-hosted**, then choose local mode or connect your own HTTPS
+server and pair your account. This generic package installs alongside the personal
+beta; keep the old app until your data transfer is verified. Update the generic app
+in place with the same signing identity. This is a prerelease: physical phone,
+scanner and upgrade/migration acceptance remain to be completed.
+
 ## Try the interface without a server
 
 Open the **[live browser demo](https://solhren.github.io/openGym/)** to try openGym
