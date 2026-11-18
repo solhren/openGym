@@ -269,6 +269,8 @@ export function validateNutritionGoal(v, path = 'goal') {
   if (!['custom', 'maintenance', 'bulk', 'cut'].includes(v.mode)) issue(out, child(path, 'mode'), 'unknown_goal_mode')
   out.push(...validateNutrients(v.targets, child(path, 'targets')))
   if (object(v.targets) && !NUTRIENTS.some(k => nonnegative(v.targets[k]))) issue(out, child(path, 'targets'), 'target_required')
+  if (v.trainingTargets != null) out.push(...validateNutrients(v.trainingTargets, child(path, 'trainingTargets')))
+  if (v.waterTargetMl != null && !positive(v.waterTargetMl)) issue(out, child(path, 'waterTargetMl'), 'positive_number_required')
   if (v.basis != null && record(v.basis, out, child(path, 'basis'))) {
     for (const key of ['weightKg', 'maintenanceKcal']) {
       if (v.basis[key] != null && !positive(v.basis[key])) issue(out, child(child(path, 'basis'), key), 'positive_number_required')

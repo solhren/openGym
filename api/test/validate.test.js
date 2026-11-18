@@ -616,3 +616,122 @@ test('a flag is one pair of regional indicators, not a run of them spelling a wo
   }
   for (const key of ['trophy', 'crown', 'medal', 'flag', 'star', 'target', 'shield']) assert.equal(glyph(key), key);
 });
+
+/* ---------------- nutrition v1 domain extensions ---------------- */
+const { validateNutritionGoal, validateFoodEntry, validateFood } = await import('../nutrition/core/validate.js');
+
+const baseGoal = over => ({
+  schemaVersion: 1,
+  id: 'goal-1',
+  start: '2026-10-01',
+  end: null,
+  mode: 'cut',
+  targets: { kcal: 2100, protein: 165, carbs: 200, fat: 65, fiber: 30, sugar: null, saturatedFat: null, sodium: null },
+  ...over
+});
+
+test('nutrition goal keeps base targets mandatory and accepts optional trainingTargets and waterTargetMl', () => {
+  assert.deepEqual(validateNutritionGoal(baseGoal()), []);
+  assert.deepEqual(validateNutritionGoal(baseGoal({ trainingTargets: null, waterTargetMl: null })), []);
+  assert.deepEqual(validateNutritionGoal(baseGoal({
+    trainingTargets: { kcal: 2550, carbs: 310, protein: null },
+    waterTargetMl: 2500
+  })), []);
+  assert.deepEqual(validateNutritionGoal(baseGoal({
+    trainingTargets: { kcal: 0 }
+  })), []);
+
+  const emptyBase = validateNutritionGoal(baseGoal({
+    targets: { kcal: null },
+    trainingTargets: { kcal: 2500 }
+  }));
+  assert.ok(emptyBase.some(i => i.path === 'goal.targets' && i.code === 'target_required'));
+});
+
+test('nutrition goal rejects invalid trainingTargets and invalid waterTargetMl', () => {
+  const negTrain = validateNutritionGoal(baseGoal({ trainingTargets: { kcal: -100 } }));
+  assert.ok(negTrain.some(i => i.path === 'goal.trainingTargets.kcal' && i.code === 'nonnegative_number_required'));
+
+  const nanTrain = validateNutritionGoal(baseGoal({ trainingTargets: { protein: Number.NaN } }));
+  assert.ok(nanTrain.some(i => i.path === 'goal.trainingTargets.protein' && i.code === 'nonnegative_number_required'));
+
+  const badSugar = validateNutritionGoal(baseGoal({ trainingTargets: { carbs: 40, sugar: 65 } }));
+  assert.ok(badSugar.some(i => i.path === 'goal.trainingTargets.sugar' && i.code === 'exceeds_parent_nutrient'));
+
+  const nonObjectTrain = validateNutritionGoal(baseGoal({ trainingTargets: 'invalid' }));
+  assert.ok(nonObjectTrain.some(i => i.path === 'goal.trainingTargets' && i.code === 'object_required'));
+
+  for (const badWater of [0, -100, Number.NaN, Number.POSITIVE_INFINITY, '2500']) {
+    const issues = validateNutritionGoal(baseGoal({ waterTargetMl: badWater }));
+    assert.ok(
+      issues.some(i => i.path === 'goal.waterTargetMl' && i.code === 'positive_number_required'),
+      `waterTargetMl=${String(badWater)} should fail positive_number_required`
+    );
+  }
+});
+
+test('quick add FoodEntry with >100g carbs and protein passes validation via scaled reference mass', () => {
+  const refGrams = Math.max(100, Math.ceil(140 + 250 + 45 + 18 + 1)); // 454g
+  const snapshot = {
+    schemaVersion: 1,
+    id: 'quick-entry-1',
+    kind: 'food',
+    name: 'Repas libre post-séance',
+    brand: '',
+    reference: { amount: refGrams, unit: 'g' },
+    nutrients: {
+      kcal: 2005,
+      protein: 140,
+      carbs: 250,
+      fat: 45,
+      fiber: 18,
+      sugar: null,
+      saturatedFat: null,
+      sodium: null
+    },
+    portions: [{ id: 'quick', label: '1×', amount: refGrams, unit: 'g' }],
+    defaultQuantity: { amount: 1, unit: 'portion', portionId: 'quick' },
+    source: { kind: 'custom', quickAdd: true }
+  };
+  assert.deepEqual(validateFood(snapshot), []);
+
+  const quickEntry = {
+    schemaVersion: 1,
+    id: 'entry-1',
+    d: '2026-10-12',
+    meal: 'dinner',
+    entryKind: 'quick',
+    snapshot,
+    quantity: { amount: 1, unit: 'portion', portionId: 'quick' },
+    note: ''
+  };
+  assert.deepEqual(validateFoodEntry(quickEntry), []);
+
+  // Naive 100g reference would fail exceeds_reference_mass for 250g carbs.
+  const naive = { ...snapshot, reference: { amount: 100, unit: 'g' } };
+  assert.ok(validateFood(naive).some(i => i.code === 'exceeds_reference_mass'));
+});
+
+test('water FoodEntry validates cleanly as a v1 custom hydration entry', () => {
+  const waterEntry = {
+    schemaVersion: 1,
+    id: 'water-1',
+    d: '2026-10-12',
+    meal: 'snack',
+    entryKind: 'water',
+    snapshot: {
+      schemaVersion: 1,
+      id: 'opengym-water',
+      kind: 'food',
+      name: 'Water',
+      brand: '',
+      reference: { amount: 100, unit: 'ml' },
+      nutrients: { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, saturatedFat: 0, sodium: 0 },
+      portions: [],
+      source: { kind: 'custom', hydration: true }
+    },
+    quantity: { amount: 350, unit: 'ml' },
+    note: ''
+  };
+  assert.deepEqual(validateFoodEntry(waterEntry), []);
+});
