@@ -2453,4 +2453,18 @@ export default {
   "Food catalogue": "식품 카탈로그",
   "Several local products share this barcode. Select a product by name.": "여러 로컬 제품이 같은 바코드를 사용합니다. 이름으로 제품을 선택하세요.",
   "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "경로 없이 신뢰할 수 있는 인증서가 있는 HTTPS 서버 주소를 사용하세요. 예: https://gym.example.com.",
+  // In-App APK Update strings
+  "Allow app installations": "Allow app installations",
+  "Android requires enabling “Install unknown apps” for openGym before opening the update. Your download is saved and ready.": "Android requires enabling “Install unknown apps” for openGym before opening the update. Your download is saved and ready.",
+  "App update available": "App update available",
+  "Connect to the internet and try downloading openGym v{0} again.": "Connect to the internet and try downloading openGym v{0} again.",
+  "Could not open Android settings. Enable “Install unknown apps” for openGym and try again.": "Could not open Android settings. Enable “Install unknown apps” for openGym and try again.",
+  "Download interrupted": "Download interrupted",
+  "GitHub rate limit reached. Try again in a few minutes.": "GitHub rate limit reached. Try again in a few minutes.",
+  "Open Android settings": "Open Android settings",
+  "Retry download": "Retry download",
+  "The update download lost connection before finishing. Any partial file was cleaned up.": "The update download lost connection before finishing. Any partial file was cleaned up.",
+  "Verified update ready to download and install.": "Verified update ready to download and install.",
+  "You appear to be offline": "You appear to be offline",
+  "openGym v{0} is available": "openGym v{0} is available",
 }

@@ -2453,4 +2453,18 @@ export default {
   "Food catalogue": "Catalogue alimentaire",
   "Several local products share this barcode. Select a product by name.": "Plusieurs produits locaux partagent ce code-barres. Sélectionne un produit par son nom.",
   "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "Utilise une adresse de serveur HTTPS avec un certificat valide, sans chemin, par exemple https://gym.example.com.",
+  // In-App APK Update strings
+  "Allow app installations": "Autoriser l’installation d’applis",
+  "Android requires enabling “Install unknown apps” for openGym before opening the update. Your download is saved and ready.": "Android exige d’activer « Installer des applis inconnues » pour openGym avant d’ouvrir la mise à jour. Le téléchargement est enregistré et prêt.",
+  "App update available": "Mise à jour disponible",
+  "Connect to the internet and try downloading openGym v{0} again.": "Connecte-toi à Internet puis réessaie de télécharger openGym v{0}.",
+  "Could not open Android settings. Enable “Install unknown apps” for openGym and try again.": "Impossible d’ouvrir les réglages Android. Active « Installer des applis inconnues » pour openGym puis réessaie.",
+  "Download interrupted": "Téléchargement interrompu",
+  "GitHub rate limit reached. Try again in a few minutes.": "Limite de requêtes GitHub atteinte. Réessaie dans quelques minutes.",
+  "Open Android settings": "Ouvrir les réglages Android",
+  "Retry download": "Réessayer le téléchargement",
+  "The update download lost connection before finishing. Any partial file was cleaned up.": "Le téléchargement de la mise à jour a perdu la connexion avant la fin. Le fichier partiel a été supprimé.",
+  "Verified update ready to download and install.": "Mise à jour vérifiée prête à être téléchargée et installée.",
+  "You appear to be offline": "Tu sembles être hors ligne",
+  "openGym v{0} is available": "openGym v{0} est disponible",
 }

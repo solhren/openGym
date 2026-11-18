@@ -2473,4 +2473,18 @@ export default {
   "Food catalogue": "Lebensmittelkatalog",
   "Several local products share this barcode. Select a product by name.": "Mehrere lokale Produkte haben diesen Barcode. Wähle ein Produkt nach Namen aus.",
   "Use a trusted HTTPS server address without a path, for example https://gym.example.com.": "Verwende eine HTTPS-Serveradresse mit vertrauenswürdigem Zertifikat und ohne Pfad, zum Beispiel https://gym.example.com.",
+  // In-App APK Update strings
+  "Allow app installations": "Allow app installations",
+  "Android requires enabling “Install unknown apps” for openGym before opening the update. Your download is saved and ready.": "Android requires enabling “Install unknown apps” for openGym before opening the update. Your download is saved and ready.",
+  "App update available": "App update available",
+  "Connect to the internet and try downloading openGym v{0} again.": "Connect to the internet and try downloading openGym v{0} again.",
+  "Could not open Android settings. Enable “Install unknown apps” for openGym and try again.": "Could not open Android settings. Enable “Install unknown apps” for openGym and try again.",
+  "Download interrupted": "Download interrupted",
+  "GitHub rate limit reached. Try again in a few minutes.": "GitHub rate limit reached. Try again in a few minutes.",
+  "Open Android settings": "Open Android settings",
+  "Retry download": "Retry download",
+  "The update download lost connection before finishing. Any partial file was cleaned up.": "The update download lost connection before finishing. Any partial file was cleaned up.",
+  "Verified update ready to download and install.": "Verified update ready to download and install.",
+  "You appear to be offline": "You appear to be offline",
+  "openGym v{0} is available": "openGym v{0} is available",
 }
