@@ -26,7 +26,7 @@ beforeEach(async () => {
   service = createNutritionUISession({ store: fixture.store, session: fixture.session.value, getSession: () => fixture.session.value, online: () => false, catalogTransport: (...args) => transport(...args), catalogLimiter: limits })
 })
 afterEach(async () => { await act(async () => root.unmount()); service.close(); host.remove(); vi.unstubAllGlobals() })
-const wait = async predicate => { const end = Date.now() + 6000; while (!predicate()) { if (Date.now() > end) throw Error(host.textContent); await act(async () => { await new Promise(r => setTimeout(r, 10)) }) } }
+const wait = async predicate => { const end = Date.now() + 4000; while (!predicate()) { if (Date.now() > end) throw Error(host.textContent); await act(async () => { await new Promise(r => setTimeout(r, 10)) }) } }
 const button = label => { const found = [...host.querySelectorAll('button')].find(b => b.textContent.trim() === label); expect(found, label).toBeTruthy(); return found }
 const click = async label => { await act(async () => button(label).click()) }
 async function type(el, value) {
@@ -52,7 +52,7 @@ test('real journal external search -> detail -> quantity -> durable atomic food/
   expect(saved.entries).toHaveLength(1); expect(saved.entries[0]).toMatchObject({ meal: 'lunch', quantity: { amount: 50, unit: 'g' } })
   expect(library.domains.flatMap(p => p.records.savedFoods ?? [])).toHaveLength(1); expect(library.domains.flatMap(p => p.records.customFoods ?? [])).toHaveLength(0)
   expect(host.textContent).toContain('269.5'); expect(service.getSnapshot().pending).toBeGreaterThan(0); expect(host.textContent).not.toContain('Nutrition synchronized')
-  await click('Add food'); await click('Local foods and recipes'); await wait(() => host.querySelector('.nutrition-result')); await act(async () => host.querySelector('.nutrition-result').click()); await save(); expect((await service.day('2026-10-10')).entries).toHaveLength(2); expect(transport).toHaveBeenCalledTimes(1)
+  await click('Add food'); await wait(() => host.querySelector('.nutrition-result')); await act(async () => host.querySelector('.nutrition-result').click()); await save(); expect((await service.day('2026-10-10')).entries).toHaveLength(2); expect(transport).toHaveBeenCalledTimes(1)
 })
 
 test('V1 local-only combobox -> UUID -> durable journal -> edit -> reopen -> delete; no provider needed',async()=>{
@@ -60,7 +60,7 @@ test('V1 local-only combobox -> UUID -> durable journal -> edit -> reopen -> del
   const local=vi.fn(async path=>response(path.includes('/search?')?localSearchBody():localBody({product:localRecord()})))
   const make=()=>createNutritionUISession({store:fixture.store,session:fixture.session.value,getSession:()=>fixture.session.value,online:()=>false,
     catalogLocalOnly:true,catalogTransport:transport,catalogLocalTransport:local,catalogCapabilitiesTransport:async()=>response(localCapabilities)})
-  service=make();await mount();await click('Add food');await type(field('Meal'),'lunch')
+  service=make();await mount();await click('Add food');await type(field('Meal'),'lunch');await click('Food catalogue')
   await wait(()=>host.querySelector('[role="combobox"]'));expect(host.querySelector('.nutrition-summary')).toBeNull()
   expect(host.querySelector('[aria-label="Food catalogue"]')).toBe(document.activeElement)
   expect(local).not.toHaveBeenCalled();expect(transport).not.toHaveBeenCalled()
@@ -75,7 +75,7 @@ test('V1 local-only combobox -> UUID -> durable journal -> edit -> reopen -> del
   expect((await service.day('2026-10-10')).entries[0].snapshot).toEqual(first.snapshot)
   await act(async()=>host.querySelector('[aria-label="Delete Rice, raw"]').click());await click('Delete');await wait(()=>!service.getSnapshot().busy && !host.querySelector('[aria-label="Edit Rice, raw"]'))
   expect((await service.day('2026-10-10')).entries).toHaveLength(0);expect(service.getSnapshot().pending).toBeGreaterThan(0)
-  await click('Add food');await click('Local foods and recipes');await wait(()=>host.querySelector('.nutrition-result'));await act(async()=>host.querySelector('.nutrition-result').click());await save()
+  await click('Add food');await wait(()=>host.querySelector('.nutrition-result'));await act(async()=>host.querySelector('.nutrition-result').click());await save()
   expect((await service.day('2026-10-10')).entries[0].snapshot).toEqual(first.snapshot);expect(transport).not.toHaveBeenCalled();expect(local).toHaveBeenCalledTimes(2)
 },10000)
 
@@ -100,7 +100,7 @@ for(const kind of ['spread','drink'])test(`certified OFF ${kind}: real React sea
   await wait(()=>host.querySelector(`[aria-label="Delete ${food.name}"]`))
   await act(async()=>host.querySelector(`[aria-label="Delete ${food.name}"]`).click());await click('Delete');await wait(()=>!service.getSnapshot().busy&&!host.querySelector(`[aria-label="Edit ${food.name}"]`))
   expect((await service.day('2026-10-10')).entries).toHaveLength(0)
-  await click('Add food');await click('Local foods and recipes');await wait(()=>host.querySelector('.nutrition-result'));await act(async()=>host.querySelector('.nutrition-result').click());await save()
+  await click('Add food');await wait(()=>host.querySelector('.nutrition-result'));await act(async()=>host.querySelector('.nutrition-result').click());await save()
   expect((await service.day('2026-10-10')).entries[0].snapshot).toEqual(food);expect(transport).not.toHaveBeenCalled();expect(local).toHaveBeenCalledTimes(2)
 },15000)
 
@@ -331,7 +331,7 @@ test('public bilingual catalogue: search, attribution, mass-only journal, reopen
   })
   const make=()=>createNutritionUISession({store:fixture.store,session:fixture.session.value,getSession:()=>fixture.session.value,online:()=>false,
     catalogLocalOnly:true,catalogTransport:transport,catalogLocalTransport:local,catalogCapabilitiesTransport:async()=>response(ciqualCapabilities)})
-  service=make();await mount();await click('Add food');await type(field('Meal'),'dinner')
+  service=make();await mount();await click('Add food');await type(field('Meal'),'dinner');await click('Food catalogue')
   await wait(()=>host.querySelector('[role="combobox"]'))
   expect(host.textContent).toContain('Ciqual 2025');expect(host.textContent).not.toContain('wger / USDA')
   expect(host.querySelector('[aria-label="Scan product barcode"]')).toBeNull()
@@ -358,7 +358,7 @@ test('public bilingual catalogue: search, attribution, mass-only journal, reopen
   await act(async()=>host.querySelector('[aria-label="Delete Test milk"]').click());await click('Delete')
   await wait(()=>!service.getSnapshot().busy&&!host.querySelector('[aria-label="Edit Test milk"]'))
   expect((await service.day('2026-10-10')).entries).toHaveLength(0)
-  await click('Add food');await click('Local foods and recipes');await wait(()=>host.querySelector('.nutrition-result'))
+  await click('Add food');await wait(()=>host.querySelector('.nutrition-result'))
   await act(async()=>host.querySelector('.nutrition-result').click());await save()
   expect((await service.day('2026-10-10')).entries[0].snapshot).toEqual(row.food)
   expect(service.getSnapshot().pending).toBeGreaterThan(0);expect(transport).not.toHaveBeenCalled();expect(local).toHaveBeenCalledTimes(2)
@@ -384,4 +384,34 @@ test('catalogue announces matching results and restores search focus after a fai
   expect(host.querySelector('[role="listbox"]').hidden).toBe(false)
   expect((await service.day('2026-10-10')).entries).toHaveLength(0)
   expect(transport).not.toHaveBeenCalled()
+})
+
+test('unified picker auto-searches catalogue after debounce and supports 1-tap + multi-select without closing', async () => {
+  await mount(); await click('Add food'); await type(field('Meal'), 'snack')
+  const unifiedInput = host.querySelector('input[aria-label="Search foods and recipes"]')
+  await type(unifiedInput, 'hazelnut')
+  expect(transport).toHaveBeenCalledTimes(0)
+  await wait(() => host.querySelector('.nutrition-catalog-embedded .nutrition-result'))
+  expect(transport).toHaveBeenCalledTimes(1)
+  const quickPick = host.querySelector('.nutrition-catalog-embedded [aria-label="Quick log Hazelnut spread"]')
+  expect(quickPick).toBeTruthy()
+  await act(async () => quickPick.click())
+  await wait(() => host.querySelector('.nutrition-picker-session-bar'))
+  expect(host.querySelector('.nutrition-picker')).toBeTruthy()
+  expect(host.querySelector('.nutrition-picker-session-bar').textContent).toContain('1 added')
+  const savedDay = await service.day('2026-10-10')
+  const savedLib = await service.library()
+  expect(savedDay.entries).toHaveLength(1)
+  expect(savedDay.entries[0].meal).toBe('snack')
+  expect(savedLib.domains.flatMap(p => p.records.savedFoods ?? [])).toHaveLength(1)
+})
+
+test('unified picker detects 8-14 digit barcodes directly in search field', async () => {
+  transport.mockImplementation(async () => response({ status: 'success', product: offProduct({ code: '0034000470693' }) }))
+  await mount(); await click('Add food')
+  const unifiedInput = host.querySelector('input[aria-label="Search foods and recipes"]')
+  await type(unifiedInput, '0034000470693')
+  await wait(() => host.querySelector('.nutrition-catalog-embedded .nutrition-product'))
+  expect(new URL(transport.mock.calls[0][0]).pathname).toContain('0034000470693')
+  expect(host.textContent).toContain('Choose quantity')
 })
