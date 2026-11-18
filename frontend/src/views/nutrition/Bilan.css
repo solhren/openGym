@@ -1,0 +1,468 @@
+.bilan-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.bilan-card {
+  display: grid;
+  gap: 14px;
+}
+
+.bilan-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+
+.bilan-card-header h2,
+.bilan-card-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.015em;
+}
+
+.bilan-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bilan-day-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.bilan-day-badge.is-training {
+  background: rgba(48, 209, 88, 0.14);
+  background: color-mix(in srgb, var(--acc, #30d158) 16%, transparent);
+  color: var(--acc, #30d158);
+  border: 1px solid rgba(48, 209, 88, 0.32);
+  border-color: color-mix(in srgb, var(--acc, #30d158) 34%, transparent);
+}
+
+.bilan-day-badge.is-rest {
+  background: var(--surface-2, rgba(128, 128, 128, 0.16));
+  color: var(--label-2, rgba(235, 235, 245, 0.78));
+  border: 1px solid var(--sep-op, rgba(128, 128, 128, 0.24));
+}
+
+.bilan-snapshot-grid {
+  display: grid;
+  gap: 16px;
+  align-items: center;
+}
+
+@media (min-width: 460px) {
+  .bilan-snapshot-grid {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 20px;
+  }
+}
+
+.bilan-ring-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.bilan-ring-caption {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--label-2, rgba(235, 235, 245, 0.65));
+}
+
+.bilan-active-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-2, rgba(128, 128, 128, 0.16));
+  color: var(--acc, #30d158);
+}
+
+.bilan-macros-col {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.bilan-macro-row {
+  display: grid;
+  gap: 4px;
+}
+
+.bilan-macro-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bilan-macro-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.bilan-macro-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.bilan-macro-val {
+  font-size: 12px;
+  color: var(--label-2, rgba(235, 235, 245, 0.68));
+  white-space: nowrap;
+}
+
+.bilan-macro-val strong {
+  color: var(--label, #ffffff);
+  font-weight: 600;
+}
+
+.bilan-macro-val.is-over strong {
+  color: #f59e0b;
+}
+
+.bilan-bar-track {
+  height: 7px;
+  border-radius: 999px;
+  background: var(--surface-3, rgba(128, 128, 128, 0.22));
+  overflow: hidden;
+}
+
+.bilan-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 200ms cubic-bezier(.32, .72, 0, 1);
+}
+
+.bilan-hydration-box {
+  margin-top: 2px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.22);
+  display: grid;
+  gap: 6px;
+}
+
+.bilan-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.bilan-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.bilan-pill {
+  appearance: none;
+  border: 1px solid var(--sep-op, rgba(128, 128, 128, 0.24));
+  background: transparent;
+  color: var(--label-2, rgba(235, 235, 245, 0.72));
+  border-radius: 999px;
+  padding: 5px 11px;
+  min-height: 30px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.bilan-pill[aria-pressed="true"] {
+  background: var(--surface-2, rgba(128, 128, 128, 0.22));
+  color: var(--label, #ffffff);
+  border-color: var(--acc, #30d158);
+}
+
+.bilan-subblock {
+  border-top: 1px solid var(--sep-op, rgba(84, 84, 88, 0.3));
+  padding-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.bilan-subtitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--label-2, rgba(235, 235, 245, 0.6));
+}
+
+.bilan-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--label-2, rgba(235, 235, 245, 0.68));
+}
+
+.bilan-tdee-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 359px) {
+  .bilan-tdee-tiles {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bilan-metric-tile {
+  padding: 10px 10px;
+  border-radius: 12px;
+  background: var(--surface-2, rgba(128, 128, 128, 0.14));
+  display: grid;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bilan-metric-label {
+  font-size: 11px;
+  color: var(--label-2, rgba(235, 235, 245, 0.62));
+  line-height: 1.2;
+}
+
+.bilan-metric-value {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--label, #ffffff);
+}
+
+.bilan-metric-unit {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--label-2, rgba(235, 235, 245, 0.62));
+}
+
+.bilan-verdict-box {
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: var(--surface-2, rgba(128, 128, 128, 0.14));
+  border: 1px solid var(--sep-op, rgba(128, 128, 128, 0.22));
+  display: grid;
+  gap: 10px;
+}
+
+.bilan-verdict-box p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.bilan-unlock-card {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface-2, rgba(128, 128, 128, 0.12));
+  border: 1px dashed var(--sep-op, rgba(128, 128, 128, 0.34));
+  display: grid;
+  gap: 12px;
+}
+
+.bilan-unlock-req {
+  display: grid;
+  gap: 5px;
+}
+
+.bilan-chart-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--label-2, rgba(235, 235, 245, 0.64));
+}
+
+.bilan-legend-items {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bilan-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.bilan-legend-swatch {
+  width: 10px;
+  height: 3px;
+  border-radius: 99px;
+}
+
+.bilan-consistency-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 4px;
+}
+
+@media (max-width: 359px) {
+  .bilan-consistency-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bilan-daily-log {
+  padding: 0;
+  overflow: hidden;
+}
+
+.bilan-daily-log > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 13px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.bilan-daily-log > summary::-webkit-details-marker {
+  display: none;
+}
+
+.bilan-daily-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.bilan-daily-log-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-2, rgba(128, 128, 128, 0.12));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bilan-daily-log-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--label-2, rgba(235, 235, 245, 0.7));
+}
+
+/* Goals & GoalEditor enhancements */
+.bilan-goal-section {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface-2, rgba(128, 128, 128, 0.1));
+  border: 1px solid var(--sep-op, rgba(128, 128, 128, 0.22));
+  display: grid;
+  gap: 10px;
+}
+
+.bilan-goal-section.is-training-override {
+  border-style: dashed;
+}
+
+.bilan-goal-section h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.bilan-goal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.bilan-goal-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--surface-2, rgba(128, 128, 128, 0.15));
+  color: var(--label-2, rgba(235, 235, 245, 0.85));
+  font-variant-numeric: tabular-nums;
+}
+
+.bilan-goal-comparison {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2, rgba(128, 128, 128, 0.12));
+  font-variant-numeric: tabular-nums;
+}
+
+.bilan-goal-comp-row {
+  display: grid;
+  gap: 4px;
+}
+
+.bilan-goal-comp-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--label-2, rgba(235, 235, 245, 0.78));
+}
+
+.bilan-goal-comp-title.is-training {
+  color: var(--acc, #30d158);
+}
+
+.bilan-goal-comp-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 13px;
+}
+
+.bilan-goal-comp-cell.is-overridden strong {
+  color: var(--acc, #30d158);
+}
+
+.bilan-goal-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}

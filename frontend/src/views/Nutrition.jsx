@@ -8,8 +8,11 @@ import { todayISO } from '../lib/format.js'
 import { useNutrition } from '../lib/nutrition/use-nutrition.jsx'
 import { isNutritionDate } from '../lib/nutrition/validate.js'
 import { readNutritionView } from '../lib/nutrition/ui-service.js'
+import { isTrainingDay } from '../lib/nutrition/training-day.js'
+import { useStore } from '../store/useStore.js'
 import { ErrorNotice, useRead } from './nutrition/common.jsx'
 import Journal from './nutrition/Journal.jsx'
+import Bilan from './nutrition/Bilan.jsx'
 import Library from './nutrition/Library.jsx'
 import Goals from './nutrition/Goals.jsx'
 import History, { shiftDay } from './nutrition/History.jsx'
@@ -17,9 +20,9 @@ import Backup from './nutrition/Backup.jsx'
 import Conflicts from './nutrition/Conflicts.jsx'
 import '../nutrition.css'
 
-const views = { journal: 'Journal', foods: 'Personal foods', recipes: 'Recipes', goals: 'Nutrition goals', history: 'History', backup: 'Backup', conflicts: 'Preserved versions' }
-const primaryViews = { journal: 'plate', foods: 'magnifier', recipes: 'list', history: 'chart' }
-const managementViews = ['goals', 'backup', 'conflicts']
+const views = { journal: 'Journal', bilan: 'Overview', foods: 'Personal foods', recipes: 'Recipes', goals: 'Nutrition goals', history: 'History', backup: 'Backup', conflicts: 'Preserved versions' }
+const primaryViews = { journal: 'plate', bilan: 'chart', foods: 'magnifier', recipes: 'list' }
+const managementViews = ['goals', 'history', 'backup', 'conflicts']
 const statuses = { loading: 'Loading…', local: 'Nutrition is saved on this device only', pending: 'Nutrition synchronization pending', syncing: 'Synchronizing Nutrition…', synced: 'Nutrition synchronized', offline: 'Offline: Nutrition changes remain on this device', 'auth-required': 'Sign in again to synchronize Nutrition', unsupported: 'This server does not support Nutrition synchronization', deferred: 'Nutrition synchronization deferred', blocked: 'Nutrition synchronization needs attention', 'session-changed': 'Your session changed. Reopen Nutrition for this account.' }
 
 /** Captures library and journal at the same logical head. Progressive readers verify their
@@ -40,9 +43,12 @@ function SyncStatus({ service, status, retry, attention }) {
 
 export function NutritionScreen({ service, status, startupError }) {
   useLang()
+  const S = useStore(s => s.S)
   const nav = useNavigate(), [params, setParams] = useSearchParams(), requested = params.get('view'), view = Object.hasOwn(views, requested) ? requested : 'journal'
   const requestedDate = params.get('date'), date = isNutritionDate(requestedDate) ? requestedDate : todayISO()
-  const [createFood, setCreateFood] = useState(false), [actionError, setActionError] = useState(null)
+  const launchAction = params.get('scan') === '1' ? 'scan' : params.get('add') === '1' ? 'add' : null
+  const training = isTrainingDay(S, date)
+  const [createFood, setCreateFood] = useState(false), [actionError, setActionError] = useState(null), [suggestedKcal, setSuggestedKcal] = useState(null)
   const needsLibrary = view !== 'backup' && view !== 'conflicts'
   const content = useRead(needsLibrary ? service : null, status.revision, { date, view }, () => loadNutritionView(service, date, view === 'journal'))
   const go = (target, day = date) => { setCreateFood(false); setActionError(null); setParams({ view: target, date: day }) }
@@ -71,9 +77,10 @@ export function NutritionScreen({ service, status, startupError }) {
       {service && view === 'backup' && <Backup service={service} status={status} />}
       {service && view === 'conflicts' && <Conflicts service={service} status={status} />}
       {content.data?.status === 'recovery-required' ? <p role="alert">{t('Storage needs recovery. Your data has not been erased.')}</p> : service && content.data && <>
-        {view === 'journal' && <Journal key={date} {...props} onCreateFood={() => { go('foods'); setCreateFood(true) }} />}
+        {view === 'journal' && <Journal key={date} {...props} isTrainingDay={training} launchAction={launchAction} onClearLaunchAction={() => setParams({ view: 'journal', date }, { replace: true })} onCreateFood={() => { go('foods'); setCreateFood(true) }} />}
+        {view === 'bilan' && <Bilan {...props} isTrainingDay={training} openDay={day => go('journal', day)} openGoals={() => go('goals')} onSuggestKcal={setSuggestedKcal} />}
         {(view === 'foods' || view === 'recipes') && <Library key={`${view}:${createFood}`} {...props} kind={view === 'recipes' ? 'recipes' : 'foods'} create={createFood} />}
-        {view === 'goals' && <Goals {...props} />}
+        {view === 'goals' && <Goals {...props} suggestedKcal={suggestedKcal} openBilan={() => go('bilan')} />}
         {view === 'history' && <History {...props} openDay={day => go('journal', day)} />}
       </>}
     </div>

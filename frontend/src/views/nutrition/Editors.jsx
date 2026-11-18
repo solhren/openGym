@@ -5,8 +5,11 @@ import { NUTRIENTS } from '../../lib/nutrition/contracts.js'
 import { nutritionNumber, newNutritionId, editedQuantity } from '../../lib/nutrition/ui-service.js'
 import { createRecipeSnapshot, recipeNutrients } from '../../lib/nutrition/recipe.js'
 import { nutrientsForQuantity } from '../../lib/nutrition/calculate.js'
-import { Editor, Field, Decimal, Select, NutrientFields, QuantityFields, NutrientValues, FoodSource, formQuantity } from './common.jsx'
+import { DEFAULT_WATER_TARGET_ML } from '../../lib/nutrition/meal-helpers.js'
+import { Editor, Field, Decimal, Select, NutrientFields, QuantityFields, NutrientValues, FoodSource, formQuantity, labels } from './common.jsx'
+import './Bilan.css'
 
+const TRAINING_OVERRIDE_KEYS = ['kcal', 'protein', 'carbs', 'fat', 'fiber']
 const blankValues = values => Object.fromEntries(NUTRIENTS.map(k => [k, values?.[k] == null ? '' : String(values[k])]))
 const numericValues = values => Object.fromEntries(NUTRIENTS.map(k => [k, nutritionNumber(values[k], true)]))
 export function FoodEditor({ source, service, status, close }) {
@@ -65,15 +68,44 @@ export function RecipeEditor({ source, foods, service, status, close }) {
   </Editor>
 }
 
-export function GoalEditor({ source, date, service, status, close }) {
+export function GoalEditor({ source, date, service, status, close, initialTargets = null }) {
   const [id] = useState(() => source?.id ?? newNutritionId()), [start, setStart] = useState(source?.start ?? date), [end, setEnd] = useState(source?.end ?? '')
-  const [mode, setMode] = useState(source?.mode ?? 'custom'), [values, setValues] = useState(() => blankValues(source?.targets))
-  return <Editor title={source ? 'Edit nutrition goal' : 'Create nutrition goal'} close={close} onSave={() => service.save('nutritionGoals', {
-    ...(source ?? {}), schemaVersion: 1, id, start, end: end || null, mode, targets: { ...(source?.targets ?? {}), ...numericValues(values) },
-  }, source ?? null)} busy={status.busy}>
+  const [mode, setMode] = useState(source?.mode ?? 'custom'), [values, setValues] = useState(() => blankValues(source?.targets ?? initialTargets))
+  const [waterTargetMl, setWaterTargetMl] = useState(() => source ? (source.waterTargetMl == null ? '' : String(source.waterTargetMl)) : String(DEFAULT_WATER_TARGET_ML))
+  const [trainingValues, setTrainingValues] = useState(() => blankValues(source?.trainingTargets))
+  const extraTrainingKeys = ['sugar', 'saturatedFat', 'sodium'].filter(k => source?.trainingTargets?.[k] != null)
+  const visibleTrainingKeys = [...TRAINING_OVERRIDE_KEYS, ...extraTrainingKeys]
+  const onSave = () => {
+    const parsedTraining = numericValues(trainingValues)
+    const hasTraining = Object.values(parsedTraining).some(v => v != null)
+    return service.save('nutritionGoals', {
+      ...(source ?? {}),
+      schemaVersion: 1,
+      id,
+      start,
+      end: end || null,
+      mode,
+      targets: { ...(source?.targets ?? {}), ...numericValues(values) },
+      waterTargetMl: nutritionNumber(waterTargetMl, true),
+      trainingTargets: hasTraining ? { ...(source?.trainingTargets ?? {}), ...parsedTraining } : null,
+    }, source ?? null)
+  }
+  return <Editor title={source ? 'Edit nutrition goal' : 'Create nutrition goal'} close={close} onSave={onSave} busy={status.busy}>
     <div className="nutrition-grid"><Field label="Start date"><input className="field" type="date" value={start} onChange={e => setStart(e.target.value)} required /></Field>
       <Field label="End date (optional)"><input className="field" type="date" value={end} onChange={e => setEnd(e.target.value)} /></Field></div>
     <Select label="Goal mode" value={mode} onChange={setMode} options={[['custom', 'Custom'], ['maintenance', 'Maintenance'], ['bulk', 'Bulk'], ['cut', 'Cut']].map(([value, label]) => ({ value, label: t(label) }))} />
-    <NutrientFields values={values} setValues={setValues} /><p className="muted small">{t('Goal periods are inclusive. Overlapping goals require editing their dates.')}</p>
+    <div className="bilan-goal-section" data-goal-section="rest">
+      <h3>{t('Daily / Rest day targets')}</h3>
+      <NutrientFields values={values} setValues={setValues} />
+      <Decimal label="Water target (ml)" value={waterTargetMl} onChange={setWaterTargetMl} />
+    </div>
+    <div className="bilan-goal-section is-training-override" data-goal-section="training">
+      <h3>{t('Training day overrides (optional)')}</h3>
+      <p className="muted small">{t('Leave blank to keep the rest-day target for that nutrient.')}</p>
+      <div className="nutrition-grid">
+        {visibleTrainingKeys.map(k => <Decimal key={k} label={labels[k]} value={trainingValues[k] ?? ''} onChange={v => setTrainingValues({ ...trainingValues, [k]: v })} />)}
+      </div>
+    </div>
+    <p className="muted small">{t('Goal periods are inclusive. Overlapping goals require editing their dates.')}</p>
   </Editor>
 }

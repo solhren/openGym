@@ -129,7 +129,9 @@ test('goals update daily engine indicators and history includes date navigation'
   await mount('/nutrition?view=goals&date=2026-10-10', async ui => ui.save('foodEntries', entry()))
   await click('Create nutrition goal'); await type('Calories', '100'); await type('Protein', '0'); await save(); await wait(() => !host.querySelector('form'))
   await click('Journal'); await wait(() => host.textContent.includes('90 over goal')); expect(host.textContent).toContain('6.5 over goal')
-  await click('History'); await wait(() => host.textContent.includes('Average on recorded days')); expect(host.textContent).toContain('190')
+  await click('Overview'); await wait(() => host.textContent.includes("Today's overview")); expect(host.textContent).toContain('190')
+  await act(async () => host.querySelector('.nutrition-tools > summary').click()); await click('History')
+  await wait(() => host.textContent.includes('Average on recorded days')); expect(host.textContent).toContain('190')
   expect(host.querySelectorAll('.nutrition-list > li')).toHaveLength(7)
 })
 test('history uses the same goal feedback when switching between defined, zero and absent nutrient targets', async () => {
@@ -263,8 +265,9 @@ test('decimal-comma density enables the same compatible logging units as the dom
 test('compact primary navigation keeps secondary tools reachable by keyboard and closes after selection', async () => {
   await mount()
   const nav = host.querySelector('nav[aria-label="Nutrition navigation"]')
-  expect([...nav.querySelectorAll('button')].map(b => b.textContent.trim())).toEqual(['Journal', 'Personal foods', 'Recipes', 'History'])
+  expect([...nav.querySelectorAll('button')].map(b => b.textContent.trim())).toEqual(['Journal', 'Overview', 'Personal foods', 'Recipes'])
   const tools = host.querySelector('.nutrition-tools'), summary = tools.querySelector('summary')
+  expect([...tools.querySelectorAll('button')].map(b => b.textContent.trim())).toContain('History')
   await act(async () => { summary.focus(); summary.click() })
   expect(tools.open).toBe(true)
   await act(async () => summary.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
@@ -299,4 +302,20 @@ test('meal picker replaces the daily dashboard, retains target meal and returns 
   await wait(() => document.activeElement === host.querySelector('.nutrition-journal-heading button'))
   expect(ui.getSnapshot().revision).toBe(before)
   expect((await ui.day('2026-10-10')).entries).toHaveLength(0)
+})
+
+test('Overview tab links to Goals and back, and selecting a bar day opens that day in Journal', async () => {
+  await mount('/nutrition?view=bilan&date=2026-10-10', async ui => {
+    await ui.batch([
+      { collection: 'foodEntries', id: 'prev-day', value: entry({ id: 'prev-day', d: '2026-10-09' }), base: null },
+      { collection: 'foodEntries', id: entry().id, value: entry(), base: null },
+    ])
+  })
+  await wait(() => host.querySelector('[data-bilan-section="snapshot"]'))
+  await click('Goals')
+  await wait(() => host.textContent.includes('Create nutrition goal'))
+  await click('Overview')
+  await wait(() => host.querySelector('[data-bilan-section="trends"]'))
+  await act(async () => host.querySelector('[data-day-hit="2026-10-09"]').dispatchEvent(new MouseEvent('click', { bubbles: true })))
+  await wait(() => field('Date').value === '2026-10-09' && buttons().some(b => b.textContent.trim() === 'Add food'))
 })
