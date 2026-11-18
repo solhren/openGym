@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { effectiveRoutines, effectiveRoutineIds, nextTrainingDay, streakWeeks, lastBW, setsDoneActive } from '../lib/history.js'
@@ -15,17 +15,133 @@ import { Button } from '../components/ui.jsx'
 import { tappable } from '../lib/use-sheet-keyboard.js'
 import { glyphOf } from '../lib/glyphs.js'
 import { dayNoteOf } from '../lib/day-notes.js'
+import { MOBILE } from '../lib/mobile.js'
+import { isTrainingDay } from '../lib/nutrition/training-day.js'
+
+function NutritionCard({ summary, onOpen, onAdd, onScan }) {
+  const remainingKcal = summary?.remainingKcal != null ? Math.round(summary.remainingKcal) : null
+  const targetKcal = summary?.targetKcal != null && summary.targetKcal > 0 ? summary.targetKcal : null
+  const kcalPct = targetKcal ? Math.min(100, Math.max(0, (summary.consumedKcal / targetKcal) * 100)) : 0
+  const overGoal = remainingKcal !== null && remainingKcal < 0
+  const proteinWord = t('Protein').toLowerCase()
+  const proteinText = summary?.targetProtein != null
+    ? `${Math.round(summary.consumedProtein)} / ${Math.round(summary.targetProtein)} g ${proteinWord}`
+    : `${Math.round(summary?.consumedProtein ?? 0)} g ${proteinWord}`
+
+  return (
+    <div className="card">
+      <div className="row between bw-head">
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <Button size="sm" variant="tinted" icon="flame" onClick={onOpen}>{t('Nutrition')}</Button>
+          {summary?.hasGoal && (
+            <span className={'tag nocap' + (summary.isTrainingDay ? ' acc' : '')}>
+              {summary.isTrainingDay ? t('Training day') : t('Rest day')}
+            </span>
+          )}
+        </div>
+        <div className="row" style={{ gap: 8 }}>
+          <button type="button" className="iconbtn" aria-label={t('Add food')} onClick={onAdd}>
+            <Icon name="plus" />
+          </button>
+          <button type="button" className="iconbtn" aria-label={t('Scan product barcode')} onClick={onScan}>
+            <Icon name="camera" />
+          </button>
+        </div>
+      </div>
+
+      {summary?.hasGoal ? (
+        <div style={{ marginTop: 10 }}>
+          <div className="row between" style={{ gap: 8, alignItems: 'baseline' }}>
+            <span style={{ fontWeight: 600, fontSize: 15, color: overGoal ? 'var(--orange)' : 'var(--label)' }}>
+              {remainingKcal === null
+                ? `${Math.round(summary.consumedKcal)} kcal`
+                : remainingKcal >= 0
+                  ? t('{0} kcal remaining', remainingKcal)
+                  : t('{0} kcal over goal', -remainingKcal)}
+            </span>
+            {targetKcal !== null && (
+              <span className="muted small" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {Math.round(summary.consumedKcal)} / {Math.round(targetKcal)} kcal
+              </span>
+            )}
+          </div>
+          {targetKcal !== null && (
+            <div
+              role="progressbar"
+              aria-valuenow={Math.round(summary.consumedKcal)}
+              aria-valuemin={0}
+              aria-valuemax={Math.round(targetKcal)}
+              style={{ marginTop: 6, height: 6, borderRadius: 99, background: 'var(--surface-3)', overflow: 'hidden' }}
+            >
+              <div
+                style={{
+                  width: `${kcalPct}%`,
+                  height: '100%',
+                  borderRadius: 99,
+                  background: overGoal ? 'var(--orange)' : 'var(--acc)',
+                  transition: 'width var(--med) var(--ease)',
+                }}
+              />
+            </div>
+          )}
+          <div className="muted small" style={{ marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>
+            {proteinText}
+          </div>
+        </div>
+      ) : summary?.hasData && summary.entryCount > 0 ? (
+        <div className="muted small" style={{ marginTop: 8, fontVariantNumeric: 'tabular-nums' }}>
+          {Math.round(summary.consumedKcal)} kcal · {Math.round(summary.consumedProtein)} g {proteinWord}
+        </div>
+      ) : (
+        <p className="muted small" style={{ marginBottom: 0 }}>{t('Food journal, recipes and nutrition goals')}</p>
+      )}
+    </div>
+  )
+}
 
 // Home = what to do now + a quick glance. Deep charts & history live in Stats.
 export default function Home() {
   const nav = useNavigate()
   const S = useStore(s => s.S)
   const user = useStore(s => s.user)
+  const isGuestMode = useStore(s => s.isGuest?.() ?? false)
+  const syncServer = useStore(s => s.sync?.server ?? null)
+  const serverUrl = syncServer || (!MOBILE && typeof globalThis.window !== 'undefined' && globalThis.window.location?.origin && globalThis.window.location.origin !== 'null'
+    ? globalThis.window.location.origin
+    : null)
   // The banner switched off and the sync stuck: a dot on the gear (Settings → Show connection status).
   const trouble = useConnectionTrouble()
   const [weekOffset, setWeekOffset] = useState(0)
+  const [nutritionSummary, setNutritionSummary] = useState(null)
 
   const today = new Date()
+  const todayIso = todayISO()
+  const trainingDay = isTrainingDay(S, todayIso)
+
+  useEffect(() => {
+    if ((!user && !isGuestMode) || (!MOBILE && typeof globalThis.indexedDB === 'undefined')) {
+      setNutritionSummary(prev => (prev === null ? prev : null))
+      return
+    }
+    let active = true
+    import('../lib/nutrition/home-summary.js')
+      .then(({ readHomeNutritionSummary }) =>
+        readHomeNutritionSummary({
+          date: todayIso,
+          user,
+          isGuestMode,
+          serverUrl,
+          isTrainingDay: trainingDay,
+        })
+      )
+      .then(result => {
+        if (active) setNutritionSummary(result ?? null)
+      })
+      .catch(() => {
+        if (active) setNutritionSummary(prev => (prev === null ? prev : null))
+      })
+    return () => { active = false }
+  }, [todayIso, user, isGuestMode, serverUrl, trainingDay])
   // A weekday can hold several routines. `todayRoutines` is the whole day; `routine` is the
   // first, kept for the one-routine glyph. The derived session name joins them (§9).
   const todayRoutines = effectiveRoutines(S, todayISO())
@@ -106,7 +222,12 @@ export default function Home() {
       <button className="iconbtn" onClick={() => nav('/settings')} aria-label={trouble ? t('Settings') + ', ' + t('Connection problem') : t('Settings')}><Icon name="gear" />{trouble && <span className="tab-dot" aria-hidden="true" />}</button>
     </div>
 
-    <div className="card"><Button variant="tinted" icon="flame" onClick={() => nav('/nutrition')}>{t('Nutrition')}</Button><p className="muted small">{t('Food journal, recipes and nutrition goals')}</p></div>
+    <NutritionCard
+      summary={nutritionSummary}
+      onOpen={() => nav('/nutrition')}
+      onAdd={() => nav('/nutrition?view=journal&add=1')}
+      onScan={() => nav('/nutrition?view=journal&scan=1')}
+    />
 
     <div className="card">
       {/* A coach week runs by order, not by weekday, so its progress row stands in for the
