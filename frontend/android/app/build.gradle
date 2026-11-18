@@ -27,8 +27,8 @@ android {
         applicationId publicAndroid ? "fr.solhren.opengym.selfhosted" : "ch.duartesantos.opengym"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode publicAndroid ? publicVersion.toInteger() : 26
-        versionName "1.4.1"
+        versionCode publicAndroid ? publicVersion.toInteger() : 27
+        versionName "1.4.2"
         manifestPlaceholders = [
             opengymAllowBackup: publicAndroid ? 'false' : 'true',
             opengymBackupRules: publicAndroid ? '@xml/backup_rules_public' : '@xml/backup_rules',
