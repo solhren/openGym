@@ -63,11 +63,18 @@ test('local choice and explicit disconnect clear the active session without alte
   expect(()=>api.authenticatedCatalogFetch('/api/nutrition/catalog/capabilities')).toThrow()
   await remote.chooseLocal();expect(await remote.loadRemote()).toEqual({mode:'local'});expect(files.saveRemoteFile).not.toHaveBeenCalled()
 })
-test('public distribution never queries or installs an upstream APK',async()=>{
-  const fetch=vi.fn();vi.stubGlobal('fetch',fetch);const updates=await import('./update.js')
-  expect(updates.AUTOMATIC_UPDATES).toBe(false);expect(await updates.checkForUpdate()).toMatchObject({manualOnly:true,hasUpdate:false})
-  await expect(updates.downloadAndInstall('https://other.example/file.apk','a'.repeat(64))).rejects.toThrow()
-  expect(fetch).not.toHaveBeenCalled()
+test('public distribution checks only the fork selfhosted channel and never queries upstream',async()=>{
+  const fetch=vi.fn(async()=>new Response(JSON.stringify([
+    {tag_name:'v99.0.0',draft:false,assets:[{name:'opengym.apk',browser_download_url:'https://github.com/DuarteSantos8/openGym/releases/download/v99.0.0/opengym.apk'}]},
+    {tag_name:'android-selfhosted-v1',draft:false,assets:[{name:'opengym-selfhosted-debug.apk',browser_download_url:'https://github.com/solhren/openGym/releases/download/android-selfhosted-v1/opengym-selfhosted-debug.apk'}]},
+  ]),{status:200}));
+  vi.stubGlobal('fetch',fetch);const updates=await import('./update.js')
+  expect(updates.UPDATE_REPO).toBe('solhren/openGym')
+  expect(updates.AUTOMATIC_UPDATES).toBe(true)
+  expect(await updates.checkForUpdate({force:true})).toMatchObject({hasUpdate:false,apkUrl:null})
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(fetch.mock.calls[0][0]).toContain('https://api.github.com/repos/solhren/openGym/releases')
+  expect(fetch.mock.calls[0][0]).not.toContain('DuarteSantos8')
 })
 test('concurrent pairing/local choices are rejected and a late renewal cannot restore an old server',async()=>{
   let answer;const fetch=vi.fn(()=>new Promise(resolve=>{answer=resolve}));vi.stubGlobal('fetch',fetch)
