@@ -26,6 +26,7 @@ import ErrorBoundary from './components/ErrorBoundary.jsx'
 import Modals from './components/Modals.jsx'
 import Toast from './components/Toast.jsx'
 import SyncBanner from './components/SyncBanner.jsx'
+import UpdatePrompt from './components/UpdatePrompt.jsx'
 import RestTimer from './components/RestTimer.jsx'
 import TimerFlash from './components/TimerFlash.jsx'
 import { openDeviceLinkRedeem } from './components/Passkeys.jsx'
@@ -249,6 +250,7 @@ function Shell() {
           would ride along with the page for the length of it. Decides for itself when to show —
           including on the sign-in screen, when the server has just ended the session. */}
       <SyncBanner />
+      <UpdatePrompt active={!!(ready && authed && !needsMobileOnboarding && !needsPersonalPairing && !inWorkout && !S.active)} />
       {!noTabs && <TabBar onStart={startFlow} />}
       <RestTimer />
       <Modals />
