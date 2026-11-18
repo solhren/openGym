@@ -9,17 +9,45 @@ import {fileURLToPath} from 'node:url'
 import {GENERIC_ENV,prepareAndroid} from './prepare.mjs'
 
 export const APPLICATION_ID='fr.solhren.opengym.selfhosted.debug'
+export function readPublicVersionName(root) {
+  const pkg=JSON.parse(fs.readFileSync(path.join(root,'frontend/package.json'),'utf8'))
+  if(typeof pkg.version!=='string'||!/^\d+\.\d+\.\d+$/.test(pkg.version))throw Error('Invalid SemVer version in frontend/package.json')
+  return pkg.version
+}
+export function formatReleaseTag(versionName,versionCode) {
+  if(typeof versionName!=='string'||!/^\d+\.\d+\.\d+$/.test(versionName))throw Error('Invalid SemVer versionName')
+  const code=Number(versionCode)
+  if(!Number.isInteger(code)||code<1||code>999999999)throw Error('Set an increasing OPENGYM_PUBLIC_ANDROID_VERSION_CODE')
+  return `android-selfhosted-v${versionName}-b${code}`
+}
+export function createUpdateManifest({versionName,versionCode,apkSha256,signerSha256}) {
+  if(typeof versionName!=='string'||!/^\d+\.\d+\.\d+$/.test(versionName))throw Error('Invalid SemVer versionName')
+  const code=Number(versionCode)
+  if(!Number.isInteger(code)||code<1||code>999999999)throw Error('Set an increasing OPENGYM_PUBLIC_ANDROID_VERSION_CODE')
+  return {
+    schemaVersion:1,
+    channel:'selfhosted',
+    applicationId:APPLICATION_ID,
+    version:versionName,
+    versionCode:code,
+    apkAsset:'opengym-selfhosted-debug.apk',
+    sha256Asset:'opengym-selfhosted-debug.apk.sha256',
+    apkSha256,
+    signerSha256,
+  }
+}
 export function buildEnvironment(env) {
   if(env.OPENGYM_ANDROID_DEBUG_KEYSTORE)throw Error('Personal beta signing environment must not be used')
   if(!env.OPENGYM_PUBLIC_ANDROID_KEYSTORE||!path.isAbsolute(env.OPENGYM_PUBLIC_ANDROID_KEYSTORE))throw Error('Set the separate retained OPENGYM_PUBLIC_ANDROID_KEYSTORE absolute path')
   if(!/^[1-9][0-9]{0,8}$/.test(env.OPENGYM_PUBLIC_ANDROID_VERSION_CODE||''))throw Error('Set an increasing OPENGYM_PUBLIC_ANDROID_VERSION_CODE')
   return {...env,...GENERIC_ENV,OPENGYM_PUBLIC_ANDROID:'1'}
 }
-export function verifyApkEvidence({certificate,signerText,badging,versionCode}) {
+export function verifyApkEvidence({certificate,signerText,badging,versionCode,versionName}) {
   const sha256=createHash('sha256').update(certificate).digest('hex')
   const signers=[...signerText.matchAll(/Signer #\d+ certificate SHA-256 digest:\s*([a-f\d]{64})/gi)]
   if(signers.length!==1||signers[0][1].toLowerCase()!==sha256)throw Error('APK signer does not match the retained public key')
   if(!badging.includes(`package: name='${APPLICATION_ID}'`)||!badging.includes(`versionCode='${versionCode}'`))throw Error('Unexpected APK package or version code')
+  if(versionName!==undefined&&(typeof versionName!=='string'||!/^\d+\.\d+\.\d+$/.test(versionName)||!badging.includes(`versionName='${versionName}'`)))throw Error('Unexpected APK versionName')
   return sha256
 }
 
@@ -32,6 +60,9 @@ function availableRam(){const line=fs.readFileSync('/proc/meminfo','utf8').match
 
 export function build(root,env=process.env) {
   const configured=buildEnvironment(env)
+  const versionName=readPublicVersionName(root)
+  const versionCode=Number(configured.OPENGYM_PUBLIC_ANDROID_VERSION_CODE)
+  const releaseTag=formatReleaseTag(versionName,versionCode)
   prepareAndroid({root,...(process.platform==='linux'?{availableMemory:availableRam}:{})})
   const java=spawnSync('java',['-version'],{encoding:'utf8'})
   if(java.error||java.status!==0||!/version "21(?:[.\"])/.test(java.stderr+java.stdout))throw Error('JDK 21 is required; no tools were downloaded')
@@ -50,7 +81,7 @@ export function build(root,env=process.env) {
   const signerText=run(path.join(buildTools,'apksigner'),['verify','--print-certs',apk],root,configured,{capture:true}).toString('utf8')
   const badging=run(path.join(buildTools,'aapt'),['dump','badging',apk],root,configured,{capture:true}).toString('utf8')
   const permissions=run(path.join(buildTools,'aapt'),['dump','permissions',apk],root,configured,{capture:true}).toString('utf8')
-  const signerSha256=verifyApkEvidence({certificate,signerText,badging,versionCode:configured.OPENGYM_PUBLIC_ANDROID_VERSION_CODE})
+  const signerSha256=verifyApkEvidence({certificate,signerText,badging,versionCode:configured.OPENGYM_PUBLIC_ANDROID_VERSION_CODE,versionName})
   const outputRoot=path.join(root,'scripts/nutrition-local-catalog/artifacts')
   fs.mkdirSync(outputRoot,{recursive:true,mode:0o700})
   if(fs.lstatSync(outputRoot).isSymbolicLink())throw Error('Unsafe output directory')
@@ -63,7 +94,8 @@ export function build(root,env=process.env) {
   fs.writeFileSync(permissionsPath,permissions,{flag:'wx',mode:0o600})
   const inspection=JSON.parse(run('python3',[path.join(root,'scripts/android-public/inspect-apk.py'),apk,permissionsPath],root,configured,{capture:true}).toString('utf8'))
   fs.writeFileSync(path.join(output,'opengym-selfhosted-debug.apk.sha256'),`${apkSha256}  opengym-selfhosted-debug.apk\n`,{flag:'wx',mode:0o600})
-  fs.writeFileSync(path.join(output,'build.json'),JSON.stringify({applicationId:APPLICATION_ID,versionCode:Number(configured.OPENGYM_PUBLIC_ANDROID_VERSION_CODE),profile:'selfhosted',variant:'debug',server:null,localFoodOnly:true,signerSha256,apkSha256,physicalDeviceTested:false,inspection},null,2)+'\n',{flag:'wx',mode:0o600})
+  fs.writeFileSync(path.join(output,'update-manifest.json'),JSON.stringify(createUpdateManifest({versionName,versionCode,apkSha256,signerSha256}),null,2)+'\n',{flag:'wx',mode:0o600})
+  fs.writeFileSync(path.join(output,'build.json'),JSON.stringify({applicationId:APPLICATION_ID,versionName,versionCode,releaseTag,profile:'selfhosted',variant:'debug',server:null,localFoodOnly:true,signerSha256,apkSha256,physicalDeviceTested:false,inspection},null,2)+'\n',{flag:'wx',mode:0o600})
   return output
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {

@@ -2,14 +2,24 @@ name: Android self-hosted beta
 on:
   workflow_dispatch:
     inputs:
+      bump:
+        description: Version bump in runner workspace before build (none, patch, minor, major, or explicit X.Y.Z)
+        required: false
+        default: 'none'
+        type: string
       version_code:
-        description: Increasing public Android versionCode (separate from personal APK)
-        required: true
+        description: Increasing public Android versionCode (optional when bump != none; derived if omitted)
+        required: false
+        default: ''
         type: string
       publish:
-        description: Publish a new prerelease after automated checks (physical tests still required)
+        description: Publish a new GitHub release after automated checks (physical tests still required)
         type: boolean
         default: false
+      prerelease:
+        description: Mark the published GitHub release as a prerelease
+        type: boolean
+        default: true
 permissions:
   contents: read
 concurrency:
@@ -20,8 +30,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.repository == 'solhren/openGym' && github.actor == github.repository_owner && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    outputs:
+      version_code: ${{ steps.version.outputs.version_code }}
+      version_name: ${{ steps.version.outputs.version_name }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
     env:
-      OPENGYM_PUBLIC_ANDROID_VERSION_CODE: ${{ inputs.version_code }}
       EXPECTED_SIGNER: ${{ vars.ANDROID_PUBLIC_SIGNER_SHA256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -32,9 +45,69 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Check public version and retained certificate pin
+      - name: Check public version, apply optional bump, and verify retained certificate pin
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          INPUT_BUMP: ${{ inputs.bump }}
+          INPUT_VERSION_CODE: ${{ inputs.version_code }}
         run: |
-          node --input-type=module -e "if(!/^[1-9][0-9]{0,8}$/.test(process.env.OPENGYM_PUBLIC_ANDROID_VERSION_CODE)||!/^([a-f0-9]{64})$/i.test(process.env.EXPECTED_SIGNER||''))throw Error('Set a positive version_code and ANDROID_PUBLIC_SIGNER_SHA256 repository variable')"
+          set -euo pipefail
+          BUMP="$(printf '%s' "${INPUT_BUMP:-none}" | tr -d '[:space:]')"
+          if [ -z "$BUMP" ]; then
+            BUMP="none"
+          fi
+          VERSION_CODE="$(printf '%s' "${INPUT_VERSION_CODE:-}" | tr -d '[:space:]')"
+          node --input-type=module - "$BUMP" "$VERSION_CODE" <<'MJS'
+          import {SEMVER_RE} from './scripts/android-public/bump-version.mjs'
+          const [, , bump, versionCode] = process.argv
+          if (!/^([a-f0-9]{64})$/i.test(process.env.EXPECTED_SIGNER || '')) {
+            throw Error('Set ANDROID_PUBLIC_SIGNER_SHA256 repository variable')
+          }
+          if (bump !== 'none' && !['patch', 'minor', 'major'].includes(bump) && !SEMVER_RE.test(bump)) {
+            throw Error(`Invalid bump input "${bump}" (expected none, patch, minor, major, or X.Y.Z)`)
+          }
+          if (versionCode && !/^[1-9][0-9]{0,8}$/.test(versionCode)) {
+            throw Error('Set a positive integer version_code')
+          }
+          if (bump === 'none' && !versionCode) {
+            throw Error('Set version_code when bump is none, or specify bump (patch|minor|major|X.Y.Z)')
+          }
+          MJS
+          if [ -z "$VERSION_CODE" ]; then
+            gh api "repos/$GH_REPO/releases?per_page=100" > "$RUNNER_TEMP/public-existing-releases.json"
+            VERSION_CODE="$(node --input-type=module - <<'MJS'
+          import fs from 'node:fs'
+          import path from 'node:path'
+          import {extractPublicVersionCodeFromTag, readWorkspaceVersions} from './scripts/android-public/bump-version.mjs'
+          const {versionCode: gradleCode} = readWorkspaceVersions(process.cwd())
+          const releasesPath = path.join(process.env.RUNNER_TEMP, 'public-existing-releases.json')
+          const releases = JSON.parse(fs.readFileSync(releasesPath, 'utf8'))
+          let maxCode = gradleCode
+          for (const rel of releases) {
+            const parsed = extractPublicVersionCodeFromTag(rel?.tag_name || '')
+            if (parsed !== null && parsed > maxCode) maxCode = parsed
+          }
+          process.stdout.write(String(maxCode + 1))
+          MJS
+            )"
+          fi
+          if [ "$BUMP" != "none" ]; then
+            node scripts/android-public/bump-version.mjs "$BUMP" --version-code "$VERSION_CODE"
+          fi
+          node --input-type=module - "$VERSION_CODE" <<'MJS'
+          import fs from 'node:fs'
+          import {readPublicVersionName, formatReleaseTag} from './scripts/android-public/build.mjs'
+          const versionCode = process.argv[2]
+          const versionName = readPublicVersionName(process.cwd())
+          const releaseTag = formatReleaseTag(versionName, versionCode)
+          fs.appendFileSync(process.env.GITHUB_ENV, `OPENGYM_PUBLIC_ANDROID_VERSION_CODE=${versionCode}\n`)
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `version_code=${versionCode}\nversion_name=${versionName}\nrelease_tag=${releaseTag}\n`
+          )
+          MJS
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
         with:
           distribution: temurin
@@ -83,10 +156,11 @@ jobs:
           APP_BUILD: selfhosted-${{ github.run_id }}-${{ github.run_attempt }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: opengym-selfhosted-${{ inputs.version_code }}
+          name: opengym-selfhosted-${{ steps.version.outputs.version_code }}
           path: |
             ${{ steps.apk.outputs.directory }}/opengym-selfhosted-debug.apk
             ${{ steps.apk.outputs.directory }}/opengym-selfhosted-debug.apk.sha256
+            ${{ steps.apk.outputs.directory }}/update-manifest.json
             ${{ steps.apk.outputs.directory }}/build.json
             ${{ steps.apk.outputs.directory }}/permissions.txt
           if-no-files-found: error
@@ -108,34 +182,60 @@ jobs:
       GH_REPO: ${{ github.repository }}
       SOURCE_SHA: ${{ github.sha }}
       SOURCE_RUN: ${{ github.run_id }}
-      VERSION_CODE: ${{ inputs.version_code }}
+      VERSION_CODE: ${{ needs.apk.outputs.version_code }}
+      VERSION_NAME: ${{ needs.apk.outputs.version_name }}
+      RELEASE_TAG: ${{ needs.apk.outputs.release_tag }}
+      PRERELEASE: ${{ inputs.prerelease }}
     steps:
       - name: Download only this verified run's public APK artifact
         run: gh run download "$SOURCE_RUN" --name "opengym-selfhosted-$VERSION_CODE" --dir package
-      - name: Publish a distinct prerelease without overwriting existing assets
+      - name: Publish a distinct release without overwriting existing assets
         run: |
           set -euo pipefail
           cd package
           sha256sum --check opengym-selfhosted-debug.apk.sha256
           python3 - <<'PY'
-          import json,os
+          import json,os,re
           from pathlib import Path
+          version_code=int(os.environ['VERSION_CODE'])
+          version_name=os.environ['VERSION_NAME']
+          assert re.fullmatch(r'\d+\.\d+\.\d+',version_name) and version_code>=1
+          expected_tag=f'android-selfhosted-v{version_name}-b{version_code}'
+          assert os.environ['RELEASE_TAG']==expected_tag
           m=json.loads(Path('build.json').read_text())
-          assert m['applicationId']=='fr.solhren.opengym.selfhosted.debug' and m['server'] is None and m['versionCode']==int(os.environ['VERSION_CODE'])
+          u=json.loads(Path('update-manifest.json').read_text())
+          assert m['applicationId']=='fr.solhren.opengym.selfhosted.debug' and m['server'] is None and m['versionCode']==version_code
+          assert m['versionName']==version_name and m['releaseTag']==expected_tag
           assert m['physicalDeviceTested'] is False and m['profile']=='selfhosted'
-          Path('release-notes.md').write_text('Generic self-hosted Android beta. Choose local mode or your own HTTPS server.\n\nInstalls alongside the personal APK: do not uninstall it. Synchronize or export workouts and Nutrition separately before transferring.\n\nUpdate this generic app using the same package/signing key and an increasing versionCode. Physical device acceptance remains required.\n\nSource: '+os.environ['SOURCE_SHA']+'\n\nAPK SHA-256: '+m['apkSha256']+'\n\nCertificate SHA-256: '+m['signerSha256']+'\n\nSource and installation guide: https://github.com/'+os.environ['GH_REPO']+'/blob/'+os.environ['SOURCE_SHA']+'/docs/ANDROID_SELF_HOSTING.md\n')
+          assert u=={
+              'schemaVersion':1,
+              'channel':'selfhosted',
+              'applicationId':'fr.solhren.opengym.selfhosted.debug',
+              'version':version_name,
+              'versionCode':version_code,
+              'apkAsset':'opengym-selfhosted-debug.apk',
+              'sha256Asset':'opengym-selfhosted-debug.apk.sha256',
+              'apkSha256':m['apkSha256'],
+              'signerSha256':m['signerSha256'],
+          }
+          Path('release-notes.md').write_text('Generic self-hosted Android release v'+version_name+' (versionCode '+str(version_code)+'). Choose local mode or your own HTTPS server.\n\nInstalls alongside the personal APK: do not uninstall it. Synchronize or export workouts and Nutrition separately before transferring.\n\nUpdate this generic app using the same package/signing key and an increasing versionCode. Physical device acceptance remains required.\n\nSource: '+os.environ['SOURCE_SHA']+'\n\nAPK SHA-256: '+m['apkSha256']+'\n\nCertificate SHA-256: '+m['signerSha256']+'\n\nSource and installation guide: https://github.com/'+os.environ['GH_REPO']+'/blob/'+os.environ['SOURCE_SHA']+'/docs/ANDROID_SELF_HOSTING.md\n')
           PY
-          gh release create "android-selfhosted-v$VERSION_CODE" opengym-selfhosted-debug.apk opengym-selfhosted-debug.apk.sha256 build.json permissions.txt --target "$SOURCE_SHA" --prerelease --draft --title "openGym — Self-hosted Android beta ($VERSION_CODE)" --notes-file release-notes.md
+          prerelease_args=()
+          if [ "$PRERELEASE" = "true" ]; then
+            prerelease_args=(--prerelease)
+          fi
+          gh release create "android-selfhosted-v${VERSION_NAME}-b${VERSION_CODE}" opengym-selfhosted-debug.apk opengym-selfhosted-debug.apk.sha256 update-manifest.json build.json permissions.txt --target "$SOURCE_SHA" "${prerelease_args[@]}" --draft --title "openGym — Self-hosted Android v${VERSION_NAME} (b${VERSION_CODE})" --notes-file release-notes.md
           gh api "repos/$GH_REPO/releases?per_page=100" > "$RUNNER_TEMP/public-releases.json"
           release_id=$(python3 - <<'PYID'
           import json,os
           from pathlib import Path
-          tag='android-selfhosted-v'+os.environ['VERSION_CODE']
+          tag=f"android-selfhosted-v{os.environ['VERSION_NAME']}-b{os.environ['VERSION_CODE']}"
+          expect_prerelease=os.environ['PRERELEASE'].lower()=='true'
           rows=[r for r in json.loads((Path(os.environ['RUNNER_TEMP'])/'public-releases.json').read_text()) if r['tag_name']==tag and r['draft']]
           assert len(rows)==1
           r=rows[0]
-          assert r['prerelease'] and r['target_commitish']==os.environ['SOURCE_SHA']
-          assert {a['name'] for a in r['assets']}=={'opengym-selfhosted-debug.apk','opengym-selfhosted-debug.apk.sha256','build.json','permissions.txt'}
+          assert r['prerelease'] is expect_prerelease and r['target_commitish']==os.environ['SOURCE_SHA']
+          assert {a['name'] for a in r['assets']}=={'opengym-selfhosted-debug.apk','opengym-selfhosted-debug.apk.sha256','update-manifest.json','build.json','permissions.txt'}
           print(int(r['id']))
           PYID
           )
