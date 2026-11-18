@@ -163,3 +163,60 @@
 .nutrition-catalog-modes { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px; gap:6px; margin-block:10px; }
 .nutrition .nutrition-catalog-modes > .btn { width:100%; min-width:0; padding:8px; font-size:12px; line-height:1.3; }
 .nutrition .nutrition-catalog-modes > .btn[aria-pressed="true"] { background:var(--acc-soft); color:var(--label); }
+
+/* Lot 3: Meal journal context badges, fiber indicator, hydration strip, copy/duplicate & unified picker */
+.nutrition-summary-context { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.nutrition-day-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:600; background:var(--surface-2); color:var(--label-2); border:1px solid var(--sep); }
+.nutrition-day-badge.is-training { background:var(--acc-soft); color:var(--acc); border-color:color-mix(in srgb,var(--acc) 35%,var(--sep)); }
+.nutrition-indicators.has-fiber { grid-template-columns:repeat(4,minmax(0,1fr)); }
+@media (max-width:600px) { .nutrition-indicators.has-fiber { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+.nutrition .nutrition-hydration { padding:14px; margin-block:0 16px; }
+.nutrition-hydration-top { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.nutrition .nutrition-hydration-top h2 { font-size:15px; font-weight:600; margin:0; }
+.nutrition-hydration-top strong { font-size:18px; font-variant-numeric:tabular-nums; }
+.nutrition-hydration-top small { font-size:13px; font-weight:normal; color:var(--label-2); }
+.nutrition-hydration progress { display:block; height:6px; margin-block:8px 10px; }
+.nutrition-hydration-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.nutrition-hydration-actions > .btn.tinted { flex:1 1 110px; justify-content:center; }
+
+.nutrition-meal-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.nutrition-meal-menu { position:relative; }
+.nutrition-meal-menu > summary { display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; padding:0 8px; border-radius:var(--r); list-style:none; border:1px solid var(--sep); background:var(--surface-2); color:var(--label); font-size:18px; line-height:1; }
+.nutrition-meal-menu > summary::-webkit-details-marker { display:none; }
+.nutrition-meal-menu-popover { position:absolute; inset-inline-end:0; top:calc(100% + 6px); z-index:15; display:grid; gap:4px; padding:6px; width:min(240px,calc(100vw - 40px)); border:1px solid var(--sep); background:var(--bg-el); box-shadow:0 12px 32px #0003; border-radius:var(--r-lg); }
+.nutrition-meal-menu:not([open]) > .nutrition-meal-menu-popover { display:none; }
+.nutrition-meal-menu-popover .btn { justify-content:flex-start; text-align:start; width:100%; }
+.nutrition-meal-empty-actions { margin-top:10px; }
+.nutrition-meal-empty-actions > .btn { width:100%; justify-content:center; }
+.nutrition-meal-duplicate { margin-top:12px; padding:12px; border:1px solid var(--sep); border-radius:var(--r); background:var(--surface-2); }
+
+.nutrition-picker-meal-bar { margin-block:10px 8px; }
+.nutrition-meal-pills { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; padding:4px; border-radius:var(--r-lg); background:var(--surface-2); }
+.nutrition .nutrition-meal-pill { min-height:44px; min-width:0; padding:6px 8px; font-size:13px; line-height:1.2; border-radius:var(--r); justify-content:center; }
+.nutrition-picker-meal-select { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+
+.nutrition-picker-toolbar { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; margin-block:10px; }
+.nutrition-picker-quick-actions { display:flex; align-items:center; gap:6px; }
+.nutrition-result-row { display:grid; grid-template-columns:minmax(0,1fr) 44px; gap:6px; align-items:stretch; }
+.nutrition .nutrition-quick-pick { width:44px; min-width:44px; min-height:44px; height:auto; padding:0; font-size:15px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; border-radius:var(--r); flex-shrink:0; }
+.nutrition-result-title { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.nutrition-habit-badge, .nutrition-added-badge { display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; font-size:11px; font-weight:600; line-height:1.3; }
+.nutrition-habit-badge { background:var(--surface); border:1px solid var(--sep); color:var(--label-2); }
+.nutrition-added-badge { background:var(--acc-soft); color:var(--acc); }
+
+.nutrition-quick-add { padding:14px; margin-block:10px; border:1px solid var(--sep); border-radius:var(--r-lg); background:var(--surface-2); }
+.nutrition-quick-add-macros { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.nutrition-editor-continue { margin-top:8px; }
+.nutrition-catalog-embedded { margin-top:16px; padding-top:14px; border-top:1px solid var(--sep); }
+.nutrition-catalog-heading { display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+.nutrition .nutrition-catalog-heading h3 { margin:0; font-size:15px; }
+.nutrition-catalog-heading p { margin:0; }
+.nutrition-catalog-error { display:grid; gap:8px; margin-block:8px; }
+.nutrition-picker-session-bar { position:sticky; bottom:8px; z-index:10; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; margin-top:12px; border-radius:var(--r-lg); background:var(--bg-el); border:1px solid var(--acc); box-shadow:0 8px 24px #0004; font-weight:600; font-size:14px; }
+
+@media (max-width:480px) {
+  .nutrition-picker-toolbar { grid-template-columns:minmax(0,1fr); }
+  .nutrition-picker-quick-actions > .btn:not(.nutrition-icon-action) { flex:1; justify-content:center; }
+  .nutrition-meal-pills { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}

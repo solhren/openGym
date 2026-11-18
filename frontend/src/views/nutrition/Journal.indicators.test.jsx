@@ -28,8 +28,8 @@ afterEach(async () => {
   if (theme === undefined) delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = theme
   await setLang('en', false)
 })
-async function show(goals = [], rows = [entry()]) {
-  const summary = daySummary(rows, goals, day)
+async function show(goals = [], rows = [entry()], options = {}) {
+  const summary = daySummary(rows, goals, day, options)
   await act(async () => root.render(<IntakeIndicators summary={summary} />))
   return summary
 }
@@ -97,4 +97,32 @@ test.each([320, 390, 768, 1280])('indicator grid applies responsive rules at %i 
   expect(window.getComputedStyle(cards()[0]).gridColumn).toBe('1 / -1')
   expect(window.getComputedStyle(cards()[0]).minWidth).toBe('0')
   expect(cards()).toHaveLength(4)
+})
+
+test('active goal shows Training day vs Rest day badge and applies trainingTargets override', async () => {
+  const dualGoal = {
+    ...goal({ kcal: 2000, protein: 140, carbs: 200, fat: 65 }),
+    trainingTargets: { kcal: 2400, carbs: 300 },
+  }
+  await show([dualGoal], [entry()], { isTrainingDay: false })
+  expect(host.querySelector('.nutrition-day-badge')?.textContent).toBe('Rest day')
+  expect(cards()[0].textContent).toContain('1,810 remaining')
+  expect(cards()[2].textContent).toContain('170 remaining')
+
+  await show([dualGoal], [entry()], { isTrainingDay: true })
+  expect(host.querySelector('.nutrition-day-badge')?.textContent).toBe('Training day')
+  expect(host.querySelector('.nutrition-day-badge')?.classList.contains('is-training')).toBe(true)
+  expect(cards()[0].textContent).toContain('2,210 remaining')
+  expect(cards()[2].textContent).toContain('270 remaining')
+})
+
+test('fiber indicator renders as fifth card whenever activeTargets.fiber is defined', async () => {
+  await show([goal({ kcal: 2000, protein: 140, carbs: 200, fat: 65, fiber: 30 })], [entry()])
+  expect(cards()).toHaveLength(5)
+  const fiberCard = cards()[4]
+  expect(fiberCard.classList.contains('nutrition-indicator-fiber')).toBe(true)
+  expect(fiberCard.querySelector('h2').textContent).toBe('Fiber')
+  expect(fiberCard.textContent).toContain('25 remaining')
+  expect(fiberCard.querySelector('progress').max).toBe(30)
+  expect(fiberCard.querySelector('progress').value).toBe(5)
 })
