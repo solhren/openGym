@@ -1,9 +1,10 @@
-import { assertValid, MASS_UNITS, VOLUME_UNITS } from './contracts.js'
+import { assertValid, MASS_UNITS, NUTRIENTS, VOLUME_UNITS } from './contracts.js'
 import { validateFood, validateRecipe, validateFoodEntry, validateNutritionGoal, isNutritionDate } from './validate.js'
 import { canonicalJson, check, jsonClone, journalPartitionId, libraryPartitionId } from './persistence-contract.js'
 import { encodePartition } from './serialization.js'
 import { MAX_BACKUP_BYTES } from './backup-contract.js'
 import { sumFoodEntries, nutrientsForQuantity, remainingNutrients } from './calculate.js'
+import { DEFAULT_WATER_TARGET_ML, isWaterEntry, sumWaterEntries } from './meal-helpers.js'
 
 export const newNutritionId = () => {
   check(typeof globalThis.crypto?.getRandomValues === 'function', 'identity', 'secure_random_required')
@@ -40,18 +41,52 @@ export function goalForDay(goals, day) {
   const applicable = goals.filter(g => g.start <= day && (!g.end || g.end >= day))
   return { goal: applicable.length === 1 ? applicable[0] : null, overlapping: applicable.length > 1 }
 }
-export function daySummary(entries, goals, day) {
-  const sum = sumFoodEntries(entries.filter(row => row.d === day)), selected = goalForDay(goals, day)
-  return { ...sum, ...selected, remaining: remainingNutrients(sum.totals, selected.goal?.targets ?? {}) }
+export function effectiveGoalTargets(goal, isTraining = false) {
+  if (!goal) return null
+  if (isTraining && goal.trainingTargets && Object.values(goal.trainingTargets).some(v => v != null)) {
+    const merged = {}
+    for (const k of NUTRIENTS) {
+      merged[k] = goal.trainingTargets[k] != null ? goal.trainingTargets[k] : (goal.targets?.[k] ?? null)
+    }
+    return merged
+  }
+  return goal.targets
 }
-export function historyDays(entries, goals, start, end) {
+export function daySummary(entries, goals, day, options = {}) {
+  const isTraining = typeof options?.isTrainingDay === 'function' ? Boolean(options.isTrainingDay(day)) : Boolean(options?.isTrainingDay)
+  const dayEntries = entries.filter(row => row.d === day)
+  const foodEntries = dayEntries.filter(e => !isWaterEntry(e))
+  const water = sumWaterEntries(dayEntries)
+  const sum = sumFoodEntries(foodEntries)
+  const { goal, overlapping } = goalForDay(goals, day)
+  const activeTargets = effectiveGoalTargets(goal, isTraining)
+  const remaining = remainingNutrients(sum.totals, activeTargets ?? {})
+  const waterTargetMl = overlapping ? null : (goal ? (goal.waterTargetMl ?? DEFAULT_WATER_TARGET_ML) : DEFAULT_WATER_TARGET_ML)
+  const waterRemainingMl = waterTargetMl != null ? waterTargetMl - water.totalMl : null
+  return {
+    ...sum,
+    count: foodEntries.length,
+    goal,
+    activeTargets,
+    isTrainingDay: isTraining,
+    overlapping,
+    remaining,
+    waterMl: water.totalMl,
+    waterEntries: water.entries,
+    waterTargetMl,
+    waterRemainingMl,
+  }
+}
+export function historyDays(entries, goals, start, end, options = {}) {
   check(isNutritionDate(start) && isNutritionDate(end) && start <= end, 'period', 'invalid_period')
   const days = [], date = new Date(`${start}T12:00:00Z`)
   for (;;) {
     const d = date.toISOString().slice(0, 10)
     if (d > end) break
     check(days.length < 366, 'period', 'ui_period_too_large')
-    days.push({ d, ...daySummary(entries, goals, d) })
+    const isTraining = typeof options?.isTrainingDay === 'function' ? Boolean(options.isTrainingDay(d)) : Boolean(options?.isTrainingDay)
+    const summary = daySummary(entries, goals, d, { ...options, isTrainingDay: isTraining })
+    days.push({ d, ...summary })
     if (d === end) break // Do not advance into JavaScript's extended (>9999) ISO year.
     date.setUTCDate(date.getUTCDate() + 1)
   }

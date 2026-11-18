@@ -2,7 +2,8 @@ import { test, expect } from 'vitest'
 import { backupFixture } from './backup.test-util.js'
 import { food, entry, recipe } from './fixtures.test-util.js'
 import { hasCode } from './persistence.test-util.js'
-import { createNutritionCommands, nutritionNumber, quantityOptions, quantityValue, editedQuantity, daySummary, historyDays, nutritionSearchText } from './ui-service.js'
+import { createNutritionCommands, nutritionNumber, quantityOptions, quantityValue, editedQuantity, effectiveGoalTargets, daySummary, historyDays, nutritionSearchText } from './ui-service.js'
+import { createWaterEntry } from './meal-helpers.js'
 import { createRecipeSnapshot } from './recipe.js'
 import { encodePartition } from './serialization.js'
 import { jsonClone, libraryPartitionId } from './persistence-contract.js'
@@ -190,4 +191,90 @@ test('quota during an optimized edit leaves the warm view, durable root and pend
   expect((await f.store.readDay(row.d)).entries).toEqual(view.entries)
   expect((await f.store.read()).head).toEqual(before.head)
   expect((await f.store.read()).pendingOperations).toEqual(before.pendingOperations)
+})
+
+test('effectiveGoalTargets merges partial training overrides while inheriting base macros', () => {
+  expect(effectiveGoalTargets(null, true)).toBeNull()
+  const goal = {
+    schemaVersion: 1,
+    id: 'g-1',
+    start: '2026-10-01',
+    end: null,
+    mode: 'bulk',
+    targets: { kcal: 2400, protein: 170, carbs: 260, fat: 75, fiber: 32 },
+    trainingTargets: { kcal: 2750, carbs: 345, protein: null },
+    waterTargetMl: 3200,
+  }
+  expect(effectiveGoalTargets(goal, false)).toEqual(goal.targets)
+  expect(effectiveGoalTargets(goal, true)).toEqual({
+    kcal: 2750,
+    protein: 170,
+    carbs: 345,
+    fat: 75,
+    fiber: 32,
+    sugar: null,
+    saturatedFat: null,
+    sodium: null,
+  })
+  // All-null trainingTargets behaves as unset
+  expect(effectiveGoalTargets({ ...goal, trainingTargets: { kcal: null, carbs: null } }, true)).toEqual(goal.targets)
+})
+
+test('daySummary and historyDays isolate water from food counts/macros and switch targets on training days', async () => {
+  const goal = {
+    schemaVersion: 1,
+    id: 'g-train',
+    start: '2026-10-01',
+    end: null,
+    mode: 'cut',
+    targets: { kcal: 2000, protein: 160, carbs: 180, fat: 65, fiber: 30, sugar: null, saturatedFat: null, sodium: null },
+    trainingTargets: { kcal: 2350, carbs: 265, protein: null, fat: null, fiber: null, sugar: null, saturatedFat: null, sodium: null },
+    waterTargetMl: 3000,
+  }
+  const foodRow = entry({ id: 'f-1', d: '2026-10-10' }) // 190 kcal
+  const w1 = createWaterEntry({ id: 'w-1', date: '2026-10-10', ml: 500 })
+  const w2 = createWaterEntry({ id: 'w-2', date: '2026-10-10', ml: 750 })
+  const wOnly = createWaterEntry({ id: 'w-3', date: '2026-10-11', ml: 1000 })
+
+  const restDay = daySummary([foodRow, w1, w2, wOnly], [goal], '2026-10-10', { isTrainingDay: false })
+  expect(restDay.count).toBe(1)
+  expect(restDay.isTrainingDay).toBe(false)
+  expect(restDay.activeTargets.kcal).toBe(2000)
+  expect(restDay.remaining.kcal).toBe(2000 - 190)
+  expect(restDay.waterMl).toBe(1250)
+  expect(restDay.waterEntries.map(e => e.id)).toEqual(['w-1', 'w-2'])
+  expect(restDay.waterTargetMl).toBe(3000)
+  expect(restDay.waterRemainingMl).toBe(1750)
+
+  const trainDay = daySummary([foodRow, w1, w2], [goal], '2026-10-10', { isTrainingDay: d => d === '2026-10-10' })
+  expect(trainDay.isTrainingDay).toBe(true)
+  expect(trainDay.activeTargets.kcal).toBe(2350)
+  expect(trainDay.activeTargets.protein).toBe(160)
+  expect(trainDay.remaining.kcal).toBe(2350 - 190)
+
+  // Water-only day must keep food count === 0 and default waterTargetMl = 2500 when no goal applies
+  const waterOnlyNoGoal = daySummary([wOnly], [], '2026-10-11')
+  expect(waterOnlyNoGoal.count).toBe(0)
+  expect(waterOnlyNoGoal.waterMl).toBe(1000)
+  expect(waterOnlyNoGoal.waterTargetMl).toBe(2500)
+  expect(waterOnlyNoGoal.waterRemainingMl).toBe(1500)
+
+  // Overlapping goals clear waterTargetMl / waterRemainingMl
+  const overlap = daySummary([w1], [goal, { ...goal, id: 'g-2' }], '2026-10-10')
+  expect(overlap.overlapping).toBe(true)
+  expect(overlap.waterTargetMl).toBeNull()
+  expect(overlap.waterRemainingMl).toBeNull()
+
+  const days = historyDays([foodRow, w1, w2, wOnly], [goal], '2026-10-10', '2026-10-11', {
+    isTrainingDay: d => d === '2026-10-10',
+  })
+  expect(days[0]).toMatchObject({ d: '2026-10-10', count: 1, isTrainingDay: true, waterMl: 1250, waterTargetMl: 3000 })
+  expect(days[1]).toMatchObject({ d: '2026-10-11', count: 0, isTrainingDay: false, waterMl: 1000, waterTargetMl: 3000 })
+
+  // Durable save + clear optional trainingTargets/waterTargetMl to null (no key deletion)
+  const f = await backupFixture(), cmd = createNutritionCommands({ store: f.store })
+  await cmd.save('nutritionGoals', goal)
+  const cleared = { ...goal, trainingTargets: null, waterTargetMl: null }
+  await cmd.save('nutritionGoals', cleared, goal)
+  expect((await f.store.readLibrary()).domains[0].records.nutritionGoals[0]).toEqual(cleared)
 })
